@@ -21,6 +21,12 @@
       <Filter>ServerNetwork</Filter>
     </ClInclude>
     <ClInclude Include="EchoServer.h" />
+    <ClInclude Include="Packet.h">
+      <Filter>ServerNetwork</Filter>
+    </ClInclude>
+    <ClInclude Include="ClientSession.h">
+      <Filter>ServerNetwork</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />

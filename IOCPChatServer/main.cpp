@@ -19,7 +19,8 @@ int main()
 	Server.BindandListen(SERVER_PORT);
 
 	//ioCompletionPort.StartServer(MAX_CLIENT);
-	Server.StartServer(MAX_CLIENT);
+	//Server.StartServer(MAX_CLIENT);
+	Server.Run(MAX_CLIENT);
 
 	printf("아무키나 누를 때까지 대기 \n");
 	getchar();
