@@ -3,7 +3,9 @@
 #include <Ws2tcpip.h>
 
 
-#define MAX_SOCKBUF 1024	// 패킷 크기
+//#define MAX_SOCKBUF 1024	// 패킷 크기
+const UINT32 MAX_SOCKBUF = 1024;
+const UINT32 MAX_SOCK_SENDBUF = 4096;	// 소켓 버퍼 크기
 #define MAX_WORKERTHREAD 4	// 쓰레드 풀에 넣을 쓰레드 수
 
 enum class IOOperation

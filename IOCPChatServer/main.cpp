@@ -35,8 +35,7 @@ int main()
 		}
 	}
 
-	//ioCompletionPort.DestroyThread();
-	Server.DestroyThread();
+	Server.End();
 
 	return 0;
 }

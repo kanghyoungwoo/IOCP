@@ -40,6 +40,16 @@ public:
 		StartServer(maxClient);
 	}
 
+	void End()
+	{
+		mIsRunProcessThread = false;
+		if (mProcessThread.joinable())
+		{
+			mProcessThread.join();
+		}
+		DestroyThread();
+	}
+
 	//서버 시작할때 processpacket을 처리하는 쓰레드를 만듦->queue에 있는 data를 읽어오고 그 데이터가 쓸 수 있는 데이터면(datasize가 있으면) send하고 아니라면(datasize)가 없다면 재움(cpu 낭비를 줄임)
 
 private:
