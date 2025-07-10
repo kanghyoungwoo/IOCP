@@ -105,7 +105,7 @@ public:
 			return false;
 		}
 
-		CreateSendThread();
+		//CreateSendThread();
 
 		printf("서버 시작 \n");
 		return true;
@@ -184,12 +184,12 @@ private:
 		return true;
 	}
 
-	void CreateSendThread()
-	{
-		mIsSenderRun = true;
-		mSendThread = std::thread([this]() { SendThread(); });
-		printf("SendThread Start !\n");
-	}
+	//void CreateSendThread()
+	//{
+	//	mIsSenderRun = true;
+	//	mSendThread = std::thread([this]() { SendThread(); });
+	//	printf("SendThread Start !\n");
+	//}
 
 	// 사용하지 않는 클라이언트의 정보 구조체를 반환
 	ClientSession* GetEmptyClientInfo()
@@ -325,21 +325,21 @@ private:
 		}
 	}
 
-	void SendThread()
-	{
-		while (mIsSenderRun)
-		{
-			for (auto client : mClientInfos)
-			{
-				if (client->IsConnected() == false)
-				{
-					continue; // 접속이 안되면 넘어가고
-				}
-				client->SendIO(); // 접속이 된 client에 한해서 sendio
-			}
-			std::this_thread::sleep_for(std::chrono::milliseconds(10));
-		}
-	}
+	//void SendThread()
+	//{
+	//	while (mIsSenderRun)
+	//	{
+	//		for (auto client : mClientInfos)
+	//		{
+	//			if (client->IsConnected() == false)
+	//			{
+	//				continue; // 접속이 안되면 넘어가고
+	//			}
+	//			client->SendIO(); // 접속이 된 client에 한해서 sendio
+	//		}
+	//		std::this_thread::sleep_for(std::chrono::milliseconds(10));
+	//	}
+	//}
 
 	// 소켓의 연결을 종료
 	void CloseSocket(ClientSession* pClientSession, bool bIsForce = false)

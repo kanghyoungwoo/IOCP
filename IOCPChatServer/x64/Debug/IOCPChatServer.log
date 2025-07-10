@@ -1,3 +1,2 @@
 ﻿  main.cpp
-C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\ClientSession.h(179,39): warning C4244: '=': 'UINT64'에서 'ULONG'(으)로 변환하면서 데이터가 손실될 수 있습니다.
   IOCPChatServer.vcxproj -> C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\x64\Debug\IOCPChatServer.exe

@@ -3,6 +3,7 @@
 #include "Define.h"
 #include <stdio.h>
 #include <mutex>
+#include <queue>
 
 //// 클라이언트 정보를 담기 위한 구조체
 //typedef struct _stClientInfo
@@ -105,6 +106,23 @@ public:
 	// WSASend Overlapped I/O 작업을 시작
 	bool SendMsg(const UINT32 dataSize, char* pMsg)
 	{
+		auto sendOverlappedEx = new stOverlappedEx;
+		ZeroMemory(sendOverlappedEx, sizeof(stOverlappedEx));
+		sendOverlappedEx->m_wsaBuf.len = dataSize;
+		sendOverlappedEx->m_wsaBuf.buf = new char[dataSize];
+		CopyMemory(sendOverlappedEx->m_wsaBuf.buf, pMsg, dataSize);
+		sendOverlappedEx->m_eOperation = IOOperation::SEND;
+
+		std::lock_guard<std::mutex> guard(mSendLock);
+		mSendDataqueue.push(sendOverlappedEx);
+		// 데이터가 1개라면 앞에 데이터가 없으니 바로 wsasend
+		if (mSendDataqueue.size() == 1)
+		{
+			SendIO();
+		}
+
+		// buffer를 이용한 1-send
+		/*
 		std::lock_guard<std::mutex>guard(mSendLock);
 		if ((mSendPos + dataSize) > MAX_SOCK_SENDBUF)
 		{
@@ -115,6 +133,8 @@ public:
 		// 전송 메세지 복사
 		CopyMemory(pSendBuf, pMsg, dataSize);
 		mSendPos += dataSize;
+		*/
+
 
 		return true;
 	}
@@ -165,6 +185,26 @@ public:
 
 	bool SendIO()
 	{
+		auto sendOverlappedEx = mSendDataqueue.front();
+		DWORD dwRecvNumBytes = 0;
+		int nRet = WSASend(
+			m_socketClient,
+			&(sendOverlappedEx->m_wsaBuf),
+			1,
+			&dwRecvNumBytes,
+			0,
+			(LPWSAOVERLAPPED)sendOverlappedEx,
+			NULL
+		);
+
+		if (nRet == SOCKET_ERROR && (WSAGetLastError() != ERROR_IO_PENDING))
+		{
+			printf("[ERROR] WSASend() 실패 : %d\n", WSAGetLastError());
+			return false;
+		}
+
+		// buffer방식의 1-send
+		/*
 		if (mSendPos <= 0 || mIsSending)
 		{
 			return true;
@@ -195,13 +235,26 @@ public:
 			return false;
 		}
 		mSendPos = 0;
+		*/
+
 		return true;
 	}
 
 	void SendComplete(const UINT32 dataSize_)
 	{
+		// buffer방식을 이용한 1-send
+		/*
 		mIsSending = false;
+		*/
 		printf("[송신 완료] bytes : %d\n", dataSize_);
+		std::lock_guard<std::mutex> guard(mSendLock);
+		delete[] mSendDataqueue.front()->m_wsaBuf.buf;
+		delete mSendDataqueue.front();
+		mSendDataqueue.pop();
+		if (mSendDataqueue.empty() == false)
+		{
+			SendIO();
+		}
 	}
 
 private:
@@ -212,8 +265,9 @@ private:
 	std::mutex mSendLock;
 	bool mIsSending = false;
 	UINT64 mSendPos = 0; // SendBuffer의 시작위치 지정 변수
-
+	
 	char mRecvBuf[MAX_SOCKBUF];	// 데이터 버퍼
 	char mSendBuf[MAX_SOCKBUF]; // 데이터 버퍼
 	char mSendingBuf[MAX_SOCK_SENDBUF];
+	std::queue<stOverlappedEx*> mSendDataqueue;
 };
