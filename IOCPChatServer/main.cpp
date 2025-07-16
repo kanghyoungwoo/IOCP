@@ -3,7 +3,8 @@
 #include <string>
 #include <iostream>
 const UINT16 SERVER_PORT = 25000;
-const UINT16 MAX_CLIENT = 100;	// 총 접속 가능한 클라이언트 수
+const UINT16 MAX_CLIENT = 3;	// 총 접속 가능한 클라이언트 수
+const UINT32 MAX_IO_WORKER_THREAD = 4;
 
 int main()
 {
@@ -12,7 +13,8 @@ int main()
 
 	// 소켓을 초기화
 	//ioCompletionPort.InitSocket();
-	Server.InitSocket();
+	//Server.InitSocket();
+	Server.Init(MAX_IO_WORKER_THREAD);
 
 	// 소켓과 서버 주소를 연결하고 등록
 	//ioCompletionPort.BindandListen(SERVER_PORT);
@@ -23,7 +25,7 @@ int main()
 	Server.Run(MAX_CLIENT);
 
 	printf("아무키나 누를 때까지 대기 \n");
-	getchar();
+	
 	while (true)
 	{
 		std::string input;

@@ -1,7 +1,6 @@
 #pragma once
 #pragma comment(lib, "ws2_32")
 
-
 #include "Define.h"
 #include "ClientSession.h"
 #include <thread>
@@ -14,14 +13,15 @@ class IOCompletionPort
 public:
 	IOCompletionPort(void) {}
 	
-	~IOCompletionPort(void)
+	virtual ~IOCompletionPort(void)
 	{
 		// 윈속 사용 끝
 		WSACleanup();
 	}
 
 	// 소켓을 초기화 하는 함수
-	bool InitSocket()
+
+	bool Init(const UINT32 Max_IO_Worker_Threads_Count)
 	{
 		WSADATA wsaData;
 
@@ -41,9 +41,34 @@ public:
 			return false;
 		}
 
+		MaxIOWorkerThreadCount = Max_IO_Worker_Threads_Count;
+
 		printf("SOCKET 초기화 성공\n");
 		return true;
 	}
+	//bool InitSocket()
+	//{
+	//	WSADATA wsaData;
+
+	//	int nRet = WSAStartup(MAKEWORD(2, 2), &wsaData);
+	//	if (nRet != 0)
+	//	{
+	//		printf("[ERROR] WSAStartup() 실패 : %d\n", WSAGetLastError());
+	//		return false;
+	//	}
+
+	//	// TCP, Overlapped I/O 소켓을 생성
+	//	mListenSocket = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, NULL, WSA_FLAG_OVERLAPPED);
+
+	//	if (mListenSocket == INVALID_SOCKET)
+	//	{
+	//		printf("[ERROR] socket() 실패 : %d\n", WSAGetLastError());
+	//		return false;
+	//	}
+
+	//	printf("SOCKET 초기화 성공\n");
+	//	return true;
+	//}
 
 	// ------------------  서버용 함수 ------------------------
 	// 서버의 주소 정보를 소켓과 연결시키고 접속 요청을 받기 위해
@@ -66,12 +91,29 @@ public:
 			return false;
 		}
 
-		// 접속 요청을 받아들이기 위한 cIOCompletionPort 소켓을 등록하고
-		// 접속대기큐를 5개로 설정
+		// 접속대기큐 5개 설정
 		nRet = listen(mListenSocket, 5);
+
 		if (nRet != 0)
 		{
-			printf("[ERROR] listen() 실패 : %d\n", GetLastError());
+			printf("[ERROR] listen() 실패 : %d\n", WSAGetLastError());
+			return false;
+		}
+
+		// 처음 IOCP QUEUE만들땐 인자 NULL, 마지막인자 0이면 OS에 맡김
+		mIOCPHandle = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, NULL, MaxIOWorkerThreadCount);
+
+		if (mIOCPHandle == NULL)
+		{
+			printf("[에러] CreateIoCompletionPort()함수 실패: %d\n", GetLastError());
+			return false;
+		}
+
+		auto hIOCPHandle = CreateIoCompletionPort((HANDLE)mListenSocket, mIOCPHandle, 0, 0);
+
+		if (hIOCPHandle == NULL)
+		{
+			printf("[에러] listen socket IOCP bind 실패 : %d\n", WSAGetLastError());
 			return false;
 		}
 
@@ -84,15 +126,8 @@ public:
 	{
 		CreateClient(maxClientCount);
 
-		// 처음 IOCP QUEUE만들땐 인자 NULL, 마지막인자 0이면 OS에 맡김
-		mIOCPHandle = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, NULL, MAX_WORKERTHREAD);
+		// mIOCPHandle = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, NULL, MAX_WORKERTHREAD);
 		
-		if (mIOCPHandle == NULL)
-		{
-			printf("[ERROR] CreateIoCompletionPort() 실패 : %d\n", GetLastError());
-			return false;
-		}
-
 		bool bRet = CreateWorkerThread();
 		if (bRet == false)
 		{
@@ -115,16 +150,6 @@ public:
 	void DestroyThread()
 	{
 		mIsWorkerRun = false;
-		if (mSendThread.joinable())
-		{
-			mSendThread.join();
-		}
-		mIsAccepterRun = false;
-		if (mAccepterThread.joinable())
-		{
-			mAccepterThread.join();
-		}
-		mIsWorkerRun = false;
 
 		CloseHandle(mIOCPHandle);
 
@@ -134,6 +159,13 @@ public:
 			{
 				th.join();
 			}
+		}
+
+		mIsAccepterRun = false;
+		closesocket(mListenSocket);
+		if (mAccepterThread.joinable())
+		{
+			mAccepterThread.join();
 		}
 	}
 	// 클라이언트의 정보를 받아서
@@ -154,7 +186,7 @@ private:
 		for (int i = 0;i < maxClientCount;++i)
 		{
 			auto client = new ClientSession();
-			client->Init(i);
+			client->Init(i,mIOCPHandle);
 			mClientInfos.emplace_back(client);
 
 		}
@@ -260,8 +292,22 @@ private:
 			//auto pOverlappedEx = (stOverlappedEx*)lpOverlapped;
 			stOverlappedEx* pOverlappedEx = (stOverlappedEx*)lpOverlapped;
 
+			if (IOOperation::ACCEPT == pOverlappedEx->m_eOperation)
+			{
+				pClientSession = GetClientInfo(pOverlappedEx->clientSessionIndex);
+				if (pClientSession->AcceptCompletion())
+				{
+					++mClientCnt;
+					OnConnect(pClientSession->GetIndex());
+				}
+				else
+				{
+					CloseSocket(pClientSession,true);
+				}
+			}
+
 			// Overlapped I/O Recv 작업 결과 뒤 처리
-			if (IOOperation::RECV == pOverlappedEx->m_eOperation)
+			else if (IOOperation::RECV == pOverlappedEx->m_eOperation)
 			{
 				OnReceive(pClientSession->GetIndex(), dwIoSize, pClientSession->RecvBuff());
 
@@ -270,7 +316,7 @@ private:
 			}
 
 			// Overlapped I/O Send 작업 결과 뒤 처리
-			else if (IOOperation::SEND == pOverlappedEx->m_eOperation)
+			else if (IOOperation::SEND == pOverlappedEx->m_eOperation) // 연결이 완료되면
 			{
 				pClientSession->SendComplete(dwIoSize);
 
@@ -278,7 +324,7 @@ private:
 			// 예외
 			else
 			{
-				printf("Client Index : (%d)에서 예외상황\n", (int)pClientSession->GetIndex());
+				printf("Client Index : (%d)에서 예외상황\n", pClientSession->GetIndex());
 			}
 		}
 	}
@@ -286,6 +332,33 @@ private:
 	//사용자의 접속을 받는 쓰레드
 	void AccepterThread()
 	{
+		while (mIsAccepterRun)
+		{
+			auto curTimeSec = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+			
+			for (auto client : mClientInfos) // 모든 client 객체를 순회하며 
+			{
+				if (client->IsConnected()) // 연결이 된 객체는 
+				{
+					continue; // 넘어가며
+				}
+				if ((UINT64)curTimeSec < client->GetLatestClosedTimeSec())
+				{
+					continue;
+				}
+
+				auto diff = curTimeSec - client->GetLatestClosedTimeSec();
+				if (diff <= RE_USE_SESSION_WAIT_TIMESEC)
+				{
+					continue;
+				}
+				// 연결이 되지 않은 객체가 있다면 비동기 accept
+				client->PostAccept(mListenSocket, curTimeSec);
+			}
+			std::this_thread::sleep_for(std::chrono::milliseconds(32));
+		}
+		// 기존 thread를 이용한 accept 방식
+		/*
 		SOCKADDR_IN		stClientAddr;
 		int nAddrLen = sizeof(SOCKADDR_IN);
 
@@ -323,6 +396,7 @@ private:
 			// 클라이언트 갯수 증가
 			++mClientCnt;
 		}
+		*/
 	}
 
 	//void SendThread()
@@ -376,5 +450,8 @@ private:
 	// 접속 쓰레드 동작 플래그
 	bool	mIsAccepterRun = true;
 
-	bool	mIsSenderRun = false;
+	//bool	mIsSenderRun = false;
+
+	UINT32 MaxIOWorkerThreadCount = 0;
+
 };

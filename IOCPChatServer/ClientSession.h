@@ -1,5 +1,7 @@
 #pragma once
+#pragma comment(lib, "mswsock.lib")
 
+#include <MSWSock.h>
 #include "Define.h"
 #include <stdio.h>
 #include <mutex>
@@ -30,13 +32,14 @@ public:
 	ClientSession()
 	{
 		ZeroMemory(&m_stRecvOverlappedEx, sizeof(_stOverlappedEx));
-		ZeroMemory(&m_stSendOverlappedEx, sizeof(_stOverlappedEx));
+		//ZeroMemory(&m_stSendOverlappedEx, sizeof(_stOverlappedEx));
 		m_socketClient = INVALID_SOCKET;
 	}
 
-	void Init(const UINT32 index)
+	void Init(const UINT32 index, HANDLE iocpHandle)
 	{
 		mIndex = index;
+		mIOCPHandle = iocpHandle;
 	}
 
 	UINT32 GetIndex()
@@ -46,7 +49,8 @@ public:
 
 	bool IsConnected()
 	{
-		return m_socketClient != INVALID_SOCKET;
+		//return m_socketClient != INVALID_SOCKET;
+		return mIsConnected;// = true;
 	}
 
 	SOCKET GetSocket()
@@ -64,9 +68,18 @@ public:
 		return mSendBuf;
 	}
 
+	UINT64 GetLatestClosedTimeSec()
+	{
+		return mLatestClosedTimeSec;
+	}
+
+
 	bool OnConnect(HANDLE iocpHandle, SOCKET socket)
 	{
 		m_socketClient = socket;
+		mIsConnected = true;
+
+		//Clear();
 		if (BindIOCompletionPort(iocpHandle) == false)
 		{
 			return false;
@@ -74,7 +87,7 @@ public:
 		return BindRecv();
 	}
 
-	void Closed(bool bIsForced)
+	void Closed(bool bIsForced = false)
 	{
 		// SO_LINGER를 사용하면 소켓을 close 했을 때 전송되지 않은 데이터를 어떻게 처리할 것인지 조정함
 		struct linger stLinger = { 0,0 };	//SO_DONTLINGER로 설정
@@ -90,6 +103,10 @@ public:
 
 		// 소켓 옵션을 설정
 		setsockopt(m_socketClient, SOL_SOCKET, SO_LINGER, (char*)&stLinger, sizeof(stLinger));
+
+		mIsConnected = false;
+
+		mLatestClosedTimeSec = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
 
 		// 소켓 연결을 종료
 		closesocket(m_socketClient);
@@ -142,7 +159,7 @@ public:
 	bool BindRecv()
 	{
 		DWORD dwFlag = 0;
-		DWORD dwRecvNumByter = 0;
+		DWORD dwRecvNumBytes = 0;
 
 		// Overlapped I/O를 위해 각 정보를 세팅
 		m_stRecvOverlappedEx.m_wsaBuf.len = MAX_SOCKBUF;
@@ -152,7 +169,7 @@ public:
 		int nRet = WSARecv(m_socketClient,
 			&(m_stRecvOverlappedEx.m_wsaBuf),
 			1,
-			&dwRecvNumByter,
+			&dwRecvNumBytes,
 			&dwFlag,
 			(LPWSAOVERLAPPED) & (m_stRecvOverlappedEx),
 			NULL);
@@ -163,6 +180,7 @@ public:
 			printf("[ERROR] WSARecv() 실패 : %d\n", WSAGetLastError());
 			return false;
 		}
+		printf("bind recv 성공\n");
 		return true;
 	}
 
@@ -179,6 +197,7 @@ public:
 			printf("[ERROR] CreateIoCompletionPort() 실패 : %d\n", GetLastError());
 			return false;
 		}
+		printf("BindIOCompletionport 성공!\n");
 
 		return true;
 	}
@@ -257,17 +276,112 @@ public:
 		}
 	}
 
+	bool AcceptCompletion()
+	{
+		printf("AcceptCompletion : SessionIndex(%d)\n", mIndex);
+		if (OnConnect(mIOCPHandle, m_socketClient) == false)
+		{
+			return false;
+		}
+		SOCKADDR_IN stClientAddr;
+		int nAddrLen = sizeof(SOCKADDR_IN);
+		char clientIP[32] = { 0 };
+		inet_ntop(AF_INET, &(stClientAddr.sin_addr), clientIP, 32 - 1);
+		printf("Client IP : %s, SOCKET(%d)\n", clientIP, (int)m_socketClient);
+
+		return true;
+	}
+
+	bool PostAccept(SOCKET listenSock, const UINT64 curTimeSec)
+	{
+		printf("PostAccept Client Index : %d\n", GetIndex());
+
+		mLatestClosedTimeSec = UINT32_MAX;
+		m_socketClient = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_IP, NULL, 0, WSA_FLAG_OVERLAPPED);
+		if (m_socketClient == INVALID_SOCKET)
+		{
+			printf("Client Socket Error : %d \n", GetLastError());
+			return false;
+		}
+
+		ZeroMemory(&mAcceptContext, sizeof(stOverlappedEx));
+		DWORD bytes = 0;
+		DWORD flags = 0;
+		mAcceptContext.m_wsaBuf.len = 0;
+		mAcceptContext.m_wsaBuf.buf = nullptr;
+		mAcceptContext.m_eOperation = IOOperation::ACCEPT;
+ 		mAcceptContext.clientSessionIndex = mIndex;
+		//(sizeof(SOCKADDR_IN) + 16) * 2
+		bool bRet = AcceptEx(listenSock, m_socketClient, mAcceptbuf, 10, sizeof(SOCKADDR_IN) + 16, sizeof(SOCKADDR_IN) + 16, &bytes, (LPWSAOVERLAPPED) & (mAcceptContext));
+
+
+
+		if (bRet == FALSE)
+		{
+			int err = WSAGetLastError();
+			if (err != WSA_IO_PENDING)
+			{
+				printf("[ERROR] AcceptEx 실패! 에러 코드: %d\n", err);
+				return false;
+			}
+			else
+			{
+				printf("[DEBUG] AcceptEx 비동기 등록 성공 (WSA_IO_PENDING)\n");
+			}
+		}
+		else
+		{
+			// 이 경로는 아주 드물게 발생 (즉시 완료)
+			printf("[DEBUG] AcceptEx 즉시 성공 (동기적으로 처리됨)\n");
+		}
+
+
+		return true;
+	}
+
+	bool SetSockOption()
+	{
+		/*if (SOCKET_ERROR == setsockopt(mSock, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT, (char*)GIocpManager->GetListenSocket(), sizeof(SOCKET)))
+		{
+			printf_s("[DEBUG] SO_UPDATE_ACCEPT_CONTEXT error: %d\n", GetLastError());
+			return false;
+		}*/
+
+		int opt = 1;
+		if (SOCKET_ERROR == setsockopt(m_socketClient, IPPROTO_TCP, TCP_NODELAY, (const char*)&opt, sizeof(int)))
+		{
+			printf_s("[DEBUG] TCP_NODELAY error: %d\n", GetLastError());
+			return false;
+		}
+
+		opt = 0;
+		if (SOCKET_ERROR == setsockopt(m_socketClient, SOL_SOCKET, SO_RCVBUF, (const char*)&opt, sizeof(int)))
+		{
+			printf_s("[DEBUG] SO_RCVBUF change error: %d\n", GetLastError());
+			return false;
+		}
+
+		return true;
+	}
+
 private:
-	UINT32 mIndex = 0;							// Client의 index
+	UINT32			mIndex = 0;				// Client의 index
 	SOCKET			m_socketClient;			// Client와 연결되는 소켓
 	stOverlappedEx	m_stRecvOverlappedEx;	// RECV Overlapped I/O 작업을 위한 변수
 	stOverlappedEx	m_stSendOverlappedEx;	// SEND Overlapped I/O 작업을 위한 변수
+	stOverlappedEx	m_stAcceptOverlappedEx;	// Accept를 요청하고 IOCP 오브젝트에서 완료를 확인하기 위한 구조체
+	stOverlappedEx mAcceptContext;
 	std::mutex mSendLock;
 	bool mIsSending = false;
 	UINT64 mSendPos = 0; // SendBuffer의 시작위치 지정 변수
+	HANDLE mIOCPHandle = INVALID_HANDLE_VALUE;
 	
 	char mRecvBuf[MAX_SOCKBUF];	// 데이터 버퍼
 	char mSendBuf[MAX_SOCKBUF]; // 데이터 버퍼
 	char mSendingBuf[MAX_SOCK_SENDBUF];
 	std::queue<stOverlappedEx*> mSendDataqueue;
+	bool mIsConnected = false;			// Client가 접속 요청을 했는지 확인하는 변수
+	char mAcceptbuf[128];				// AcceptEx의 3번째 인자로 넘겨줄 버퍼
+	UINT64 mLatestClosedTimeSec = 0;		// 마지막으로 연결이 종료된 시간
+	
 };
