@@ -1,0 +1,8 @@
+﻿  main.cpp
+C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\ChatServer.h(25,22): warning C4838: 'const int'에서 'UINT32'(으)로의 변환에는 축소 변환이 필요합니다.
+  (소스 파일 'main.cpp'을(를) 컴파일하는 중)
+  
+C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\ChatServer.h(32,22): warning C4838: 'const int'에서 'UINT32'(으)로의 변환에는 축소 변환이 필요합니다.
+  (소스 파일 'main.cpp'을(를) 컴파일하는 중)
+  
+  IOCPChatServer.vcxproj -> C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\x64\Debug\IOCPChatServer.exe

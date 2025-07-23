@@ -50,7 +50,7 @@ public:
 	bool IsConnected()
 	{
 		//return m_socketClient != INVALID_SOCKET;
-		return mIsConnected;// = true;
+		return mIsConnected;
 	}
 
 	SOCKET GetSocket()

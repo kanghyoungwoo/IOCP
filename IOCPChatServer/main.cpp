@@ -1,5 +1,5 @@
 //#include "IOCP.h"
-#include "EchoServer.h"
+#include "ChatServer.h"
 #include <string>
 #include <iostream>
 const UINT16 SERVER_PORT = 25000;
@@ -9,7 +9,7 @@ const UINT32 MAX_IO_WORKER_THREAD = 4;
 int main()
 {
 	//IOCompletionPort ioCompletionPort;
-	EchoServer Server;
+	ChatServer Server;
 
 	// 소켓을 초기화
 	//ioCompletionPort.InitSocket();

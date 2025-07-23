@@ -170,10 +170,10 @@ public:
 	}
 	// 클라이언트의 정보를 받아서
 	// 클라이언트에게 메세지를 send하는 함수
-	bool SendMsg(const UINT32 ClientSessionIndex, const UINT32 dataSize, char* pMsg)
+	bool SendMsg(const UINT32 ClientSessionIndex_, const UINT32 dataSize_, char* pMsg_)
 	{
-		auto pClient = GetClientInfo(ClientSessionIndex);
-		return pClient->SendMsg(dataSize, pMsg);
+		auto pClient = GetClientInfo(ClientSessionIndex_);
+		return pClient->SendMsg(dataSize_, pMsg_);
 	}
 
 	virtual void OnConnect(const int clientIndex){}

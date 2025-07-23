@@ -20,15 +20,18 @@
     <ClInclude Include="IOCP.h">
       <Filter>ServerNetwork</Filter>
     </ClInclude>
-    <ClInclude Include="EchoServer.h" />
-    <ClInclude Include="Packet.h">
-      <Filter>ServerNetwork</Filter>
-    </ClInclude>
+    <ClInclude Include="ChatServer.h" />
     <ClInclude Include="ClientSession.h">
       <Filter>ServerNetwork</Filter>
     </ClInclude>
+    <ClInclude Include="Packet.h" />
+    <ClInclude Include="PacketManager.h" />
+    <ClInclude Include="User.h" />
+    <ClInclude Include="UserManager.h" />
+    <ClInclude Include="ErrorCode.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="PacketManager.cpp" />
   </ItemGroup>
 </Project>
