@@ -60,7 +60,12 @@ public:
 		return mIndex;
 	}
 
-	DOMAIN_STATE GetUSerID() const
+	std::string GetUserId() const
+	{
+		return mUserID;
+	}
+
+	DOMAIN_STATE GetDomainState()
 	{
 		return mCurDomainState;
 	}
@@ -116,11 +121,6 @@ public:
 		mPacketDataBufferReadPos += pHeader->PacketLength;
 
 		return packetInfo;
-	}
-
-	DOMAIN_STATE GetDomainState()
-	{
-		return mCurDomainState;
 	}
 
 	

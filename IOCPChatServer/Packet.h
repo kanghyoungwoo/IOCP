@@ -53,13 +53,6 @@ typedef struct _RawPacketData
 }RawPacketData;
 
 
-//typedef struct _PacketInfo
-//{
-//	UINT32 ClientIndex = 0;
-//	UINT32 PacketId = 0;
-//	UINT32 DataSize = 0;
-//	char* pDataPtr = nullptr;
-//}PacketInfo;
 
 struct PacketInfo
 {
@@ -83,6 +76,18 @@ enum class PACKET_ID : UINT16
 	// Client
 	LOGIN_REQUEST = 201,
 	LOGIN_RESPONSE = 202,
+
+	ROOM_ENTER_REQUEST = 206,
+	ROOM_ENTER_RESPONSE = 207,
+
+	ROOM_LEAVE_REQUEST = 215,
+	ROOM_LEAVE_RESPONSE = 216,
+
+	ROOM_CHAT_REQUEST = 221,
+	ROOM_CHAT_RESPONSE = 222,
+	ROOM_CHAT_NOTIFY = 223,
+
+	
 };
 
 #pragma pack(push,1)	// 바이트 정렬
@@ -110,6 +115,44 @@ const size_t LOGIN_REQUEST_PACKET_SIZE = sizeof(LOGIN_REQUEST_PACKET);
 struct LOGIN_RESPONSE_PACKET : public PACKET_HEADER
 {
 	UINT16 Result;
+};
+
+struct ROOM_ENTER_REQUEST_PACKET : public PACKET_HEADER
+{
+	INT32 RoomNumber;		// 방 번호
+};
+
+struct ROOM_ENTER_RESPONSE_PACKET : public PACKET_HEADER
+{
+	INT16 Result;
+};
+
+struct ROOM_LEAVE_REQUEST_PACKET : public PACKET_HEADER
+{
+
+};
+
+struct ROOM_LEAVE_RESPONSE_PACKET : public PACKET_HEADER
+{
+	INT16 Result;
+};
+
+const int MAX_CHAT_MSG = 256;
+
+struct ROOM_CHAT_REQUEST_PACKET : public PACKET_HEADER
+{
+	char Message[MAX_CHAT_MSG + 1] = { 0, }; // 채팅 메세지
+};
+
+struct ROOM_CHAT_RESPONSE_PACKET : public PACKET_HEADER
+{
+	INT16 Result;
+};
+
+struct ROOM_CHAT_NOTIFY_PACKET : public PACKET_HEADER
+{
+	char UserID[MAX_USER_ID_LENGTH] = { 0, }; // 채팅을 보낸 유저의 ID
+	char Message[MAX_CHAT_MSG + 1] = { 0, }; // 채팅 메세지
 };
 
 #pragma pack(pop)

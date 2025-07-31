@@ -7,32 +7,12 @@
 #include <mutex>
 #include <queue>
 
-//// 클라이언트 정보를 담기 위한 구조체
-//typedef struct _stClientInfo
-//{
-//	int mIndex = 0;							// Client의 index
-//	SOCKET			m_socketClient;			// Client와 연결되는 소켓
-//	stOverlappedEx	m_stRecvOverlappedEx;	// RECV Overlapped I/O 작업을 위한 변수
-//	stOverlappedEx	m_stSendOverlappedEx;	// SEND Overlapped I/O 작업을 위한 변수
-//
-//	char mRecvBuf[MAX_SOCKBUF];	// 데이터 버퍼
-//	char mSendBuf[MAX_SOCKBUF]; // 데이터 버퍼
-//
-//	_stClientInfo()
-//	{
-//		ZeroMemory(&m_stRecvOverlappedEx, sizeof(_stOverlappedEx));
-//		ZeroMemory(&m_stSendOverlappedEx, sizeof(_stOverlappedEx));
-//		m_socketClient = INVALID_SOCKET;
-//	}
-//}stClientInfo;
-
 class ClientSession
 {
 public:
 	ClientSession()
 	{
 		ZeroMemory(&m_stRecvOverlappedEx, sizeof(_stOverlappedEx));
-		//ZeroMemory(&m_stSendOverlappedEx, sizeof(_stOverlappedEx));
 		m_socketClient = INVALID_SOCKET;
 	}
 
@@ -311,10 +291,8 @@ public:
 		mAcceptContext.m_wsaBuf.buf = nullptr;
 		mAcceptContext.m_eOperation = IOOperation::ACCEPT;
  		mAcceptContext.clientSessionIndex = mIndex;
-		//(sizeof(SOCKADDR_IN) + 16) * 2
+
 		bool bRet = AcceptEx(listenSock, m_socketClient, mAcceptbuf, 10, sizeof(SOCKADDR_IN) + 16, sizeof(SOCKADDR_IN) + 16, &bytes, (LPWSAOVERLAPPED) & (mAcceptContext));
-
-
 
 		if (bRet == FALSE)
 		{

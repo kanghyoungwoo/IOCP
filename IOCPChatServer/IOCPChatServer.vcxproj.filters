@@ -29,6 +29,10 @@
     <ClInclude Include="User.h" />
     <ClInclude Include="UserManager.h" />
     <ClInclude Include="ErrorCode.h" />
+    <ClInclude Include="RedisManager.h" />
+    <ClInclude Include="RedisTaskDefine.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />

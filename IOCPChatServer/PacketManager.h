@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Packet.h"
+//#include "RedisManager.h"
 
 #include <unordered_map>
 #include <deque>
@@ -9,6 +10,8 @@
 #include <mutex>
 
 class UserManager;
+
+class RedisManager;
 
 class PacketManager {
 public:
@@ -35,11 +38,16 @@ private:
 	void ProcessUserConnect(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket);
 	void ProcessUserDisconnect(UINT32 clientIndex_m, UINT16 packetSize_, char* pPacket);
 	void ProcessLogin(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_); // 최대 접속자 수, 중복 정도만 확인
+	void ProcessLoginDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
+
 
 	typedef void(PacketManager::* PROCESS_RECV_PACKET_FUNCTION)(UINT32, UINT16, char*);
 	std::unordered_map<int, PROCESS_RECV_PACKET_FUNCTION>mRecvFunctionDictionary;
 
 	UserManager* mUserManager;
+	RedisManager* mRedisManager;
+
+	std::function<void(int, char*)>mSendMQDataFunc;
 
 	bool mIsRunProcessThread = false;
 	std::thread mProcessThead;
