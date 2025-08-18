@@ -46,6 +46,7 @@ public:
 	{
 		mCurDomainState = DOMAIN_STATE::LOGIN;
 		mUserID = userID_;
+		printf("[SetLogin] UserID set to: '%s' for index: %d\n", userID_, mIndex);
 
 		return 0;
 	}
@@ -105,11 +106,22 @@ public:
 		{
 			return PacketInfo();
 		}
+		//// 실제 바이트 값 출력
+		//printf("Raw bytes: ");
+		//for (int i = 0; i < min(remainByte, 16); i++) {
+		//	printf("%02X ", (unsigned char)mPacketDataBuffer[mPacketDataBufferReadPos + i]);
+		//}
+		//printf("\n");
 
 		auto pHeader = (PACKET_HEADER*)&mPacketDataBuffer[mPacketDataBufferReadPos];
 
+		//printf("PacketLength: %u (0x%08X)\n", pHeader->PacketLength, pHeader->PacketLength);
+		//printf("PacketId: %u (0x%08X)\n", pHeader->PacketId, pHeader->PacketId);
+		//auto pHeader = (PACKET_HEADER*)&mPacketDataBuffer[mPacketDataBufferReadPos];
+
 		if (pHeader->PacketLength > remainByte)
 		{
+			printf("패킷 데이터 부족: 필요(%d) vs 현재(%d)\n", pHeader->PacketLength, remainByte);
 			return PacketInfo();
 		}
 
@@ -123,12 +135,25 @@ public:
 		return packetInfo;
 	}
 
-	
+	void EnterRoom(INT32 roomIndex_)
+	{
+		roomIndex = roomIndex_;
+		mCurDomainState = DOMAIN_STATE::ROOM;  // 여기서 상태 변경
+		printf("[%d]번 방에 입장하였습니다. ! \n", roomIndex);
+		
+	}
+
+	INT32 GetRoomIndex()
+	{
+		return roomIndex;
+		mCurDomainState = DOMAIN_STATE::ROOM;
+	}
 
 private:
 	INT32 mIndex = -1;
 	std::string mUserID = "";
 	bool mIsconfirm = false;
+	INT32 roomIndex = -1;
 	std::string mAuthToken = "";
 
 	UINT32 mPacketDataBufferWritePos = 0; // 링버퍼

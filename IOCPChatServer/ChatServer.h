@@ -38,14 +38,14 @@ public:
 	{
 		printf("[OnReceive] Ciient Index : %d , DataSize : %d\n", clientIndex_, size_);
 
+		//printf("수신 패킷 PacketLength : %u, PacketId : %u\n", ,pData_->PacketLength, pHeader->PacketId);
+
 		m_pPacketManager->ReceivePacketData(clientIndex_, size_, pData_);
 	}
 	 
 	// 서버 시작할때 processpacket을 처리하는 쓰레드를 만듦
 	void Run(const UINT32 maxClient)
 	{
-		//mIsRunProcessThread = true;
-		//mProcessThread = std::thread([this]() { ProcessPacket();});
 		auto sendPacketFunc = [&](UINT32 clientIndex_, UINT16 packetSize_, char* pSendPacket)
 		{
 			SendMsg(clientIndex_, packetSize_, pSendPacket);

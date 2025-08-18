@@ -1,7 +1,7 @@
 #pragma once
 #pragma comment(lib, "mswsock.lib")
 
-#include <MSWSock.h>
+//#include <MSWSock.h>
 #include "Define.h"
 #include <stdio.h>
 #include <mutex>
@@ -256,9 +256,18 @@ public:
 		}
 	}
 
-	bool AcceptCompletion()
+	bool AcceptCompletion(SOCKET listenSock_)
 	{
+		if (setsockopt(m_socketClient, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT,
+			(char*)&listenSock_, sizeof(SOCKET)) == SOCKET_ERROR)
+		{
+			printf("[ERROR] SO_UPDATE_ACCEPT_CONTEXT 실패 : %d \n",WSAGetLastError());
+			return false;
+		}
+
+
 		printf("AcceptCompletion : SessionIndex(%d)\n", mIndex);
+
 		if (OnConnect(mIOCPHandle, m_socketClient) == false)
 		{
 			return false;
@@ -269,11 +278,15 @@ public:
 		inet_ntop(AF_INET, &(stClientAddr.sin_addr), clientIP, 32 - 1);
 		printf("Client IP : %s, SOCKET(%d)\n", clientIP, (int)m_socketClient);
 
+		//mAcceptPendingg = false;
+
 		return true;
 	}
 
 	bool PostAccept(SOCKET listenSock, const UINT64 curTimeSec)
 	{
+		//if (mAcceptPendingg == true)
+		//	return false;
 		printf("PostAccept Client Index : %d\n", GetIndex());
 
 		mLatestClosedTimeSec = UINT32_MAX;
@@ -292,25 +305,31 @@ public:
 		mAcceptContext.m_eOperation = IOOperation::ACCEPT;
  		mAcceptContext.clientSessionIndex = mIndex;
 
-		bool bRet = AcceptEx(listenSock, m_socketClient, mAcceptbuf, 10, sizeof(SOCKADDR_IN) + 16, sizeof(SOCKADDR_IN) + 16, &bytes, (LPWSAOVERLAPPED) & (mAcceptContext));
+		bool bRet = AcceptEx(listenSock, m_socketClient, mAcceptbuf, 0, sizeof(SOCKADDR_IN) + 16, sizeof(SOCKADDR_IN) + 16, &bytes, (LPWSAOVERLAPPED) & (mAcceptContext));
 
 		if (bRet == FALSE)
 		{
-			int err = WSAGetLastError();
-			if (err != WSA_IO_PENDING)
-			{
-				printf("[ERROR] AcceptEx 실패! 에러 코드: %d\n", err);
+			if(WSAGetLastError() != WSA_IO_PENDING)
+
+			{printf("[ERROR] AcceptEx 실패! 에러 코드: %d\n", GetLastError());
+
 				return false;
 			}
-			else
-			{
-				printf("[DEBUG] AcceptEx 비동기 등록 성공 (WSA_IO_PENDING)\n");
-			}
-		}
-		else
-		{
-			// 이 경로는 아주 드물게 발생 (즉시 완료)
-			printf("[DEBUG] AcceptEx 즉시 성공 (동기적으로 처리됨)\n");
+		//	//int err = WSAGetLastError();
+		//	//if (err != WSA_IO_PENDING)
+		//	//{
+		//	//	printf("[ERROR] AcceptEx 실패! 에러 코드: %d\n", err);
+		//	//	return false;
+		//	//}
+		//	//else
+		//	//{
+		//	//	printf("[DEBUG] AcceptEx 비동기 등록 성공 (WSA_IO_PENDING)\n");
+		//	//}
+		//}
+		//else
+		//{
+		//	// 이 경로는 아주 드물게 발생 (즉시 완료)
+		//	printf("[DEBUG] AcceptEx 즉시 성공 (동기적으로 처리됨)\n");
 		}
 
 
@@ -342,6 +361,7 @@ public:
 		return true;
 	}
 
+	//bool mAcceptPendingg = false;
 private:
 	UINT32			mIndex = 0;				// Client의 index
 	SOCKET			m_socketClient;			// Client와 연결되는 소켓
@@ -353,6 +373,8 @@ private:
 	bool mIsSending = false;
 	UINT64 mSendPos = 0; // SendBuffer의 시작위치 지정 변수
 	HANDLE mIOCPHandle = INVALID_HANDLE_VALUE;
+
+	//bool mAcceptPending = false;
 	
 	char mRecvBuf[MAX_SOCKBUF];	// 데이터 버퍼
 	char mSendBuf[MAX_SOCKBUF]; // 데이터 버퍼

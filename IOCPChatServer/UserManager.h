@@ -56,9 +56,14 @@ public:
 		// 새로운 연결 발생할때 usermanager가 갖고있는 user객체 할당해줌
 		auto userIndex = clientIndex_;
 		mUserObjPool[userIndex]->SetLogin(userID_);
-		mUserIDDictionary.insert(std::pair<char*, int>(userID_, clientIndex_));
-		
 
+		// string으로 변환해서 저장
+		std::string userIDStr = userID_;
+		mUserIDDictionary.insert(std::pair<std::string, int>(userIDStr, clientIndex_));
+
+
+		//mUserIDDictionary.insert(std::pair<char*, int>(userID_, clientIndex_));
+		
 		return ERROR_CODE::NONE;
 	}
 
@@ -77,7 +82,10 @@ public:
 
 	INT32 FindUserIndexByID(char* userID_)
 	{
-		auto res = mUserIDDictionary.find(userID_);
+		std::string userIDStr = userID_; // char*를 string으로 변환
+		auto res = mUserIDDictionary.find(userIDStr);
+
+		//auto res = mUserIDDictionary.find(userID_);
 		if (res != mUserIDDictionary.end())
 		{
 			return (*res).second;

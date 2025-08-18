@@ -2,6 +2,7 @@
 
 #include "Packet.h"
 //#include "RedisManager.h"
+#include "RoomManager.h"
 
 #include <unordered_map>
 #include <deque>
@@ -30,6 +31,7 @@ public:
 private:
 	void CreateComponent(const UINT32 maxClient_);
 	void ClearConnectionInfo(INT32 clientIndex_);
+
 	void EnqueuePacketData(const UINT32 clientIndex_);
 	PacketInfo DequePacketData();
 	PacketInfo DequeSystemPacketData();
@@ -41,11 +43,17 @@ private:
 	void ProcessLoginDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 
 
+	void ProcessEnterRoom(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
+	void ProcessLeaveRoom(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
+	void ProcessRoomChatMessage(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
+
+
 	typedef void(PacketManager::* PROCESS_RECV_PACKET_FUNCTION)(UINT32, UINT16, char*);
 	std::unordered_map<int, PROCESS_RECV_PACKET_FUNCTION>mRecvFunctionDictionary;
 
 	UserManager* mUserManager;
 	RedisManager* mRedisManager;
+	RoomManager* mRoomManager;
 
 	std::function<void(int, char*)>mSendMQDataFunc;
 

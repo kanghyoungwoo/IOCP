@@ -93,9 +93,9 @@ enum class PACKET_ID : UINT16
 #pragma pack(push,1)	// 바이트 정렬
 struct PACKET_HEADER
 {
-	UINT32 PacketLength;
-	UINT32 PacketId;			// 패킷 ID 정보로 클라이언트가 어떤 요청을 했는지 알아내고 그에 따른 처리
-	UINT32 PacketType;			// 압축 여부
+	UINT16 PacketLength;
+	UINT16 PacketId;			// 패킷 ID 정보로 클라이언트가 어떤 요청을 했는지 알아내고 그에 따른 처리
+	UINT8 PacketType;			// 압축 여부
 };
 
 const UINT32 PACKET_HEADER_LENGTH = sizeof(PACKET_HEADER);

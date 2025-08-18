@@ -41,6 +41,7 @@ struct RedisLoginReq
 struct RedisLoginRes
 {
 	UINT16 Result = (UINT16)ERROR_CODE::NONE; // 성공 여부
+	char UserID[MAX_USER_ID_LENGTH + 1]; // UserID 추가
 };
 
 

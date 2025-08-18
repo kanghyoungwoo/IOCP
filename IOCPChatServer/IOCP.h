@@ -109,9 +109,9 @@ public:
 			return false;
 		}
 
-		auto hIOCPHandle = CreateIoCompletionPort((HANDLE)mListenSocket, mIOCPHandle, 0, 0);
+		auto hIOCPHandle = CreateIoCompletionPort((HANDLE)mListenSocket, mIOCPHandle, (UINT32)0, 0);
 
-		if (hIOCPHandle == NULL)
+		if (hIOCPHandle == nullptr)
 		{
 			printf("[에러] listen socket IOCP bind 실패 : %d\n", WSAGetLastError());
 			return false;
@@ -261,15 +261,16 @@ private:
 			// 완료된 Overlapped I/O 작업이 발생하면 IOCP Queue에서 완료된 작업을 가져와 처리
 			// 그리고 PostQeueuCompletionStatus()에 의해 사용자 메세지가 도착되면 쓰레드 종료
 			////////////////////////////////////
+			//printf("[DEBUG] GQCS 결과: bSuccess=%d, dwIoSize=%d, lpOverlapped=%p\n", bSuccess, dwIoSize, lpOverlapped);
 			bSuccess = GetQueuedCompletionStatus(
 				mIOCPHandle,				// dequeue할 IOCP 핸들
 				&dwIoSize,					// 실제 전송된 바이트
 				(PULONG_PTR)&pClientSession,	// CompletionKey
 				&lpOverlapped,				// Overlapped IO 객체
 				INFINITE);					// 대기할 시간
-
+			//printf("[DEBUG] GQCS 결과: bSuccess=%d, dwIoSize=%d, lpOverlapped=%p\n", bSuccess, dwIoSize, lpOverlapped);
 			// 사용자 쓰레드 종료 메세지 처리
-			if (bSuccess == TRUE && dwIoSize == 0 && lpOverlapped)
+			if (bSuccess == TRUE && dwIoSize == 0 && lpOverlapped == NULL)
 			{
 				mIsWorkerRun = false;
 				continue;
@@ -279,9 +280,11 @@ private:
 			{
 				continue;
 			}
+			auto pOverlappedEx = (stOverlappedEx*)lpOverlapped;
 
 			// client가 접속을 끊었을때
-			if (bSuccess == FALSE || (dwIoSize == 0 && bSuccess == TRUE))
+			//if (bSuccess == FALSE || (dwIoSize == 0 && bSuccess == TRUE))
+			if(bSuccess == FALSE || dwIoSize == 0 && pOverlappedEx->m_eOperation != IOOperation::ACCEPT)
 			{
 				//printf("Socket(%d) 접속 끊김\n", (int)pClientInfo->m_socketClient);
 				//OnClose(pClientSession->mIndex);
@@ -289,16 +292,16 @@ private:
 				continue;
 			}
 
-			//auto pOverlappedEx = (stOverlappedEx*)lpOverlapped;
-			stOverlappedEx* pOverlappedEx = (stOverlappedEx*)lpOverlapped;
+			//stOverlappedEx* pOverlappedEx = (stOverlappedEx*)lpOverlapped;
 
 			if (IOOperation::ACCEPT == pOverlappedEx->m_eOperation)
 			{
 				pClientSession = GetClientInfo(pOverlappedEx->clientSessionIndex);
-				if (pClientSession->AcceptCompletion())
+				if (pClientSession->AcceptCompletion(mListenSocket))
 				{
 					++mClientCnt;
 					OnConnect(pClientSession->GetIndex());
+					printf("######################################### 접속됨 #################################\n");
 				}
 				else
 				{
@@ -335,13 +338,14 @@ private:
 		while (mIsAccepterRun)
 		{
 			auto curTimeSec = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
-			
-			for (auto client : mClientInfos) // 모든 client 객체를 순회하며 
+
+			for (auto client : mClientInfos)
 			{
-				if (client->IsConnected()) // 연결이 된 객체는 
+				if (client->IsConnected())
 				{
-					continue; // 넘어가며
+					continue;
 				}
+
 				if ((UINT64)curTimeSec < client->GetLatestClosedTimeSec())
 				{
 					continue;
@@ -352,11 +356,39 @@ private:
 				{
 					continue;
 				}
-				// 연결이 되지 않은 객체가 있다면 비동기 accept
+
 				client->PostAccept(mListenSocket, curTimeSec);
 			}
+
 			std::this_thread::sleep_for(std::chrono::milliseconds(32));
 		}
+		//while (mIsAccepterRun)
+		//{
+		//	auto curTimeSec = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+		//	
+		//	for (auto client : mClientInfos) // 모든 client 객체를 순회하며 
+		//	{
+		//		if (client->IsConnected()) // 연결이 된 객체는 
+		//		{
+		//			continue; // 넘어가며
+		//		}
+		//		auto diff = (UINT64)curTimeSec - client->GetLatestClosedTimeSec();
+		//		if (diff < 0)
+		//		{
+		//			printf("CurTimeSec : %d\n", (UINT64)curTimeSec);
+		//			printf("GetLatestClosedTimeSec : %d\n", client->GetLatestClosedTimeSec());
+		//			continue;
+		//		}
+		//		//auto diff = curTimeSec - client->GetLatestClosedTimeSec();
+		//		if (diff <= RE_USE_SESSION_WAIT_TIMESEC)
+		//		{
+		//			continue;
+		//		}
+		//		// 연결이 되지 않은 객체가 있다면 비동기 accept
+		//		client->PostAccept(mListenSocket, curTimeSec);
+		//	}
+		//	std::this_thread::sleep_for(std::chrono::milliseconds(32));
+		//}
 		// 기존 thread를 이용한 accept 방식
 		/*
 		SOCKADDR_IN		stClientAddr;

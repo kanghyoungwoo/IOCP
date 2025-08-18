@@ -91,7 +91,7 @@ private:
 		{
 			bool isIdle = true;
 			// 요청을 queue를 통해서 서로 주고받음 mRequestTask
-			if (auto task = TakeResponseTask(); task.TaskID != RedisTaskID::INVALID)
+			if (auto task = TakeRequestTask(); task.TaskID != RedisTaskID::INVALID)
 			{
 				isIdle = false;
 				
@@ -102,9 +102,15 @@ private:
 					RedisLoginRes bodyData;
 					bodyData.Result = (UINT16)ERROR_CODE::LOGIN_USER_INVALID_PW;
 
+					strcpy_s(bodyData.UserID, sizeof(bodyData.UserID), pRequest->UserID);
+
 					std::string value;
 					if (mConn.get(pRequest->UserID, value))
 					{
+						printf("UserID: '%s'\n", pRequest->UserID);
+						printf("Input PW: '%s'\n", pRequest->UserPW);
+						printf("Redis PW: '%s'\n", value.c_str());
+						printf("Redis get result: %s\n", mConn.get(pRequest->UserID, value) ? "success" : "failed");
 						bodyData.Result = (UINT16)ERROR_CODE::NONE;
 
 						if (value.compare(pRequest->UserPW) == 0)
@@ -115,6 +121,7 @@ private:
 					RedisTask resTask;
 					resTask.UserIndex = task.UserIndex;
 					resTask.TaskID = RedisTaskID::RESPONSE_LOGIN;
+					//printf("######################### TaskID : %s #############################################\n", resTask.TaskID);
 					resTask.DataSize = sizeof(RedisLoginRes);
 					resTask.pData = new char[resTask.DataSize];
 					CopyMemory(resTask.pData, (char*)&bodyData, resTask.DataSize);
@@ -173,6 +180,17 @@ private:
 		mResponseTask.push_back(task_);
 	}
 
+	RedisTask TakeRequestTask()
+	{
+		std::lock_guard<std::mutex> guard(mReqLock);
+		if (mRequestTask.empty())
+		{
+			return RedisTask();
+		}
+		auto task = mRequestTask.front();
+		mRequestTask.pop_front();
+		return task;
+	}
 
 	std::vector<std::thread> mTaskThreads;
 

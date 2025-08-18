@@ -2,7 +2,7 @@
 #include "ChatServer.h"
 #include <string>
 #include <iostream>
-const UINT16 SERVER_PORT = 24000;
+const UINT16 SERVER_PORT = 11021;
 const UINT16 MAX_CLIENT = 3;	// 총 접속 가능한 클라이언트 수
 const UINT32 MAX_IO_WORKER_THREAD = 4;
 
