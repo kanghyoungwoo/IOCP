@@ -245,14 +245,18 @@ private:
 	// Overlapped I/O 작업에 대한 완료 통보를 받아 그에 해당하는 처리를 하는 함수
 	void WorkerThread()
 	{
-		// CompletionKey를 받을 포인터 변수 
-		ClientSession* pClientSession = nullptr;
-		// 함수 호출 성공 여부
+		// 완료 항목 저장 배열
+		OVERLAPPED_ENTRY completionEntries[MAX_COMPLETION_ENTRIES];
+		ULONG numEntriesRemoved = 0;
+
+		//// CompletionKey를 받을 포인터 변수 
+		//ClientSession* pClientSession = nullptr;
+		//// 함수 호출 성공 여부
 		BOOL bSuccess = TRUE;
-		// Overlapped I/O 작업에서 전송된 데이터 크기
-		DWORD dwIoSize = 0;
-		// I/O 작업을 위해 요청한 Overlapped 구조체를 받을 포인터
-		LPOVERLAPPED lpOverlapped = NULL;
+		//// Overlapped I/O 작업에서 전송된 데이터 크기
+		//DWORD dwIoSize = 0;
+		//// I/O 작업을 위해 요청한 Overlapped 구조체를 받을 포인터
+		//LPOVERLAPPED lpOverlapped = NULL;
 
 		while (mIsWorkerRun)
 		{
@@ -262,73 +266,172 @@ private:
 			// 그리고 PostQeueuCompletionStatus()에 의해 사용자 메세지가 도착되면 쓰레드 종료
 			////////////////////////////////////
 			//printf("[DEBUG] GQCS 결과: bSuccess=%d, dwIoSize=%d, lpOverlapped=%p\n", bSuccess, dwIoSize, lpOverlapped);
-			bSuccess = GetQueuedCompletionStatus(
+			
+			//bSuccess = GetQueuedCompletionStatus(
+			//	mIOCPHandle,				// dequeue할 IOCP 핸들
+			//	&dwIoSize,					// 실제 전송된 바이트
+			//	(PULONG_PTR)&pClientSession,	// CompletionKey
+			//	&lpOverlapped,				// Overlapped IO 객체
+			//	INFINITE);					// 대기할 시간
+
+			bSuccess = GetQueuedCompletionStatusEx(
 				mIOCPHandle,				// dequeue할 IOCP 핸들
-				&dwIoSize,					// 실제 전송된 바이트
-				(PULONG_PTR)&pClientSession,	// CompletionKey
-				&lpOverlapped,				// Overlapped IO 객체
-				INFINITE);					// 대기할 시간
+				completionEntries,			// 완료 항목 배열
+				MAX_COMPLETION_ENTRIES,		// 완료 항목 배열 크기
+				&numEntriesRemoved,			// 제거된 항목 수
+				INFINITE,					// 대기할 시간
+				FALSE);						// 동기식으로 처리
 			//printf("[DEBUG] GQCS 결과: bSuccess=%d, dwIoSize=%d, lpOverlapped=%p\n", bSuccess, dwIoSize, lpOverlapped);
 			// 사용자 쓰레드 종료 메세지 처리
-			if (bSuccess == TRUE && dwIoSize == 0 && lpOverlapped == NULL)
-			{
-				mIsWorkerRun = false;
-				continue;
-			}
 
-			if (lpOverlapped == NULL)
-			{
-				continue;
-			}
-			auto pOverlappedEx = (stOverlappedEx*)lpOverlapped;
+			//if (bSuccess == TRUE && dwIoSize == 0 && lpOverlapped == NULL)
+			//{
+			//	mIsWorkerRun = false;
+			//	continue;
+			//}
 
-			// client가 접속을 끊었을때
-			//if (bSuccess == FALSE || (dwIoSize == 0 && bSuccess == TRUE))
-			if(bSuccess == FALSE || dwIoSize == 0 && pOverlappedEx->m_eOperation != IOOperation::ACCEPT)
-			{
-				//printf("Socket(%d) 접속 끊김\n", (int)pClientInfo->m_socketClient);
-				//OnClose(pClientSession->mIndex);
-				CloseSocket(pClientSession);
-				continue;
-			}
+			//if (lpOverlapped == NULL)
+			//{
+			//	continue;
+			//}
 
-			//stOverlappedEx* pOverlappedEx = (stOverlappedEx*)lpOverlapped;
-
-			if (IOOperation::ACCEPT == pOverlappedEx->m_eOperation)
+			if (!bSuccess)
 			{
-				pClientSession = GetClientInfo(pOverlappedEx->clientSessionIndex);
-				if (pClientSession->AcceptCompletion(mListenSocket))
+				DWORD error = GetLastError();
+
+				if (error == TIMEOUT_WAIT)
 				{
-					++mClientCnt;
-					OnConnect(pClientSession->GetIndex());
-					printf("######################################### 접속됨 #################################\n");
+					continue;
+				}
+				else if (error == ERROR_ABANDONED_WAIT_0)
+				{
+					// IOCP핸들이 닫힘 - 서버 종료
+					mIsWorkerRun = false;
+					break;
 				}
 				else
 				{
-					CloseSocket(pClientSession,true);
+					printf("[ERROR] GetQueuedCompletionStatusEx() 실패 : %d\n", error);
+					continue;
 				}
 			}
 
-			// Overlapped I/O Recv 작업 결과 뒤 처리
-			else if (IOOperation::RECV == pOverlappedEx->m_eOperation)
+			for (ULONG i = 0; i < numEntriesRemoved; ++i)
 			{
-				OnReceive(pClientSession->GetIndex(), dwIoSize, pClientSession->RecvBuff());
+				auto& entry = completionEntries[i];
 
-				// 클라이언트에 메세지를 echo
-				pClientSession->BindRecv();	
-			}
+				ClientSession* pClientSession = reinterpret_cast<ClientSession*>(entry.lpCompletionKey);
+				DWORD dwIoSize = entry.dwNumberOfBytesTransferred;
+				LPOVERLAPPED lpOverlapped = entry.lpOverlapped;
 
-			// Overlapped I/O Send 작업 결과 뒤 처리
-			else if (IOOperation::SEND == pOverlappedEx->m_eOperation) // 연결이 완료되면
-			{
-				pClientSession->SendComplete(dwIoSize);
+				// 사용자 쓰레드 종료 메세지 처리
+				if (dwIoSize == 0 && lpOverlapped == NULL)
+				{
+					mIsWorkerRun = false;
+					continue;
+				}
 
-			}
-			// 예외
-			else
-			{
-				printf("Client Index : (%d)에서 예외상황\n", pClientSession->GetIndex());
-			}
+				if (lpOverlapped == NULL)
+				{
+					continue;
+				}
+
+				auto pOverlappedEx = (stOverlappedEx*)lpOverlapped;
+
+				// client가 접속을 끊었을때
+				if (dwIoSize == 0 && pOverlappedEx->m_eOperation != IOOperation::ACCEPT)
+				{
+					CloseSocket(pClientSession);
+					continue;
+				}
+
+				if (IOOperation::ACCEPT == pOverlappedEx->m_eOperation)
+				{
+					pClientSession = GetClientInfo(pOverlappedEx->clientSessionIndex);
+					
+					if (pClientSession->AcceptCompletion(mListenSocket))
+					{
+						++mClientCnt;
+						OnConnect(pClientSession->GetIndex());
+						printf("######################################### 접속됨 #################################\n");
+					}
+					else
+					{
+						CloseSocket(pClientSession, true);
+					}
+				}
+
+				// Overlapped I/O Recv 작업 결과 뒤 처리
+				else if (IOOperation::RECV == pOverlappedEx->m_eOperation)
+				{
+					OnReceive(pClientSession->GetIndex(), dwIoSize, pClientSession->RecvBuff());
+
+					// 클라이언트에 메세지를 echo
+					pClientSession->BindRecv();
+				}
+
+				else if (IOOperation::SEND == pOverlappedEx->m_eOperation) // 연결이 완료되면
+				{
+					pClientSession->SendComplete(dwIoSize);
+				}
+				// 예외
+				else
+				{
+					printf("Client Index : (%d)에서 예외\n", pClientSession->GetIndex());
+				}
+
+			}	
+
+
+			//auto pOverlappedEx = (stOverlappedEx*)lpOverlapped;
+
+			//// client가 접속을 끊었을때
+			////if (bSuccess == FALSE || (dwIoSize == 0 && bSuccess == TRUE))
+			//if(bSuccess == FALSE || dwIoSize == 0 && pOverlappedEx->m_eOperation != IOOperation::ACCEPT)
+			//{
+			//	//printf("Socket(%d) 접속 끊김\n", (int)pClientInfo->m_socketClient);
+			//	//OnClose(pClientSession->mIndex);
+			//	CloseSocket(pClientSession);
+			//	continue;
+			//}
+
+			////stOverlappedEx* pOverlappedEx = (stOverlappedEx*)lpOverlapped;
+
+			//if (IOOperation::ACCEPT == pOverlappedEx->m_eOperation)
+			//{
+			//	pClientSession = GetClientInfo(pOverlappedEx->clientSessionIndex);
+			//	if (pClientSession->AcceptCompletion(mListenSocket))
+			//	{
+			//		++mClientCnt;
+			//		OnConnect(pClientSession->GetIndex());
+			//		printf("######################################### 접속됨 #################################\n");
+			//	}
+			//	else
+			//	{
+			//		CloseSocket(pClientSession,true);
+			//	}
+			//}
+
+			//// Overlapped I/O Recv 작업 결과 뒤 처리
+			//else if (IOOperation::RECV == pOverlappedEx->m_eOperation)
+			//{
+			//	OnReceive(pClientSession->GetIndex(), dwIoSize, pClientSession->RecvBuff());
+
+			//	// 클라이언트에 메세지를 echo
+			//	pClientSession->BindRecv();	
+			//}
+
+			//// Overlapped I/O Send 작업 결과 뒤 처리
+			//else if (IOOperation::SEND == pOverlappedEx->m_eOperation) // 연결이 완료되면
+			//{
+			//	pClientSession->SendComplete(dwIoSize);
+
+			//}
+			//// 예외
+			//else
+			//{
+			//	printf("Client Index : (%d)에서 예외상황\n", pClientSession->GetIndex());
+			//}
 		}
 	}
 
@@ -485,5 +588,10 @@ private:
 	//bool	mIsSenderRun = false;
 
 	UINT32 MaxIOWorkerThreadCount = 0;
+
+	// GetQueuedCompletionStatusEx 관련 상수
+	static const ULONG MAX_COMPLETION_ENTRIES = 64;  // 한 번에 처리할 최대 완료 항목 수
+	static const DWORD TIMEOUT_WAIT = 100;           // 대기 타임아웃 (ms)
+
 
 };
