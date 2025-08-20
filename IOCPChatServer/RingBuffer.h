@@ -14,6 +14,13 @@ public:
 	RingBuffer() = default;
 	~RingBuffer() = default;
 
+	enum class BufferResult
+	{
+		SUCCESS,
+		BUFFER_FULL,
+		INVALID_DATA
+	};
+
 	bool IsEmpty() const 
 	{
 		// 버퍼가 비어있는지 확인

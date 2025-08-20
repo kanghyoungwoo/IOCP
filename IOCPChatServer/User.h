@@ -1,12 +1,13 @@
 #pragma once
 
 #include "Packet.h"
-
+#include "RingBuffer.h"
 #include <string>
 
 class User
 {
-	const UINT32 PACKET_DATA_BUFFER_SIZE = 8096;
+	//const UINT32 PACKET_DATA_BUFFER_SIZE = 8096;
+	static constexpr size_t PACKET_DATA_BUFFER_SIZE = 8096;
 public:
 	enum class DOMAIN_STATE
 	{
@@ -21,20 +22,19 @@ public:
 	void Init(const UINT32 index_)
 	{
 		mIndex = index_;
-		mPacketDataBuffer = new char[PACKET_DATA_BUFFER_SIZE];
+		//mPacketDataBuffer = new char[PACKET_DATA_BUFFER_SIZE];
 	}
 
 	void Clear()
 	{
-		//mRoomIndex = -1;
-		//mIndex = -1;
 		mUserID = "";
 		mIsconfirm = false;
 		mAuthToken = "";
 		mCurDomainState = DOMAIN_STATE::NONE;
+		mPacketDataBuffer.Clear();
 
-		mPacketDataBufferWritePos = 0;
-		mPacketDataBufferReadPos = 0;
+		//mPacketDataBufferWritePos = 0;
+		//mPacketDataBufferReadPos = 0;
 	}
 
 	std::string GetUserID() const
@@ -75,62 +75,111 @@ public:
 	// TODO: 완전한 링버퍼 형태로 바꾸기
 	void SetPacketData(const UINT32 dataSize_, char* pData_)
 	{
-		if ((mPacketDataBufferWritePos + dataSize_) >= PACKET_DATA_BUFFER_SIZE) // 남은 공간이 부족하면 앞쪽으로 압축 이동
-		{
-			auto remainDataSize = mPacketDataBufferWritePos - mPacketDataBufferReadPos;
+		if (pData_ == nullptr || dataSize_ == 0)
+			return;
 
-			if (remainDataSize > 0)
-			{
-				CopyMemory(&mPacketDataBuffer[0], &mPacketDataBuffer[mPacketDataBufferReadPos], remainDataSize);
-				mPacketDataBufferWritePos = remainDataSize;
-			}
-			else
-			{
-				mPacketDataBufferWritePos = 0;
-			}
-			mPacketDataBufferReadPos = 0;
+		size_t written = mPacketDataBuffer.Write(pData_, dataSize_);
+
+		// 데이터 다 못 쓸 경우 경고
+		if (written < dataSize_)
+		{
+			printf("%zu bytes out of %u bytes to packet buffer\n", written, dataSize_);
+			return;
 		}
-		CopyMemory(&mPacketDataBuffer[mPacketDataBufferWritePos], pData_, dataSize_);
-		mPacketDataBufferWritePos += dataSize_;
+
+		/////
+
+		//if ((mPacketDataBufferWritePos + dataSize_) >= PACKET_DATA_BUFFER_SIZE) // 남은 공간이 부족하면 앞쪽으로 압축 이동
+		//{
+		//	auto remainDataSize = mPacketDataBufferWritePos - mPacketDataBufferReadPos;
+
+		//	if (remainDataSize > 0)
+		//	{
+		//		CopyMemory(&mPacketDataBuffer[0], &mPacketDataBuffer[mPacketDataBufferReadPos], remainDataSize);
+		//		mPacketDataBufferWritePos = remainDataSize;
+		//	}
+		//	else
+		//	{
+		//		mPacketDataBufferWritePos = 0;
+		//	}
+		//	mPacketDataBufferReadPos = 0;
+		//}
+		//CopyMemory(&mPacketDataBuffer[mPacketDataBufferWritePos], pData_, dataSize_);
+		//mPacketDataBufferWritePos += dataSize_;
 	}
 	
 	PacketInfo GetPacket()
 	{
 		const int PACKET_SIZE_LENGTH = 2;
 		const int PACKET_TYPE_LENGTH = 2;
-		short packetSize = 0;
+		//short packetSize = 0;
 
-		UINT32 remainByte = mPacketDataBufferWritePos - mPacketDataBufferReadPos;
+		//UINT32 remainByte = mPacketDataBufferWritePos - mPacketDataBufferReadPos;
 
-		if (remainByte < PACKET_HEADER_LENGTH)
+		//if (remainByte < PACKET_HEADER_LENGTH)
+		//{
+		//	return PacketInfo();
+		//}
+
+		//auto pHeader = (PACKET_HEADER*)&mPacketDataBuffer[mPacketDataBufferReadPos];
+
+		//if (pHeader->PacketLength > remainByte)
+		//{
+		//	printf("패킷 데이터 부족: 필요(%d) vs 현재(%d)\n", pHeader->PacketLength, remainByte);
+		//	return PacketInfo();
+		//}
+
+		//PacketInfo packetInfo;
+		//packetInfo.PacketId = pHeader->PacketId;
+		//packetInfo.DataSize = pHeader->PacketLength;
+		//packetInfo.pDataPtr = &mPacketDataBuffer[mPacketDataBufferReadPos];
+
+		//mPacketDataBufferReadPos += pHeader->PacketLength;
+
+		//return packetInfo;
+
+		if (mPacketDataBuffer.Size() < PACKET_HEADER_LENGTH)
+			return PacketInfo();
+
+		char headerBuffer[PACKET_HEADER_LENGTH];
+		bool peekSuccess = true;
+		for (size_t i = 0; i < PACKET_HEADER_LENGTH; i++)
+		{
+			if (!mPacketDataBuffer.Peek(headerBuffer[i], i))
+			{
+				peekSuccess = false;
+				break;
+			}
+		}
+
+		if (!peekSuccess)
 		{
 			return PacketInfo();
 		}
-		//// 실제 바이트 값 출력
-		//printf("Raw bytes: ");
-		//for (int i = 0; i < min(remainByte, 16); i++) {
-		//	printf("%02X ", (unsigned char)mPacketDataBuffer[mPacketDataBufferReadPos + i]);
-		//}
-		//printf("\n");
 
-		auto pHeader = (PACKET_HEADER*)&mPacketDataBuffer[mPacketDataBufferReadPos];
+		auto pHeader = (PACKET_HEADER*)headerBuffer;
 
-		//printf("PacketLength: %u (0x%08X)\n", pHeader->PacketLength, pHeader->PacketLength);
-		//printf("PacketId: %u (0x%08X)\n", pHeader->PacketId, pHeader->PacketId);
-		//auto pHeader = (PACKET_HEADER*)&mPacketDataBuffer[mPacketDataBufferReadPos];
-
-		if (pHeader->PacketLength > remainByte)
+		// 전체 패킷 크기만큼 데이터가 있는지 확인
+		if (pHeader->PacketLength > mPacketDataBuffer.Size())
 		{
-			printf("패킷 데이터 부족: 필요(%d) vs 현재(%d)\n", pHeader->PacketLength, remainByte);
+			printf("패킷 데이터 부족 - 필요(%d) : 현재(%zu\n)", pHeader->PacketLength, mPacketDataBuffer.Size());
+			return PacketInfo();
+		}
+
+		// 패킷 데이터 임시 버퍼에 읽어오기
+		static char tempPacketBuffer[PACKET_DATA_BUFFER_SIZE];
+		size_t readBytes = mPacketDataBuffer.Read(tempPacketBuffer, pHeader->PacketLength);
+
+		if (readBytes != pHeader->PacketLength)
+		{
+			printf("패킷 읽기 실패 - 예상(%d) vs 실제(%zu)\n", pHeader->PacketLength, readBytes);
 			return PacketInfo();
 		}
 
 		PacketInfo packetInfo;
 		packetInfo.PacketId = pHeader->PacketId;
 		packetInfo.DataSize = pHeader->PacketLength;
-		packetInfo.pDataPtr = &mPacketDataBuffer[mPacketDataBufferReadPos];
-
-		mPacketDataBufferReadPos += pHeader->PacketLength;
+		packetInfo.pDataPtr = tempPacketBuffer;
 
 		return packetInfo;
 	}
@@ -145,8 +194,24 @@ public:
 
 	INT32 GetRoomIndex()
 	{
-		return roomIndex;
 		mCurDomainState = DOMAIN_STATE::ROOM;
+		return roomIndex;
+	}
+
+	
+	size_t GetBufferSize() const
+	{
+		return mPacketDataBuffer.Size();
+	}
+
+	bool IsBufferEmpty() const
+	{
+		return mPacketDataBuffer.IsEmpty();
+	}
+
+	bool IsBufferFull() const
+	{
+		return mPacketDataBuffer.IsFull();
 	}
 
 private:
@@ -159,8 +224,13 @@ private:
 	UINT32 mPacketDataBufferWritePos = 0; // 링버퍼
 	UINT32 mPacketDataBufferReadPos = 0; //
 
-	char* mPacketDataBuffer = nullptr;
+	//char* mPacketDataBuffer = nullptr;
+	
+	// ringbuffer로 패킷 데이터 교체
+	RingBuffer<PACKET_DATA_BUFFER_SIZE> mPacketDataBuffer;
 	
 	DOMAIN_STATE mCurDomainState = DOMAIN_STATE::NONE;
+
+	
 	
 };

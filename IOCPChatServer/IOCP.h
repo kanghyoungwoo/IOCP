@@ -185,9 +185,13 @@ private:
 	{
 		for (int i = 0;i < maxClientCount;++i)
 		{
-			auto client = new ClientSession();
-			client->Init(i,mIOCPHandle);
-			mClientInfos.emplace_back(client);
+			auto client = std::make_unique<ClientSession>();
+			client->Init(i, mIOCPHandle);
+			mClientInfos.emplace_back(std::move(client));
+
+			//auto client = new ClientSession(); // 메모리 누수 가능성
+			//client->Init(i,mIOCPHandle);
+			//mClientInfos.emplace_back(client);
 
 		}
 	}
@@ -226,11 +230,11 @@ private:
 	// 사용하지 않는 클라이언트의 정보 구조체를 반환
 	ClientSession* GetEmptyClientInfo()
 	{
-		for (auto client : mClientInfos)
+		for (auto& client : mClientInfos)
 		{
 			if (client->IsConnected() == false)
 			{
-				return client;
+				return client.get();
 			}
 		}
 		return nullptr;
@@ -239,7 +243,7 @@ private:
 	// 클라이언트의 index를 넣으면 client의 info를 리턴하는 함수
 	ClientSession* GetClientInfo(const UINT32 clientSessionIndex)
 	{
-		return mClientInfos[clientSessionIndex];
+		return mClientInfos[clientSessionIndex].get();
 	}
 
 	// Overlapped I/O 작업에 대한 완료 통보를 받아 그에 해당하는 처리를 하는 함수
@@ -381,57 +385,6 @@ private:
 				}
 
 			}	
-
-
-			//auto pOverlappedEx = (stOverlappedEx*)lpOverlapped;
-
-			//// client가 접속을 끊었을때
-			////if (bSuccess == FALSE || (dwIoSize == 0 && bSuccess == TRUE))
-			//if(bSuccess == FALSE || dwIoSize == 0 && pOverlappedEx->m_eOperation != IOOperation::ACCEPT)
-			//{
-			//	//printf("Socket(%d) 접속 끊김\n", (int)pClientInfo->m_socketClient);
-			//	//OnClose(pClientSession->mIndex);
-			//	CloseSocket(pClientSession);
-			//	continue;
-			//}
-
-			////stOverlappedEx* pOverlappedEx = (stOverlappedEx*)lpOverlapped;
-
-			//if (IOOperation::ACCEPT == pOverlappedEx->m_eOperation)
-			//{
-			//	pClientSession = GetClientInfo(pOverlappedEx->clientSessionIndex);
-			//	if (pClientSession->AcceptCompletion(mListenSocket))
-			//	{
-			//		++mClientCnt;
-			//		OnConnect(pClientSession->GetIndex());
-			//		printf("######################################### 접속됨 #################################\n");
-			//	}
-			//	else
-			//	{
-			//		CloseSocket(pClientSession,true);
-			//	}
-			//}
-
-			//// Overlapped I/O Recv 작업 결과 뒤 처리
-			//else if (IOOperation::RECV == pOverlappedEx->m_eOperation)
-			//{
-			//	OnReceive(pClientSession->GetIndex(), dwIoSize, pClientSession->RecvBuff());
-
-			//	// 클라이언트에 메세지를 echo
-			//	pClientSession->BindRecv();	
-			//}
-
-			//// Overlapped I/O Send 작업 결과 뒤 처리
-			//else if (IOOperation::SEND == pOverlappedEx->m_eOperation) // 연결이 완료되면
-			//{
-			//	pClientSession->SendComplete(dwIoSize);
-
-			//}
-			//// 예외
-			//else
-			//{
-			//	printf("Client Index : (%d)에서 예외상황\n", pClientSession->GetIndex());
-			//}
 		}
 	}
 
@@ -442,7 +395,7 @@ private:
 		{
 			auto curTimeSec = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
 
-			for (auto client : mClientInfos)
+			for (auto& client : mClientInfos)
 			{
 				if (client->IsConnected())
 				{
@@ -465,90 +418,9 @@ private:
 
 			std::this_thread::sleep_for(std::chrono::milliseconds(32));
 		}
-		//while (mIsAccepterRun)
-		//{
-		//	auto curTimeSec = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
-		//	
-		//	for (auto client : mClientInfos) // 모든 client 객체를 순회하며 
-		//	{
-		//		if (client->IsConnected()) // 연결이 된 객체는 
-		//		{
-		//			continue; // 넘어가며
-		//		}
-		//		auto diff = (UINT64)curTimeSec - client->GetLatestClosedTimeSec();
-		//		if (diff < 0)
-		//		{
-		//			printf("CurTimeSec : %d\n", (UINT64)curTimeSec);
-		//			printf("GetLatestClosedTimeSec : %d\n", client->GetLatestClosedTimeSec());
-		//			continue;
-		//		}
-		//		//auto diff = curTimeSec - client->GetLatestClosedTimeSec();
-		//		if (diff <= RE_USE_SESSION_WAIT_TIMESEC)
-		//		{
-		//			continue;
-		//		}
-		//		// 연결이 되지 않은 객체가 있다면 비동기 accept
-		//		client->PostAccept(mListenSocket, curTimeSec);
-		//	}
-		//	std::this_thread::sleep_for(std::chrono::milliseconds(32));
-		//}
-		// 기존 thread를 이용한 accept 방식
-		/*
-		SOCKADDR_IN		stClientAddr;
-		int nAddrLen = sizeof(SOCKADDR_IN);
 
-		while (mIsAccepterRun)
-		{
-			// 접속을 받을 구조체의 인덱스를 얻어옴
-			ClientSession* pClientSession = GetEmptyClientInfo();
-			//pClientSession->GetIndex();
-			//pClientSession->mIndex = mClientCnt;
-
-			if (pClientSession == NULL)
-			{
-				printf("[ERROR] Client FULL \n");
-				return;
-			}
-
-			//클라이언트 접속 요청이 들어올 때까지 기다림
-			auto newSocket = accept(mListenSocket, (SOCKADDR*)&stClientAddr, &nAddrLen);
-
-			//pClientInfo->m_socketClient = accept(mListenSocket, (SOCKADDR*)&stClientAddr, &nAddrLen);
-			if (newSocket == INVALID_SOCKET) 
-			{
-				printf("[ERROR] accept() 실패 : %d\n", WSAGetLastError());
-				continue;
-			}
-
-			if (pClientSession->OnConnect(mIOCPHandle, newSocket) == false)
-			{
-				pClientSession->Closed(true);
-				return;
-			}
-
-			OnConnect(pClientSession->GetIndex());
-
-			// 클라이언트 갯수 증가
-			++mClientCnt;
-		}
-		*/
 	}
 
-	//void SendThread()
-	//{
-	//	while (mIsSenderRun)
-	//	{
-	//		for (auto client : mClientInfos)
-	//		{
-	//			if (client->IsConnected() == false)
-	//			{
-	//				continue; // 접속이 안되면 넘어가고
-	//			}
-	//			client->SendIO(); // 접속이 된 client에 한해서 sendio
-	//		}
-	//		std::this_thread::sleep_for(std::chrono::milliseconds(10));
-	//	}
-	//}
 
 	// 소켓의 연결을 종료
 	void CloseSocket(ClientSession* pClientSession, bool bIsForce = false)
@@ -559,7 +431,7 @@ private:
 	}
 
 	// 클라이언트 정보 저장 구조체
-	std::vector<ClientSession*> mClientInfos;
+	//std::vector<ClientSession*> mClientInfos;
 
 	// 클라이언트의 접속을 받기 위한 리슨 소켓
 	SOCKET mListenSocket = INVALID_SOCKET;
@@ -593,5 +465,7 @@ private:
 	static const ULONG MAX_COMPLETION_ENTRIES = 64;  // 한 번에 처리할 최대 완료 항목 수
 	static const DWORD TIMEOUT_WAIT = 100;           // 대기 타임아웃 (ms)
 
-
+	// 클라이언트 정보 저장 구조체
+	//std::vector<ClientSession*> mClientInfos;
+	std::vector<std::unique_ptr<ClientSession>> mClientInfos;
 };

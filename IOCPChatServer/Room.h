@@ -58,6 +58,7 @@ public:
 		mUserList.remove_if([leaveUserID](User* pUser) {
 			return leaveUserID == pUser->GetUserID();
 			});
+		mCurrentUserCount--;
 	}
 
 	void NotifyChat(INT32 clientIndex_, const char* userID_, const char* msg_)

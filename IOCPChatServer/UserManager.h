@@ -52,17 +52,32 @@ public:
 
 	ERROR_CODE Adduser(char* userID_, UINT32 clientIndex_)
 	{
-		UINT32 user_index = clientIndex_;
-		// 새로운 연결 발생할때 usermanager가 갖고있는 user객체 할당해줌
-		auto userIndex = clientIndex_;
-		mUserObjPool[userIndex]->SetLogin(userID_);
-
-		// string으로 변환해서 저장
 		std::string userIDStr = userID_;
-		mUserIDDictionary.insert(std::pair<std::string, int>(userIDStr, clientIndex_));
+
+		// 중복 검사 후 삽입
+		auto result = mUserIDDictionary.insert(std::pair<std::string, int>(userIDStr, clientIndex_));
+
+		if (!result.second) // 이미 존재하면 삽입 실패
+		{
+			printf("중복 로그인 시도 ! :%s\n",userID_);
+			return ERROR_CODE::LOGIN_USER_ALREADY;
+		}
+
+		// 삽입 성공 시 user 객체 설정
+		mUserObjPool[clientIndex_]->SetLogin(userID_);
+		printf("사용자 등록 성공 : %s (ClientIndex : %d)\n", userID_, clientIndex_);
+
+		//UINT32 user_index = clientIndex_;
+		//// 새로운 연결 발생할때 usermanager가 갖고있는 user객체 할당해줌
+		//auto userIndex = clientIndex_;
+		//mUserObjPool[userIndex]->SetLogin(userID_);
+
+		//// string으로 변환해서 저장
+		//std::string userIDStr = userID_;
+		//mUserIDDictionary.insert(std::pair<std::string, int>(userIDStr, clientIndex_));
 
 
-		//mUserIDDictionary.insert(std::pair<char*, int>(userID_, clientIndex_));
+		////mUserIDDictionary.insert(std::pair<char*, int>(userID_, clientIndex_));
 		
 		return ERROR_CODE::NONE;
 	}
@@ -75,6 +90,7 @@ public:
 
 	void DeleteUserInfo(User* user_)
 	{
+		printf("사용자 정보 삭제 : %s\n", user_->GetUserID().c_str());
 		mUserIDDictionary.erase(user_->GetUserID());
 		user_->Clear();
 	}
