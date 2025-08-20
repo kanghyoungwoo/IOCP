@@ -151,7 +151,7 @@ struct ROOM_CHAT_RESPONSE_PACKET : public PACKET_HEADER
 
 struct ROOM_CHAT_NOTIFY_PACKET : public PACKET_HEADER
 {
-	char UserID[MAX_USER_ID_LENGTH] = { 0, }; // 채팅을 보낸 유저의 ID
+	char UserID[MAX_USER_ID_LENGTH + 1] = { 0, }; // 채팅을 보낸 유저의 ID
 	char Message[MAX_CHAT_MSG + 1] = { 0, }; // 채팅 메세지
 };
 

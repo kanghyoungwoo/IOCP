@@ -145,6 +145,7 @@
     <ClInclude Include="PacketManager.h" />
     <ClInclude Include="RedisManager.h" />
     <ClInclude Include="RedisTaskDefine.h" />
+    <ClInclude Include="RingBuffer.h" />
     <ClInclude Include="Room.h" />
     <ClInclude Include="RoomManager.h" />
     <ClInclude Include="User.h" />

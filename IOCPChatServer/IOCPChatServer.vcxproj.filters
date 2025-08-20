@@ -32,9 +32,8 @@
     <ClInclude Include="RedisManager.h" />
     <ClInclude Include="Room.h" />
     <ClInclude Include="RedisTaskDefine.h" />
-    <ClInclude Include="RoomManager.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
+    <ClInclude Include="RoomManager.h" />
+    <ClInclude Include="RingBuffer.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
