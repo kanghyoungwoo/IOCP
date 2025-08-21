@@ -96,8 +96,23 @@ public:
 
 	void Clear()
 	{
+		// 송신 큐 정리
+		std::lock_guard<std::mutex> gurad(mSendLock);
+
+		while (!mSendDataqueue.empty())
+		{
+			delete[] mSendDataqueue.front()->m_wsaBuf.buf;
+			delete mSendDataqueue.front();
+			mSendDataqueue.pop();
+		}
+		
 		mSendPos = 0;
 		mIsSending = false;
+
+		// 버퍼 초기화 
+		ZeroMemory(mRecvBuf, sizeof(mRecvBuf));
+		ZeroMemory(mSendBuf, sizeof(mSendBuf));
+
 	}
 
 	// WSASend Overlapped I/O 작업을 시작
@@ -158,6 +173,7 @@ public:
 		if (nRet == SOCKET_ERROR && (WSAGetLastError() != ERROR_IO_PENDING))
 		{
 			printf("[ERROR] WSARecv() 실패 : %d\n", WSAGetLastError());
+			Closed(true); // 연결 강제 해제
 			return false;
 		}
 		printf("bind recv 성공\n");

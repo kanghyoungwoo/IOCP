@@ -188,6 +188,11 @@ void PacketManager::ProcessRecvPacket(const UINT32 clientIndex_, const UINT16 pa
 	{
 		(this->*(iter->second))(clientIndex_, packetSize_, pPacket_);
 	}
+	// 잘못된 패킷 처리
+	else
+	{
+		printf("알 수 없는 패킷 ID : %d (ClientIndex: %d)\n", packetId_, clientIndex_);
+	}
 
 }
 
@@ -327,6 +332,19 @@ void PacketManager::ProcessEnterRoom(UINT32 clientIndex_, UINT16 packetSize_, ch
 		printf("유효하지 않은 유저 !. ClientIndex : %d\n", clientIndex_);
 		return;
 	}
+
+	// 로그인 상태 검증 추가
+	if (pReqUser->GetDomainState() != User::DOMAIN_STATE::LOGIN)
+	{
+		ROOM_ENTER_RESPONSE_PACKET errorPacket;
+		errorPacket.PacketId = (UINT16)PACKET_ID::ROOM_ENTER_RESPONSE;
+		errorPacket.PacketLength = sizeof(ROOM_ENTER_RESPONSE_PACKET);
+		errorPacket.Result = (UINT16)ERROR_CODE::ENTER_ROOM_INVALID_USER_STATUS;
+		SendPacketFunc(clientIndex_, sizeof(ROOM_ENTER_RESPONSE_PACKET), (char*)&errorPacket);
+		return;
+		
+	}
+
 	//	응답 패킷을 생성하고
 	ROOM_ENTER_RESPONSE_PACKET roomEnterResPacket;
 	roomEnterResPacket.PacketId = (UINT16)PACKET_ID::ROOM_ENTER_RESPONSE;

@@ -2,7 +2,7 @@
 
 #include "User.h"
 #include "ErrorCode.h"
-
+#include <mutex>
 #include <unordered_map>
 //#include <vector>
 //#include <string>
@@ -54,6 +54,8 @@ public:
 	{
 		std::string userIDStr = userID_;
 
+		std::lock_guard<std::mutex> lock(mUserDictMutex);
+
 		// 중복 검사 후 삽입
 		auto result = mUserIDDictionary.insert(std::pair<std::string, int>(userIDStr, clientIndex_));
 
@@ -99,6 +101,9 @@ public:
 	INT32 FindUserIndexByID(char* userID_)
 	{
 		std::string userIDStr = userID_; // char*를 string으로 변환
+
+		std::lock_guard<std::mutex>lock(mUserDictMutex);
+
 		auto res = mUserIDDictionary.find(userIDStr);
 
 		//auto res = mUserIDDictionary.find(userID_);
@@ -113,7 +118,8 @@ private:
 	INT32 mCurrentUserCnt = 0;
 	INT32 mMaxUserCnt = -1;
 
-
 	std::vector<User*> mUserObjPool;
 	std::unordered_map<std::string, int>mUserIDDictionary;
+	
+	std::mutex mUserDictMutex;
 };

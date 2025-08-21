@@ -35,6 +35,8 @@ public:
 
 	UINT16 EnterUser(User *user_)
 	{
+		std::lock_guard<std::mutex> lock(mUserListMutex);
+		
 		// 현재 유저가 max보다 많으면 
 		if (mCurrentUserCount >= mMaxUserCount)
 		{
@@ -55,10 +57,12 @@ public:
 	{
 		auto leaveUserID = leaveUser_->GetUserID();
 
-		mUserList.remove_if([leaveUserID](User* pUser) {
-			return leaveUserID == pUser->GetUserID();
-			});
-		mCurrentUserCount--;
+		mUserList.remove(leaveUser_);
+
+		//mUserList.remove_if([leaveUserID](User* pUser) {
+		//	return leaveUserID == pUser->GetUserID();
+		//	});
+		--mCurrentUserCount;
 	}
 
 	void NotifyChat(INT32 clientIndex_, const char* userID_, const char* msg_)
@@ -70,6 +74,11 @@ public:
 		// 메모리를 먼저 초기화
 		memset(roomChatNotifyPacket.Message, 0, sizeof(roomChatNotifyPacket.Message));
 		memset(roomChatNotifyPacket.UserID, 0, sizeof(roomChatNotifyPacket.UserID));
+
+		//strncpy_s(roomChatNotifyPacket.UserID, sizeof(roomChatNotifyPacket.UserID), userID_, _TRUNCATE);
+		//strncpy_s(roomChatNotifyPacket.Message, sizeof(roomChatNotifyPacket.Message), msg_, _TRUNCATE);
+
+		
 
 		// 문자열 안전 복사 (방법 1 - strcpy_s 사용)
 		strcpy_s(roomChatNotifyPacket.UserID, sizeof(roomChatNotifyPacket.UserID), userID_);
@@ -115,7 +124,8 @@ private:
 
 	}
 
-	std::list<User*> mUserList;	// 유저 리스트
+	std::list<User*> mUserList;	// 유저 리스트 -> 멀티스레드 접근 위험
+	std::mutex mUserListMutex;
 
 	INT32 mMaxUserCount = 0;
 	INT32 mCurrentUserCount = 0;
