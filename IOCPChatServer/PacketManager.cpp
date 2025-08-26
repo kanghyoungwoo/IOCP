@@ -8,7 +8,6 @@
 //#include "RedisTaskDefine.h"
 #include "RedisManager.h"
 
-
 void PacketManager::Init(const UINT32 maxClient_)
 {
 	mRecvFunctionDictionary = std::unordered_map<int, PROCESS_RECV_PACKET_FUNCTION>();
@@ -352,6 +351,25 @@ void PacketManager::ProcessEnterRoom(UINT32 clientIndex_, UINT16 packetSize_, ch
 	//	RoomManager 객체의 EnterUser 함수를 호출한다.
 	
 	roomEnterResPacket.Result = mRoomManager->EnterUser(pRoomEnterReqPacket->RoomNumber, pReqUser);
+	
+	// 방 입장 성공 시 방 전체에 입장 알림
+	if (roomEnterResPacket.Result == (UINT16)ERROR_CODE::NONE)
+	{
+		auto pRoom = mRoomManager->GetRoomByNumber(pRoomEnterReqPacket->RoomNumber);
+		if (pRoom != nullptr)
+		{
+			// 임시 채팅 패킷 생성
+			ROOM_CHAT_REQUEST_PACKET tempChatPacket;
+			tempChatPacket.PacketId = (UINT16)PACKET_ID::ROOM_CHAT_REQUEST;
+			tempChatPacket.PacketLength = sizeof(ROOM_CHAT_REQUEST_PACKET);
+
+			sprintf_s(tempChatPacket.Message, "entered the room.");
+
+			// 방 전체에 알림
+			pRoom->NotifyChat(clientIndex_, pReqUser->GetUserID().c_str(), (char*)&tempChatPacket);
+		}
+	}
+	
 	//	해당 값의 결과를 응답 패킷의 데이터에 넣어서 전송한다.
 	SendPacketFunc(clientIndex_, sizeof(ROOM_ENTER_RESPONSE_PACKET), (char*)&roomEnterResPacket);
 	printf("Enter Room Res Packet Send ! \n");

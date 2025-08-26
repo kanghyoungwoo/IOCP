@@ -61,10 +61,10 @@ public:
 		return mIndex;
 	}
 
-	std::string GetUserId() const
-	{
-		return mUserID;
-	}
+	//std::string GetUserId() const
+	//{
+	//	return mUserID;
+	//}
 
 	DOMAIN_STATE GetDomainState()
 	{

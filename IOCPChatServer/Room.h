@@ -98,7 +98,6 @@ public:
 		SendToAllUser(sizeof(roomChatNotifyPacket), (char*)&roomChatNotifyPacket, clientIndex_, false);
 		printf("채팅 알림: UserID='%s', Message='%s'\n", roomChatNotifyPacket.UserID, roomChatNotifyPacket.Message);
 		printf("메세지가 전송되었습니다 !\n");*/
-
 	}
 
 
