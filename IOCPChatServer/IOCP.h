@@ -393,6 +393,18 @@ private:
 	{
 		while (mIsAccepterRun)
 		{
+			for (auto& client : mClientInfos)
+			{
+				if (client->IsConnected())
+					continue;
+				// 대기 시간 없이 바로 AccpetEx
+				client->PostImmediateAccept(mListenSocket);
+
+				// 최소대기시간
+				std::this_thread::sleep_for(std::chrono::milliseconds(1));
+			}
+
+			/*
 			auto curTimeSec = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
 
 			for (auto& client : mClientInfos)
@@ -417,6 +429,7 @@ private:
 			}
 
 			std::this_thread::sleep_for(std::chrono::milliseconds(32));
+			*/
 		}
 
 	}
