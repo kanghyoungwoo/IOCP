@@ -219,7 +219,7 @@ void PacketManager::ProcessLogin(UINT32 clientIndex_, UINT16 packetSize_, char* 
 	if (existingIndex == -1)
 	{
 		printf("새로운 사용자 - Redis로 전송\n");
-		// Redis 요청...
+		// Redis 요청
 		printf("Login To Redis USER ID : %s\n", pUserID);
 	}
 	else
@@ -382,7 +382,7 @@ void PacketManager::ProcessLeaveRoom(UINT32 clientIndex_, UINT16 packetSize_, ch
 	UNREFERENCED_PARAMETER(packetSize_);
 	UNREFERENCED_PARAMETER(pPacket);
 	//  방 퇴장 요청 패킷을 받는다.
-	//auto pRoomLeaveReqPacket = reinterpret_cast<ROOM_LEAVE_REQUEST_PACKET*>(pPacket);
+	auto pRoomLeaveReqPacket = reinterpret_cast<ROOM_LEAVE_REQUEST_PACKET*>(pPacket);
 	//	유효한 유저인지 검사한다.
 	auto pReqUser = mUserManager->GetUserByConnIdx(clientIndex_);
 	if (!pReqUser || pReqUser == nullptr)
@@ -390,13 +390,36 @@ void PacketManager::ProcessLeaveRoom(UINT32 clientIndex_, UINT16 packetSize_, ch
 		printf("유효하지 않은 유저 ! . ClientIndex : %d\n", clientIndex_);
 		return;
 	}
+	// 방 퇴장 전 방 정보 미리 저장
+	// 퇴장 후에는 정보가 사라지기 때문
+	auto roomNumber = pReqUser->GetRoomIndex();
+	auto pRoom = mRoomManager->GetRoomByNumber(roomNumber);
+
 	//	응답 패킷을 생성하고
 	ROOM_LEAVE_RESPONSE_PACKET roomLeaveResPacket;
 	roomLeaveResPacket.PacketId = (UINT16)PACKET_ID::ROOM_LEAVE_RESPONSE;
 	roomLeaveResPacket.PacketLength = sizeof(ROOM_LEAVE_RESPONSE_PACKET);
 
 	//	RoomManager 객체의 leaveUser 함수를 호출한다.
-	roomLeaveResPacket.Result = mRoomManager->LeaveUser(pReqUser->GetRoomIndex(), pReqUser);
+	roomLeaveResPacket.Result = mRoomManager->LeaveUser(roomNumber, pReqUser);
+
+	// 방 퇴장 성공 시 방 전체에 퇴장 알림
+	if (roomLeaveResPacket.Result == (UINT16)ERROR_CODE::NONE)
+	{	
+		if (pRoom != nullptr)
+		{
+			// 임시 채팅 패킷 생성
+			ROOM_CHAT_REQUEST_PACKET tempChatPacket;
+			tempChatPacket.PacketId = (UINT16)PACKET_ID::ROOM_CHAT_REQUEST;
+			tempChatPacket.PacketLength = sizeof(ROOM_CHAT_REQUEST_PACKET);
+
+			sprintf_s(tempChatPacket.Message, "has left the room.");
+
+			// 방 전체에 알림
+			pRoom->NotifyChat(clientIndex_, pReqUser->GetUserID().c_str(), (char*)&tempChatPacket);
+		}
+	}
+
 	//	해당 값의 결과를 응답 패킷의 데이터에 넣어서 전송한다.
 	SendPacketFunc(clientIndex_, sizeof(ROOM_LEAVE_RESPONSE_PACKET), (char*)&roomLeaveResPacket);
 	printf("Leave Room Res Packet Send ! \n");

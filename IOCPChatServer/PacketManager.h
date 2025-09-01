@@ -9,7 +9,6 @@
 #include <functional>
 #include <thread>
 #include <mutex>
-#include <stdio.h>
 
 class UserManager;
 
