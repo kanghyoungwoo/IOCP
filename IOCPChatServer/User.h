@@ -194,7 +194,7 @@ public:
 
 	INT32 GetRoomIndex()
 	{
-		mCurDomainState = DOMAIN_STATE::ROOM;
+		//mCurDomainState = DOMAIN_STATE::ROOM;
 		return roomIndex;
 	}
 

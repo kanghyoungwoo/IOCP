@@ -438,6 +438,17 @@ void PacketManager::ProcessRoomChatMessage(UINT32 clientIndex_, UINT16 packetSiz
 	roomChatResPacket.Result = (UINT16)ERROR_CODE::NONE;
 	//	Room 객체로 해당 정보를 전달한다.
 	auto pReqUser = mUserManager->GetUserByConnIdx(clientIndex_);
+
+	// 유저가 방에 있는지 확인
+	if (pReqUser->GetDomainState() != User::DOMAIN_STATE::ROOM)
+	{
+		ROOM_CHAT_RESPONSE_PACKET roomChatResPacket;
+		roomChatResPacket.PacketId = (UINT16)PACKET_ID::ROOM_CHAT_RESPONSE;
+		roomChatResPacket.PacketLength = sizeof(ROOM_CHAT_RESPONSE_PACKET);
+		roomChatResPacket.Result = (UINT16)ERROR_CODE::ENTER_ROOM_INVALID_USER_STATUS;
+		SendPacketFunc(clientIndex_, sizeof(ROOM_CHAT_RESPONSE_PACKET), (char*)&roomChatResPacket);
+	}
+
 	auto roomNum = pReqUser->GetRoomIndex();
 
 	auto pRoom = mRoomManager->GetRoomByNumber(roomNum);
