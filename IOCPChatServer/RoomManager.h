@@ -28,7 +28,7 @@ public:
 		return mMaxRoomCount;
 	}
 
-	INT16 EnterUser(INT32 roomNumber_, std::shared_ptr<User> user_)
+	INT16 EnterUser(INT32 roomNumber_, User* user_)
 	{
 		auto room = GetRoomByNumber(roomNumber_);
 		if (room == nullptr)
@@ -39,7 +39,7 @@ public:
 		return room->EnterUser(user_);
 	}
 
-	INT16 LeaveUser(INT32 roomNumber_, std::shared_ptr<User> user_)
+	INT16 LeaveUser(INT32 roomNumber_, User* user_)
 	{
 		auto room = GetRoomByNumber(roomNumber_);
 		if (room == nullptr)

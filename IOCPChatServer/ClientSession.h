@@ -118,6 +118,7 @@ public:
 	// WSASend Overlapped I/O 작업을 시작
 	bool SendMsg(const UINT32 dataSize, char* pMsg)
 	{
+		// overlapped 구조체 생성
 		auto sendOverlappedEx = new stOverlappedEx;
 		ZeroMemory(sendOverlappedEx, sizeof(stOverlappedEx));
 		sendOverlappedEx->m_wsaBuf.len = dataSize;

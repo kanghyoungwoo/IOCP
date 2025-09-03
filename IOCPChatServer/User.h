@@ -3,6 +3,7 @@
 #include "Packet.h"
 #include "RingBuffer.h"
 #include <string>
+#include <mutex>
 
 class User
 {
@@ -27,6 +28,7 @@ public:
 
 	void Clear()
 	{
+		std::lock_guard<std::mutex>lock(mPacketRingBuffMutex);
 		mUserID = "";
 		mIsconfirm = false;
 		mAuthToken = "";
@@ -77,6 +79,8 @@ public:
 	{
 		if (pData_ == nullptr || dataSize_ == 0)
 			return;
+
+		std::lock_guard<std::mutex>lock(mPacketRingBuffMutex);
 
 		size_t written = mPacketDataBuffer.Write(pData_, dataSize_);
 
@@ -138,6 +142,8 @@ public:
 
 		//return packetInfo;
 
+		std::lock_guard<std::mutex>lock(mPacketRingBuffMutex);
+
 		if (mPacketDataBuffer.Size() < PACKET_HEADER_LENGTH)
 			return PacketInfo();
 
@@ -165,7 +171,7 @@ public:
 			printf("패킷 데이터 부족 - 필요(%d) : 현재(%zu\n)", pHeader->PacketLength, mPacketDataBuffer.Size());
 			return PacketInfo();
 		}
-
+		
 		// 패킷 데이터 임시 버퍼에 읽어오기
 		static char tempPacketBuffer[PACKET_DATA_BUFFER_SIZE];
 		size_t readBytes = mPacketDataBuffer.Read(tempPacketBuffer, pHeader->PacketLength);
@@ -231,6 +237,7 @@ private:
 	
 	DOMAIN_STATE mCurDomainState = DOMAIN_STATE::NONE;
 
+	std::mutex mPacketRingBuffMutex;
 	
 	
 };

@@ -17,15 +17,15 @@ public:
 	void Init(const UINT32 maxUserCount_)
 	{
 		mMaxUserCnt = maxUserCount_;
-		//mUserObjPool = std::vector<User*>(mMaxUserCnt);
-		mUserObjPool = std::vector<std::shared_ptr<User>>(maxUserCount_);
+		mUserObjPool = std::vector<User*>(mMaxUserCnt);
+		//mUserObjPool = std::vector<std::shared_ptr<User>>(maxUserCount_);
 
 		for (auto i = 0;i < mMaxUserCnt;i++)
 		{
-			mUserObjPool[i] = std::make_shared<User>();
-			mUserObjPool[i]->Init(i);
-			//mUserObjPool[i] = new User;
+			//mUserObjPool[i] = std::make_shared<User>();
 			//mUserObjPool[i]->Init(i);
+			mUserObjPool[i] = new User;
+			mUserObjPool[i]->Init(i);
 		}
 	}
 
@@ -56,7 +56,7 @@ public:
 	ERROR_CODE Adduser(char* userID_, UINT32 clientIndex_)
 	{
 		std::string userIDStr = userID_;
-		std::lock_guard<std::mutex> lock(mUserDictMutex);
+		//std::lock_guard<std::mutex> lock(mUserDictMutex);
 
 		// 중복 검사 후 삽입
 		auto result = mUserIDDictionary.insert(std::pair<std::string, int>(userIDStr, clientIndex_));
@@ -87,20 +87,21 @@ public:
 	}
 
 
-	std::shared_ptr<User> GetUserByConnIdx(INT32 clientIndex_)
-	{
-		if (clientIndex_ < 0 || clientIndex_ >= mMaxUserCnt)
-			return nullptr;
-		return mUserObjPool[clientIndex_];
-	}
-	//User* GetUserByConnIdx(INT32 clientIndex_)
+	//std::shared_ptr<User> GetUserByConnIdx(INT32 clientIndex_)
 	//{
+	//	if (clientIndex_ < 0 || clientIndex_ >= mMaxUserCnt)
+	//		return nullptr;
 	//	return mUserObjPool[clientIndex_];
 	//}
+	User* GetUserByConnIdx(INT32 clientIndex_)
+	{
+		return mUserObjPool[clientIndex_];
+	}
 
-	void DeleteUserInfo(std::shared_ptr<User> user_)
+	void DeleteUserInfo(User* user_)
 	{
 		printf("사용자 정보 삭제 : %s\n", user_->GetUserID().c_str());
+		//std::lock_guard<std::mutex>lock(mUserDictMutex);
 		mUserIDDictionary.erase(user_->GetUserID());
 		user_->Clear();
 	}
@@ -110,7 +111,7 @@ public:
 	{
 		std::string userIDStr = userID_; // char*를 string으로 변환
 
-		std::lock_guard<std::mutex>lock(mUserDictMutex);
+		//std::lock_guard<std::mutex>lock(mUserDictMutex);
 
 		auto res = mUserIDDictionary.find(userIDStr);
 
@@ -126,9 +127,9 @@ private:
 	INT32 mCurrentUserCnt = 0;
 	INT32 mMaxUserCnt = -1;
 
-	//std::vector<User*> mUserObjPool;
-	std::vector<std::shared_ptr<User>> mUserObjPool;
+	std::vector<User*> mUserObjPool;
+	//std::vector<std::shared_ptr<User>> mUserObjPool;
 	std::unordered_map<std::string, int>mUserIDDictionary;
 	
-	std::mutex mUserDictMutex;
+	//std::mutex mUserDictMutex;
 };
