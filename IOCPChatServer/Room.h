@@ -33,7 +33,7 @@ public:
 		return mRoomNumber;
 	}	
 
-	UINT16 EnterUser(User *user_)
+	UINT16 EnterUser(std::shared_ptr<User> user_)
 	{
 		std::lock_guard<std::mutex> lock(mUserListMutex);
 		
@@ -53,15 +53,17 @@ public:
 		return (UINT16)ERROR_CODE::NONE;
 	}
 
-	void LeaveUser(User* leaveUser_)
+	void LeaveUser(const std::shared_ptr<User> leaveUser_)
 	{
+		std::lock_guard<std::mutex> lock(mUserListMutex);
 		auto leaveUserID = leaveUser_->GetUserID();
 
 		mUserList.remove(leaveUser_);
 
-		//mUserList.remove_if([leaveUserID](User* pUser) {
-		//	return leaveUserID == pUser->GetUserID();
+		//mUserList.remove_if([leaveUser_](std::shared_ptr<User> pUser) {
+		//	return leaveUser_.get() == pUser.get();  // 포인터 주소 비교
 		//	});
+
 		--mCurrentUserCount;
 	}
 
@@ -112,6 +114,8 @@ private:
 		// 3. 여기서 특이한 점은 패킷 매니저의 함수를 함수 포인터로 받아 유저 객체에 저장한 뒤
 		// 4. 그 함수 포인터를 사용하여 패킷 매니저의 함수를 호출하여 전송을 수행한다.
 
+		std::lock_guard<std::mutex> lock(mUserListMutex);
+
 		for (auto pUser : mUserList)
 		{
 			if (pUser == nullptr)
@@ -123,7 +127,8 @@ private:
 
 	}
 
-	std::list<User*> mUserList;	// 유저 리스트 -> 멀티스레드 접근 위험
+	//std::list<User*> mUserList;	// 유저 리스트 -> 멀티스레드 접근 위험
+	std::list<std::shared_ptr<User>>mUserList;
 	std::mutex mUserListMutex;
 
 	INT32 mMaxUserCount = 0;

@@ -138,6 +138,9 @@ PacketInfo PacketManager::DequePacketData()
 		mInComingPacketUserIndex.pop_front();
 	}
 	auto pUser = mUserManager->GetUserByConnIdx(userIndex);
+	if (!pUser)
+		return PacketInfo(); // 없으면 리턴
+
 	auto packetData = pUser->GetPacket();
 	packetData.ClientIndex = userIndex;
 
@@ -369,6 +372,7 @@ void PacketManager::ProcessEnterRoom(UINT32 clientIndex_, UINT16 packetSize_, ch
 			pRoom->NotifyChat(clientIndex_, pReqUser->GetUserID().c_str(), (char*)&tempChatPacket);
 		}
 	}
+
 	
 	//	해당 값의 결과를 응답 패킷의 데이터에 넣어서 전송한다.
 	SendPacketFunc(clientIndex_, sizeof(ROOM_ENTER_RESPONSE_PACKET), (char*)&roomEnterResPacket);
@@ -436,7 +440,7 @@ void PacketManager::ProcessRoomChatMessage(UINT32 clientIndex_, UINT16 packetSiz
 	roomChatResPacket.PacketId = (UINT16)PACKET_ID::ROOM_CHAT_RESPONSE;
 	roomChatResPacket.PacketLength = sizeof(ROOM_CHAT_RESPONSE_PACKET);
 	roomChatResPacket.Result = (UINT16)ERROR_CODE::NONE;
-	//	Room 객체로 해당 정보를 전달한다.
+	//	user 객체로 해당 정보를 전달한다.
 	auto pReqUser = mUserManager->GetUserByConnIdx(clientIndex_);
 
 	// 유저가 방에 있는지 확인
