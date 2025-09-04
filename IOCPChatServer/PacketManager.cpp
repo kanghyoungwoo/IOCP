@@ -38,7 +38,7 @@ void PacketManager::CreateComponent(const UINT32 maxClient_)
 
 	UINT32 startRoomNumber = 0;
 	UINT32 maxRoomUserCount = 4;
-	UINT32 maxRoomCount = 10;
+	UINT32 maxRoomCount = 250;
 	mRoomManager = new RoomManager;
 	mRoomManager->SendPacketFunc = SendPacketFunc;
 	mRoomManager->Init(startRoomNumber, maxRoomCount, maxRoomUserCount);
@@ -118,12 +118,21 @@ void PacketManager::ProcessPacket()
 void PacketManager::EnqueuePacketData(const UINT32 clientIndex_)
 {
 	std::lock_guard<std::mutex> guard(mLock);
-	mInComingPacketUserIndex.push_back(clientIndex_);
+	auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
+	if (pUser)
+	{
+		PacketTask task;
+		task.clientIndex = clientIndex_;
+		task.generation = pUser->GetGeneration();	// 현재 generation
+		mInComingPacketUserIndex.push_back(task);
+	}
+	//mInComingPacketUserIndex.push_back(clientIndex_);
 }
 
 PacketInfo PacketManager::DequePacketData()
 {
-	UINT32 userIndex = 0;
+	//UINT32 userIndex = 0;
+	PacketTask task;
 	// 요청을 보낸 유저가 있는지 확인 후 
 	// empty면 리턴
 	{
@@ -134,15 +143,21 @@ PacketInfo PacketManager::DequePacketData()
 		}
 		// 있으면 데이터를 뽑아내고 
 		// user index를 통해서 user 객체를 알아내고 링버퍼를 이용
-		userIndex = mInComingPacketUserIndex.front();
+		//userIndex = mInComingPacketUserIndex.front();
+		task = mInComingPacketUserIndex.front();
 		mInComingPacketUserIndex.pop_front();
 	}
-	auto pUser = mUserManager->GetUserByConnIdx(userIndex);
-	if (!pUser)
-		return PacketInfo(); // 없으면 리턴
+	auto pUser = mUserManager->GetUserByConnIdx(task.clientIndex);
+	if (!pUser) // 유저가 이미 삭제됐으면
+		return PacketInfo();
+	if (pUser->GetGeneration() != task.generation)
+	{
+		printf("enqueue generation: %d 이 current generation: %d 맞지 않습니다\n", task.generation, pUser->GetGeneration());
+		return PacketInfo();
+	}
 
 	auto packetData = pUser->GetPacket();
-	packetData.ClientIndex = userIndex;
+	packetData.ClientIndex = task.clientIndex;
 
 	return packetData;
 }
@@ -306,6 +321,22 @@ void PacketManager::ProcessLoginDBResult(UINT32 clientIndex_, UINT16 packetSize_
 
 void PacketManager::ClearConnectionInfo(INT32 clientIndex_)
 {
+	{
+		// queue에서 해당 유저의 대기중인 task 제거
+		std::lock_guard<std::mutex>guard(mLock);
+		auto it = mInComingPacketUserIndex.begin();
+		while (it != mInComingPacketUserIndex.end())
+		{
+			if (it->clientIndex == clientIndex_)
+			{
+				it = mInComingPacketUserIndex.erase(it);
+				printf("remove enqueue packetdata for disconnected used : %d\n", clientIndex_);
+			}
+			else
+				++it;
+		}
+	}
+
 	auto pReqUser = mUserManager->GetUserByConnIdx(clientIndex_);
 
 	if (pReqUser->GetDomainState() == User::DOMAIN_STATE::ROOM)

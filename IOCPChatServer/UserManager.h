@@ -101,7 +101,6 @@ public:
 	void DeleteUserInfo(User* user_)
 	{
 		printf("사용자 정보 삭제 : %s\n", user_->GetUserID().c_str());
-		//std::lock_guard<std::mutex>lock(mUserDictMutex);
 		mUserIDDictionary.erase(user_->GetUserID());
 		user_->Clear();
 	}

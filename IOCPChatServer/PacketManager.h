@@ -14,6 +14,12 @@ class UserManager;
 
 class RedisManager;
 
+struct PacketTask
+{
+	UINT32 clientIndex;
+	UINT32 generation;	// enqueue 시점의 genteration
+};
+
 class PacketManager {
 public:
 	PacketManager() = default;
@@ -64,6 +70,7 @@ private:
 	// queue를 2개 가지고 있음 
 	// IOCP에서 패킷을 처리하면 공용객체에 락을 걸어야 하기 떄문에 락을 안걸기 위해
 	// packet처리 쓰레드는 여기서만 사용하고 iocp는 네트워크 처리
-	std::deque<INT32> mInComingPacketUserIndex;		// 실제 데이터가 왔을 때 사용하는 queue
+	//std::deque<INT32> mInComingPacketUserIndex;		// 실제 데이터가 왔을 때 사용하는 queue
+	std::deque<PacketTask>mInComingPacketUserIndex;
 	std::deque<PacketInfo> mSystemPacketQueue;		// 네트워크 연결 처리하는 queue.. 이 두 가지 queue를 합치는게 제일 좋긴 함
 };

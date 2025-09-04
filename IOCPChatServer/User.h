@@ -23,17 +23,20 @@ public:
 	void Init(const UINT32 index_)
 	{
 		mIndex = index_;
+		mPacketDataBuffer.Clear();
 		//mPacketDataBuffer = new char[PACKET_DATA_BUFFER_SIZE];
 	}
 
 	void Clear()
 	{
 		std::lock_guard<std::mutex>lock(mPacketRingBuffMutex);
+
 		mUserID = "";
 		mIsconfirm = false;
 		mAuthToken = "";
 		mCurDomainState = DOMAIN_STATE::NONE;
 		mPacketDataBuffer.Clear();
+		mGeneration++;	// 세션 종료마다 증가
 
 		//mPacketDataBufferWritePos = 0;
 		//mPacketDataBufferReadPos = 0;
@@ -63,10 +66,15 @@ public:
 		return mIndex;
 	}
 
-	//std::string GetUserId() const
+	//UINT32 GetGeneration() const noexcept 
 	//{
-	//	return mUserID;
+	//	return mGeneration.load();
 	//}
+
+	UINT32 GetGeneration() const
+	{
+		return mGeneration;
+	}
 
 	DOMAIN_STATE GetDomainState()
 	{
@@ -190,6 +198,36 @@ public:
 		return packetInfo;
 	}
 
+	//PacketInfo GetPacket() 
+	//{
+	//	std::lock_guard<std::mutex> lock(mPacketRingBuffMutex);
+
+	//	if (mPacketDataBuffer.Size() < PACKET_HEADER_LENGTH)
+	//		return PacketInfo();
+
+	//	// Header를 한번에 가져오는 API가 없으니 임시 버퍼에 복사
+	//	char headerBuffer[PACKET_HEADER_LENGTH];
+	//	for (size_t i = 0; i < PACKET_HEADER_LENGTH; i++) 
+	//	{
+	//		if (!mPacketDataBuffer.Peek(headerBuffer[i], i))
+	//			return PacketInfo();
+	//	}
+	//	auto pHeader = reinterpret_cast<const PACKET_HEADER*>(headerBuffer);
+	//	if (pHeader->PacketLength > mPacketDataBuffer.Size())
+	//		return PacketInfo();
+
+	//	static char tempPacketBuffer[PACKET_DATA_BUFFER_SIZE];
+	//	size_t readBytes = mPacketDataBuffer.Read(tempPacketBuffer, pHeader->PacketLength);
+	//	if (readBytes != pHeader->PacketLength)
+	//		return PacketInfo();
+
+	//	PacketInfo info;
+	//	info.PacketId = pHeader->PacketId;
+	//	info.DataSize = pHeader->PacketLength;
+	//	info.pDataPtr = tempPacketBuffer;
+	//	return info;
+	//}
+
 	void EnterRoom(INT32 roomIndex_)
 	{
 		roomIndex = roomIndex_;
@@ -225,6 +263,7 @@ private:
 	std::string mUserID = "";
 	bool mIsconfirm = false;
 	INT32 roomIndex = -1;
+	std::atomic<UINT32> mGeneration{ 0 };
 	std::string mAuthToken = "";
 
 	UINT32 mPacketDataBufferWritePos = 0; // 링버퍼
