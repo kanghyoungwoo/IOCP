@@ -168,6 +168,13 @@ IOCPChatServer/
 - **Approach**: 세션의 생명주기를 추적할 수 있는 generation token 도입
 - **Solution**: `User` 클래스에 `std::atomic<UINT32> mGeneration` 도입, 연결 종료 시마다 generation 값 증가, `PacketTask` 구조체에 enqueue 시점의 generation 저장, `DequePacketData()`에서 현재 generation과 비교하여 불일치 시 패킷 폐기
 
+## 🎥시연 영상
+- 채팅
+![Image](https://github.com/user-attachments/assets/c823198a-19ab-4653-aa18-2416711f23c1)
+- 서로 다른 방에서의 채팅
+![Image](https://github.com/user-attachments/assets/0926421a-a3a1-4436-8854-578eb680b654)
+- 없는 사용자, 중복된 로그인, 방 입장하지 않고 메세지 전송
+![Image](https://github.com/user-attachments/assets/47101876-e9d1-46a4-9824-619f63a79247)
 ## 🔮 향후 개선 방향
 - [ ] 더미 데이터 테스트
 - [ ] 웹소켓 지원 추가
