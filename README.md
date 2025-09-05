@@ -151,6 +151,23 @@ IOCPChatServer/
 - 방별 브로드캐스트 메시지 전송
 - 동시 접속자 수 제한
 
+## 🛠️ Technical Challenges
+
+### Challenge 1: TCP Stream Packet 경계
+- **Problem**: TCP는 스트림 기반 프로토콜로 패킷 경계가 없어서, 여러 패킷이 합쳐지거나 하나의 패킷이 분할되어 수신될 수 있음. 이로 인해 패킷 조립 시 데이터 손실이나 잘못된 파싱이 발생할 위험
+- **Approach**: 고정 길이 헤더 구조체를 설계하고, 링버퍼를 도입하여 스트림 데이터를 안전하게 버퍼링
+- **Solution**: `User::GetPacket()`에서 헤더 peek → 전체 길이 확인 → 정확한 바이트 수만큼 read
+
+### Challenge 2: 다중쓰레드에서 Ring Buffer 접근
+- **Problem**: 네트워크 쓰레드(IOCP Worker)에서 `User::SetPacketData()`로 데이터 쓰기와 패킷 처리 쓰레드에서 `User::GetPacket()`으로 데이터 읽기가 동시에 발생하여 데이터 race condition 발생.
+- **Approach**: Mutex추가로 쓰레드 안전성 확보
+- **Solution**: `User` 클래스에 `mPacketRingBuffMutex` 추가, `SetPacketData()`, `GetPacket()`, `Clear()` 메서드를 동일한 뮤텍스로 보호
+
+### Challenge 3: 연결 종료 중 잔여 인덱스 처리
+- **Problem**: `DequePacketData()`에서 `userIndex`가져와 처리하는 과정 직전에, 패킷 처리 쓰레드에서 시스템 패킷으로 `ClearConnectionInfo()`가 먼저 실행되어 `User::Clear()`가 호출이 되면 이미 초기화된 사용자 객체에 대해 패킷 처리를 시도하여 빈 패킷 반환 하게 되고, 불필요한 처리 시도를 하게됨
+- **Approach**: 세션의 생명주기를 추적할 수 있는 generation token 도입
+- **Solution**: `User` 클래스에 `std::atomic<UINT32> mGeneration` 도입, 연결 종료 시마다 generation 값 증가, `PacketTask` 구조체에 enqueue 시점의 generation 저장, `DequePacketData()`에서 현재 generation과 비교하여 불일치 시 패킷 폐기
+
 ## 🔮 향후 개선 방향
 - [ ] 더미 데이터 테스트
 - [ ] 웹소켓 지원 추가
