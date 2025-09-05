@@ -40,7 +40,7 @@ Windows IOCP(I/O Completion Port)를 활용한 고성능 멀티스레드 채팅 
 ┌──────────────────────────┐
 │       IOCP Server        │
 │  ┌────────────────────┐  │
-│  │  IOCP(네트워크 I/O) │◄─ AcceptEx / WSARecv / WSASend
+│  │  IOCP(NetWork I/O) │◄─ AcceptEx / WSARecv / WSASend
 │  └────────────────────┘  │
 │           │              │
 │           ▼              │
@@ -62,7 +62,7 @@ Windows IOCP(I/O Completion Port)를 활용한 고성능 멀티스레드 채팅 
             ▼
 ┌─────────────────┐
 │     Redis DB    │
-│ (계정/비밀번호)  │
+│   (ID/PASSWORD) │
 └─────────────────┘
 
   ```
