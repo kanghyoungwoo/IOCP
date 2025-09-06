@@ -101,7 +101,7 @@ IOCPChatServer.sln
 ### 실행 방법
 1. Redis 서버 시작 (포트 6379)
 2. Redis 클라이언트에 이용자 아이디, 비밀번호 세팅
-3. IOCPChatServer.exe 실행
+3. IOCPChatServer.sln 실행
 4. 클라이언트 연결 (포트 11021)
 
 ## 📊 성능 특징
