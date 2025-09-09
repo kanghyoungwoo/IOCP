@@ -117,7 +117,7 @@ IOCPChatServer/
 ├── IOCP.h                  # IOCP 핵심 클래스
 ├── ClientSession.h         # 클라이언트 세션 관리
 ├── Packet.h                # 패킷 구조체 정의
-├── PacketManager.h/cpp     # 패킷 처리 및 라우팅
+├── PacketManager.h/cpp     # 패킷 처리
 ├── User.h                  # 사용자 정보 및 상태
 ├── UserManager.h           # 사용자 관리
 ├── Room.h                  # 채팅방 구현
