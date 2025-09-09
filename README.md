@@ -164,20 +164,7 @@ IOCPChatServer/
 - **Solution**: `User` 클래스에 `mPacketRingBuffMutex` 추가, `SetPacketData()`, `GetPacket()`, `Clear()` 메서드를 동일한 뮤텍스로 보호
 
 ### Challenge 3: 연결 종료 중 잔여 인덱스 처리
-- **Problem**: `DequePacketData()`에서 `userIndex`가져와 처리하는 과정 직전에, 패킷 처리 쓰레드에서 시스템 패킷으로 `ClearConnectionInfo()`가 먼저 실행되어 `User::Clear()`가 호출이 되면 이미 초기화된 사용자 객체에 대해 패킷 처리를 시도하여 빈 패킷 반환 하게 되고, 불필요한 처리 시도를 하게됨
-- **Approach**: 세션의 생명주기를 추적할 수 있는 generation token 도입
-- **Solution**: `User` 클래스에 `std::atomic<UINT32> mGeneration` 도입, 연결 종료 시마다 generation 값 증가, `PacketTask` 구조체에 enqueue 시점의 generation 저장, `DequePacketData()`에서 현재 generation과 비교하여 불일치 시 패킷 폐기
-
-## 🎥시연 영상
-- 채팅
-![Image](https://github.com/user-attachments/assets/c823198a-19ab-4653-aa18-2416711f23c1)
-- 서로 다른 방에서의 채팅
-![Image](https://github.com/user-attachments/assets/0926421a-a3a1-4436-8854-578eb680b654)
-- 없는 사용자, 중복된 로그인, 방 입장하지 않고 메세지 전송
-![Image](https://github.com/user-attachments/assets/47101876-e9d1-46a4-9824-619f63a79247)
-## 🔮 향후 개선 방향
-- [ ] 더미 데이터 테스트
-- [ ] Systempacket queue, Userpacket queue 통합
+- **Problem**: `DequePacketData()`에서 `userIndex`가져와 처리하는 과정 직전에, 패킷 처리 쓰레드에서 시스템 패킷으로 `ClearConnectionInfo()`가 먼저 실행되어 `User::Clear()`가 호출이 되면 이미 초기화된 사용자 객체에 대해 패킷 처리를 시도하여 빈 패킷 반환 하게 되고, 불필요한 처용
 
 
 ## 👨‍💻 개발자
