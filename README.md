@@ -114,15 +114,15 @@ IOCPChatServer.sln
 ## 📁 프로젝트 구조
 ```
 IOCPChatServer/
-├── IOCP.h/cpp              # IOCP 핵심 클래스
-├── ClientSession.h/cpp     # 클라이언트 세션 관리
+├── IOCP.h                  # IOCP 핵심 클래스
+├── ClientSession.h         # 클라이언트 세션 관리
 ├── Packet.h                # 패킷 구조체 정의
 ├── PacketManager.h/cpp     # 패킷 처리 및 라우팅
-├── User.h/cpp              # 사용자 정보 및 상태
-├── UserManager.h/cpp       # 사용자 관리
-├── Room.h/cpp              # 채팅방 구현
-├── RoomManager.h/cpp       # 채팅방 관리
-├── RedisManager.h/cpp      # Redis 연동
+├── User.h                  # 사용자 정보 및 상태
+├── UserManager.h           # 사용자 관리
+├── Room.h                  # 채팅방 구현
+├── RoomManager.h           # 채팅방 관리
+├── RedisManager.h          # Redis 연동
 ├── RingBuffer.h            # 링버퍼 직접 구현
 ├── Define.h                # 상수 및 타입 정의
 ├── ErrorCode.h             # 에러 코드 정의
@@ -177,12 +177,7 @@ IOCPChatServer/
 ![Image](https://github.com/user-attachments/assets/47101876-e9d1-46a4-9824-619f63a79247)
 ## 🔮 향후 개선 방향
 - [ ] 더미 데이터 테스트
-- [ ] 웹소켓 지원 추가
-- [ ] SSL/TLS 암호화 적용
-- [ ] 로드 밸런싱 및 클러스터링
-- [ ] 메시지 영속성 및 백업
-- [ ] 실시간 통계 및 모니터링
-- [ ] 크로스 플랫폼 지원
+- [ ] Systempacket queue, Userpacket queue 통합
 
 
 ## 👨‍💻 개발자
