@@ -35,6 +35,10 @@ public:
 
 
 private:
+	using PacketHandler = std::function<void(UINT32 clientIndex, UINT16 packetSize, char* pPacket)>;
+	void RegisterHandlers(); // 핸들러 함수 추가
+	// std::function 기반 디스패치
+	std::unordered_map<UINT16, PacketHandler>mPacketHandlers;
 	void CreateComponent(const UINT32 maxClient_);
 	void ClearConnectionInfo(INT32 clientIndex_);
 

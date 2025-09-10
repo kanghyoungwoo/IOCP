@@ -10,25 +10,57 @@
 
 void PacketManager::Init(const UINT32 maxClient_)
 {
-	mRecvFunctionDictionary = std::unordered_map<int, PROCESS_RECV_PACKET_FUNCTION>();
+	//mRecvFunctionDictionary = std::unordered_map<int, PROCESS_RECV_PACKET_FUNCTION>();
 
-	mRecvFunctionDictionary[(int)PACKET_ID::SYS_USER_CONNECT] = &PacketManager::ProcessUserConnect;
-	mRecvFunctionDictionary[(int)PACKET_ID::SYS_USER_DISCONNECT] = &PacketManager::ProcessUserDisconnect;
+	//mRecvFunctionDictionary[(int)PACKET_ID::SYS_USER_CONNECT] = &PacketManager::ProcessUserConnect;
+	//mRecvFunctionDictionary[(int)PACKET_ID::SYS_USER_DISCONNECT] = &PacketManager::ProcessUserDisconnect;
 
-	mRecvFunctionDictionary[(int)PACKET_ID::LOGIN_REQUEST] = &PacketManager::ProcessLogin;
-	mRecvFunctionDictionary[(int)RedisTaskID::RESPONSE_LOGIN] = &PacketManager::ProcessLoginDBResult; // 서버가 자기 자신 호출
+	//mRecvFunctionDictionary[(int)PACKET_ID::LOGIN_REQUEST] = &PacketManager::ProcessLogin;
+	//mRecvFunctionDictionary[(int)RedisTaskID::RESPONSE_LOGIN] = &PacketManager::ProcessLoginDBResult;
 
-	mRecvFunctionDictionary[(int)PACKET_ID::ROOM_ENTER_REQUEST] = &PacketManager::ProcessEnterRoom;
-	mRecvFunctionDictionary[(int)PACKET_ID::ROOM_LEAVE_REQUEST] = &PacketManager::ProcessLeaveRoom;
-	mRecvFunctionDictionary[(int)PACKET_ID::ROOM_CHAT_REQUEST] = &PacketManager::ProcessRoomChatMessage;
-	
-
-
-
+	//mRecvFunctionDictionary[(int)PACKET_ID::ROOM_ENTER_REQUEST] = &PacketManager::ProcessEnterRoom;
+	//mRecvFunctionDictionary[(int)PACKET_ID::ROOM_LEAVE_REQUEST] = &PacketManager::ProcessLeaveRoom;
+	//mRecvFunctionDictionary[(int)PACKET_ID::ROOM_CHAT_REQUEST] = &PacketManager::ProcessRoomChatMessage;
+	RegisterHandlers();
 	CreateComponent(maxClient_);
 
-	mRedisManager = new RedisManager; // std::make_unique<RedisManager>();
+	mRedisManager = new RedisManager;
 
+}
+
+void PacketManager::RegisterHandlers()
+{
+	// 시스템 패킷 핸들러
+	mPacketHandlers[(UINT16)PACKET_ID::SYS_USER_CONNECT] = [this](UINT32 clientIndex, UINT16 packetSize, char* pPacket)
+		{
+			ProcessUserConnect(clientIndex, packetSize, pPacket);
+		};
+	mPacketHandlers[(UINT16)PACKET_ID::SYS_USER_DISCONNECT] = [this](UINT32 clientIndex, UINT16 packetSize, char* pPacket)
+		{
+			ProcessUserDisconnect(clientIndex, packetSize, pPacket);
+		};
+	// 로그인 핸들러
+	mPacketHandlers[(UINT16)PACKET_ID::LOGIN_REQUEST] = [this](UINT32 clientIndex, UINT16 packetSize, char* pPacket)
+		{
+			ProcessLogin(clientIndex, packetSize, pPacket);
+		};
+	mPacketHandlers[(UINT16)RedisTaskID::RESPONSE_LOGIN] = [this](UINT32 clientIndex, UINT16 packetSize, char* pPacket)
+		{
+			ProcessLoginDBResult(clientIndex, packetSize, pPacket);
+		};
+	// 방 관련 핸들러
+	mPacketHandlers[(UINT16)PACKET_ID::ROOM_ENTER_REQUEST] = [this](UINT32 clientIndex, UINT16 packetSize, char* pPacket)
+		{
+			ProcessEnterRoom(clientIndex, packetSize, pPacket);
+		};
+	mPacketHandlers[(UINT16)PACKET_ID::ROOM_LEAVE_REQUEST] = [this](UINT32 clientIndex, UINT16 packetSize, char* pPacket)
+		{
+			ProcessLeaveRoom(clientIndex, packetSize, pPacket);
+		};
+	mPacketHandlers[(UINT16)PACKET_ID::ROOM_CHAT_REQUEST] = [this](UINT32 clientIndex, UINT16 packetSize, char* pPacket)
+		{
+			ProcessRoomChatMessage(clientIndex, packetSize, pPacket);
+		};
 }
 
 void PacketManager::CreateComponent(const UINT32 maxClient_)
@@ -77,7 +109,6 @@ void PacketManager::ReceivePacketData(const UINT32 clientIndex_, const UINT32 da
 	// queue에 알려줌 어떤 client의 요청이 왔는지
 	EnqueuePacketData(clientIndex_);
 }
-
 
 
 void PacketManager::ProcessPacket()
@@ -200,16 +231,22 @@ void PacketManager::ProcessRecvPacket(const UINT32 clientIndex_, const UINT16 pa
 {
 	// 패킷 id를 찾아서 
 	// 관계된 객체를 할당해서 처리
-	auto iter = mRecvFunctionDictionary.find(packetId_);
-	if (iter != mRecvFunctionDictionary.end())
-	{
-		(this->*(iter->second))(clientIndex_, packetSize_, pPacket_);
-	}
-	// 잘못된 패킷 처리
+	//auto iter = mRecvFunctionDictionary.find(packetId_);
+	//if (iter != mRecvFunctionDictionary.end())
+	//{
+	//	(this->*(iter->second))(clientIndex_, packetSize_, pPacket_);
+	//}
+	//// 잘못된 패킷 처리
+	//else
+	//{
+	//	printf("알 수 없는 패킷 ID : %d (ClientIndex: %d)\n", packetId_, clientIndex_);
+	//}
+
+	auto it = mPacketHandlers.find(packetId_);
+	if (it != mPacketHandlers.end())
+		it->second(clientIndex_, packetSize_, pPacket_);
 	else
-	{
 		printf("알 수 없는 패킷 ID : %d (ClientIndex: %d)\n", packetId_, clientIndex_);
-	}
 
 }
 

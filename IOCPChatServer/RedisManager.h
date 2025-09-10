@@ -111,7 +111,6 @@ private:
 						printf("Input PW: '%s'\n", pRequest->UserPW);
 						printf("Redis PW: '%s'\n", value.c_str());
 						printf("Redis get result: %s\n", mConn.get(pRequest->UserID, value) ? "success" : "failed");
-						bodyData.Result = (UINT16)ERROR_CODE::NONE;
 
 						if (value.compare(pRequest->UserPW) == 0)
 						{

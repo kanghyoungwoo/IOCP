@@ -37,9 +37,6 @@ public:
 		mCurDomainState = DOMAIN_STATE::NONE;
 		mPacketDataBuffer.Clear();
 		mGeneration++;	// 세션 종료마다 증가
-
-		//mPacketDataBufferWritePos = 0;
-		//mPacketDataBufferReadPos = 0;
 	}
 
 	std::string GetUserID() const
@@ -65,11 +62,6 @@ public:
 	{
 		return mIndex;
 	}
-
-	//UINT32 GetGeneration() const noexcept 
-	//{
-	//	return mGeneration.load();
-	//}
 
 	UINT32 GetGeneration() const
 	{
@@ -98,57 +90,12 @@ public:
 			printf("%zu bytes out of %u bytes to packet buffer\n", written, dataSize_);
 			return;
 		}
-
-		/////
-
-		//if ((mPacketDataBufferWritePos + dataSize_) >= PACKET_DATA_BUFFER_SIZE) // 남은 공간이 부족하면 앞쪽으로 압축 이동
-		//{
-		//	auto remainDataSize = mPacketDataBufferWritePos - mPacketDataBufferReadPos;
-
-		//	if (remainDataSize > 0)
-		//	{
-		//		CopyMemory(&mPacketDataBuffer[0], &mPacketDataBuffer[mPacketDataBufferReadPos], remainDataSize);
-		//		mPacketDataBufferWritePos = remainDataSize;
-		//	}
-		//	else
-		//	{
-		//		mPacketDataBufferWritePos = 0;
-		//	}
-		//	mPacketDataBufferReadPos = 0;
-		//}
-		//CopyMemory(&mPacketDataBuffer[mPacketDataBufferWritePos], pData_, dataSize_);
-		//mPacketDataBufferWritePos += dataSize_;
 	}
 	
 	PacketInfo GetPacket()
 	{
 		const int PACKET_SIZE_LENGTH = 2;
 		const int PACKET_TYPE_LENGTH = 2;
-		//short packetSize = 0;
-
-		//UINT32 remainByte = mPacketDataBufferWritePos - mPacketDataBufferReadPos;
-
-		//if (remainByte < PACKET_HEADER_LENGTH)
-		//{
-		//	return PacketInfo();
-		//}
-
-		//auto pHeader = (PACKET_HEADER*)&mPacketDataBuffer[mPacketDataBufferReadPos];
-
-		//if (pHeader->PacketLength > remainByte)
-		//{
-		//	printf("패킷 데이터 부족: 필요(%d) vs 현재(%d)\n", pHeader->PacketLength, remainByte);
-		//	return PacketInfo();
-		//}
-
-		//PacketInfo packetInfo;
-		//packetInfo.PacketId = pHeader->PacketId;
-		//packetInfo.DataSize = pHeader->PacketLength;
-		//packetInfo.pDataPtr = &mPacketDataBuffer[mPacketDataBufferReadPos];
-
-		//mPacketDataBufferReadPos += pHeader->PacketLength;
-
-		//return packetInfo;
 
 		std::lock_guard<std::mutex>lock(mPacketRingBuffMutex);
 
@@ -197,36 +144,6 @@ public:
 
 		return packetInfo;
 	}
-
-	//PacketInfo GetPacket() 
-	//{
-	//	std::lock_guard<std::mutex> lock(mPacketRingBuffMutex);
-
-	//	if (mPacketDataBuffer.Size() < PACKET_HEADER_LENGTH)
-	//		return PacketInfo();
-
-	//	// Header를 한번에 가져오는 API가 없으니 임시 버퍼에 복사
-	//	char headerBuffer[PACKET_HEADER_LENGTH];
-	//	for (size_t i = 0; i < PACKET_HEADER_LENGTH; i++) 
-	//	{
-	//		if (!mPacketDataBuffer.Peek(headerBuffer[i], i))
-	//			return PacketInfo();
-	//	}
-	//	auto pHeader = reinterpret_cast<const PACKET_HEADER*>(headerBuffer);
-	//	if (pHeader->PacketLength > mPacketDataBuffer.Size())
-	//		return PacketInfo();
-
-	//	static char tempPacketBuffer[PACKET_DATA_BUFFER_SIZE];
-	//	size_t readBytes = mPacketDataBuffer.Read(tempPacketBuffer, pHeader->PacketLength);
-	//	if (readBytes != pHeader->PacketLength)
-	//		return PacketInfo();
-
-	//	PacketInfo info;
-	//	info.PacketId = pHeader->PacketId;
-	//	info.DataSize = pHeader->PacketLength;
-	//	info.pDataPtr = tempPacketBuffer;
-	//	return info;
-	//}
 
 	void EnterRoom(INT32 roomIndex_)
 	{
