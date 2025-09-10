@@ -20,7 +20,8 @@ Windows IOCP(I/O Completion Port)를 활용한 고성능 멀티스레드 채팅 
   - `PACKET_HEADER` 기반 구조화된 패킷 처리
   - 패킷 ID별 Dispatcher (`PacketManager`)
   - 링버퍼 기반 패킷 조립
-  - 함수 포인터 기반 패킷 핸들러
+  - ~~함수 포인터 기반 패킷 핸들러~~
+  - std::function 기반 패킷 핸들러
 - **멀티스레드 처리**
   - 네트워크 I/O와 어플리케이션 로직 분리
   - IOCP 워커 스레드 풀
@@ -139,7 +140,8 @@ IOCPChatServer/
 ### 2. 패킷 처리 시스템
 - 링버퍼 기반 패킷 조립
 - 헤더 peek → 길이 확인 → 전체 데이터 read
-- 함수 포인터 기반 패킷 핸들러 디스패치
+- ~~함수 포인터 기반 패킷 핸들러 디스패치~~
+- std::function 기반 패킷 핸들러 디스패치
 
 ### 3. 멀티스레드 아키텍처
 - IOCP 워커 스레드: 네트워크 I/O 처리
