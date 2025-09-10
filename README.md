@@ -168,6 +168,10 @@ IOCPChatServer/
 ### Challenge 3: 연결 종료 중 잔여 인덱스 처리
 - **Problem**: `DequePacketData()`에서 `userIndex`가져와 처리하는 과정 직전에, 패킷 처리 쓰레드에서 시스템 패킷으로 `ClearConnectionInfo()`가 먼저 실행되어 `User::Clear()`가 호출이 되면 이미 초기화된 사용자 객체에 대해 패킷 처리를 시도하여 빈 패킷 반환 하게 되고, 불필요한 처용
 
+## 🔮 향후 개선 방향
+- [ ] std::function기반 패킷 핸들러
+- [ ] 로드 테스트
+- [ ] mysql연동
 
 ## 👨‍💻 개발자
 - **이름**: 강형우
