@@ -73,6 +73,7 @@ public:
 	{
 		std::lock_guard<std::mutex> guard(mReqLock);
 		mRequestTask.push_back(task_);
+		mReqCV.notify_one();
 	}
 
 
@@ -178,8 +179,8 @@ private:
 		}
 
 		const char* insLogin = "INSERT INTO login_events(user_id, timestamp) VALUES(?, ?)";
-		const char* insRoom = "INSERT INTO login_events(user_id, room_number, event, timestamp) VALUES(?, ?, ?, ?)";
-		const char* insChat = "INSERT INTO login_events(user_id, room_number, msg, timestamp) VALUES(?, ?, ?, ?)";
+		const char* insRoom = "INSERT INTO room_events(user_id, room_number, event, timestamp) VALUES(?, ?, ?, ?)";
+		const char* insChat = "INSERT INTO chat_messages(user_id, room_number, msg, timestamp) VALUES(?, ?, ?, ?)";
 
 		if (mysql_stmt_prepare(mStmtLogin, insLogin, (unsigned long)strlen(insLogin)) != 0)
 		{
@@ -191,7 +192,7 @@ private:
 			printf("MySQL prepare room_events failed ! :%s \n", mysql_stmt_error(mStmtRoom));
 			return false;
 		}
-		if (mysql_stmt_prepare(mStmtChat, insLogin, (unsigned long)strlen(insChat)) != 0)
+		if (mysql_stmt_prepare(mStmtChat, insChat, (unsigned long)strlen(insChat)) != 0)
 		{
 			printf("MySQL prepare Chat_message failed ! :%s \n", mysql_stmt_error(mStmtChat));
 			return false;
@@ -211,7 +212,7 @@ private:
 			mysql_stmt_close(mStmtRoom);
 			mStmtRoom = nullptr;
 		}
-		if (mStmtRoom)
+		if (mStmtChat)
 		{
 			mysql_stmt_close(mStmtChat);
 			mStmtChat = nullptr;
