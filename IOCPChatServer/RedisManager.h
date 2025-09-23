@@ -37,7 +37,12 @@ public:
 
 	void End()
 	{
-		mIsTaskRun = false;
+		{
+			std::lock_guard<std::mutex> g(mReqLock);
+			mIsTaskRun = false;
+		}
+		mReqCV.notify_all();
+
 		for (auto& thread : mTaskThreads)
 		{
 			if (thread.joinable())
@@ -45,12 +50,18 @@ public:
 				thread.join();
 			}
 		}
+		mTaskThreads.clear();
+
+		mConn.disConnect();
 	}
 
 	void PushTask(RedisTask task_)
 	{
-		std::lock_guard<std::mutex> guard(mReqLock);
-		mRequestTask.push_back(task_);
+		{
+			std::lock_guard<std::mutex> guard(mReqLock);
+			mRequestTask.push_back(task_);
+		}
+		mReqCV.notify_one();
 	}
 
 	RedisTask TakeResponseTask()
@@ -89,86 +100,136 @@ private:
 		printf("Redis 쓰레드 시작\n");
 		while (mIsTaskRun)
 		{
-			bool isIdle = true;
-			// 요청을 queue를 통해서 서로 주고받음 mRequestTask
-			if (auto task = TakeRequestTask(); task.TaskID != RedisTaskID::INVALID)
+			RedisTask task;
 			{
-				isIdle = false;
+				std::unique_lock<std::mutex>lock(mReqLock);
+				mReqCV.wait(lock, [this]() {return !mRequestTask.empty() || !mIsTaskRun;});
+				if (!mIsTaskRun && mRequestTask.empty())
+					break;
+				task = mRequestTask.front();
+				mRequestTask.pop_front();
+			}
+
+			if (task.TaskID == RedisTaskID::INVALID)
+			{
+				task.release();
+				continue;
+			}
+
+			if (task.TaskID == RedisTaskID::REQUEST_LOGIN)
+			{
+				auto pRequest = (RedisLoginReq*)task.pData;
+
+				RedisLoginRes bodyData;
+				bodyData.Result = (UINT16)ERROR_CODE::LOGIN_USER_INVALID_PW;
+				strcpy_s(bodyData.UserID, sizeof(bodyData.UserID), pRequest->UserID);
+
+				std::string value;
+				bool got = mConn.get(pRequest->UserID, value); // single
 				
-				if (task.TaskID == RedisTaskID::REQUEST_LOGIN)
+				if (got)
 				{
-					auto pRequest = (RedisLoginReq*)task.pData;
-
-					RedisLoginRes bodyData;
-					bodyData.Result = (UINT16)ERROR_CODE::LOGIN_USER_INVALID_PW;
-
-					strcpy_s(bodyData.UserID, sizeof(bodyData.UserID), pRequest->UserID);
-
-					std::string value;
-					if (mConn.get(pRequest->UserID, value))
+					printf("UserID : %s\n", pRequest->UserID);
+					printf("Input Pw : %s\n", pRequest->UserPW);
+					printf("Redis PW: %s\n", value.c_str());
+					if (value.compare(pRequest->UserPW) == 0)
 					{
-						printf("UserID: '%s'\n", pRequest->UserID);
-						printf("Input PW: '%s'\n", pRequest->UserPW);
-						printf("Redis PW: '%s'\n", value.c_str());
-						printf("Redis get result: %s\n", mConn.get(pRequest->UserID, value) ? "success" : "failed");
-
-						if (value.compare(pRequest->UserPW) == 0)
-						{
-							bodyData.Result = (UINT16)ERROR_CODE::NONE;
-						}
+						bodyData.Result = (UINT16)ERROR_CODE::NONE;
 					}
-					RedisTask resTask;
-					resTask.UserIndex = task.UserIndex;
-					resTask.TaskID = RedisTaskID::RESPONSE_LOGIN;
-					//printf("######################### TaskID : %s #############################################\n", resTask.TaskID);
-					resTask.DataSize = sizeof(RedisLoginRes);
-					resTask.pData = new char[resTask.DataSize];
-					CopyMemory(resTask.pData, (char*)&bodyData, resTask.DataSize);
-
-					PushResponse(resTask);
 				}
 
-				task.release();
+				RedisTask resTask;
+				resTask.UserIndex = task.UserIndex;
+				resTask.TaskID = RedisTaskID::RESPONSE_LOGIN;
+				resTask.DataSize = sizeof(RedisLoginRes);
+				resTask.pData = new char[resTask.DataSize];
+				CopyMemory(resTask.pData, (char*)&bodyData, resTask.DataSize);
 
-				// 이런식의 if/switch문을 사용하여 task를 처리는 코드가 너무 커지기 때문에 소켓 처리할 때와 같이 dictionary나 array를 사용하여 처리하는 것이 좋음
-				//switch (task.TaskID)
-				//{
-				//	case RedisTaskID::REQUEST_LOGIN:
-				//		{
-				//			// 로그인 요청 처리
-				//			if (mConn.login(task.UserIndex, task.LoginReq) == true)
-				//			{
-				//				task.ResultCode = ERROR_CODE::SUCCESS;
-				//			}
-				//			else
-				//			{
-				//				task.ResultCode = ERROR_CODE::LOGIN_FAILED;
-				//			}
-				//		}
-				//		break;
-				//	case RedisTaskID::REQUEST_LOGOUT:
-				//		{
-				//			// 로그아웃 요청 처리
-				//			if (mConn.logout(task.UserIndex) == true)
-				//			{
-				//				task.ResultCode = ERROR_CODE::SUCCESS;
-				//			}
-				//			else
-				//			{
-				//				task.ResultCode = ERROR_CODE::LOGOUT_FAILED;
-				//			}
-				//		}
-				//		break;
-				//	default:
-				//		task.ResultCode = ERROR_CODE::INVALID_TASK_ID;
-				//		break;
-				//}
+				PushResponse(resTask);
 			}
 
-			if (isIdle)
-			{
-				std::this_thread::sleep_for(std::chrono::milliseconds(1)); 
-			}
+			task.release();
+
+			//bool isIdle = true;
+			//// 요청을 queue를 통해서 서로 주고받음 mRequestTask
+			//if (auto task = TakeRequestTask(); task.TaskID != RedisTaskID::INVALID)
+			//{
+			//	isIdle = false;
+			//	
+			//	if (task.TaskID == RedisTaskID::REQUEST_LOGIN)
+			//	{
+			//		auto pRequest = (RedisLoginReq*)task.pData;
+
+			//		RedisLoginRes bodyData;
+			//		bodyData.Result = (UINT16)ERROR_CODE::LOGIN_USER_INVALID_PW;
+
+			//		strcpy_s(bodyData.UserID, sizeof(bodyData.UserID), pRequest->UserID);
+
+			//		std::string value;
+			//		if (mConn.get(pRequest->UserID, value))
+			//		{
+			//			printf("UserID: '%s'\n", pRequest->UserID);
+			//			printf("Input PW: '%s'\n", pRequest->UserPW);
+			//			printf("Redis PW: '%s'\n", value.c_str());
+			//			printf("Redis get result: %s\n", mConn.get(pRequest->UserID, value) ? "success" : "failed");
+
+			//			if (value.compare(pRequest->UserPW) == 0)
+			//			{
+			//				bodyData.Result = (UINT16)ERROR_CODE::NONE;
+			//			}
+			//		}
+			//		RedisTask resTask;
+			//		resTask.UserIndex = task.UserIndex;
+			//		resTask.TaskID = RedisTaskID::RESPONSE_LOGIN;
+			//		//printf("######################### TaskID : %s #############################################\n", resTask.TaskID);
+			//		resTask.DataSize = sizeof(RedisLoginRes);
+			//		resTask.pData = new char[resTask.DataSize];
+			//		CopyMemory(resTask.pData, (char*)&bodyData, resTask.DataSize);
+
+			//		PushResponse(resTask);
+			//	}
+
+			//	task.release();
+
+			//	// 이런식의 if/switch문을 사용하여 task를 처리는 코드가 너무 커지기 때문에 소켓 처리할 때와 같이 dictionary나 array를 사용하여 처리하는 것이 좋음
+			//	//switch (task.TaskID)
+			//	//{
+			//	//	case RedisTaskID::REQUEST_LOGIN:
+			//	//		{
+			//	//			// 로그인 요청 처리
+			//	//			if (mConn.login(task.UserIndex, task.LoginReq) == true)
+			//	//			{
+			//	//				task.ResultCode = ERROR_CODE::SUCCESS;
+			//	//			}
+			//	//			else
+			//	//			{
+			//	//				task.ResultCode = ERROR_CODE::LOGIN_FAILED;
+			//	//			}
+			//	//		}
+			//	//		break;
+			//	//	case RedisTaskID::REQUEST_LOGOUT:
+			//	//		{
+			//	//			// 로그아웃 요청 처리
+			//	//			if (mConn.logout(task.UserIndex) == true)
+			//	//			{
+			//	//				task.ResultCode = ERROR_CODE::SUCCESS;
+			//	//			}
+			//	//			else
+			//	//			{
+			//	//				task.ResultCode = ERROR_CODE::LOGOUT_FAILED;
+			//	//			}
+			//	//		}
+			//	//		break;
+			//	//	default:
+			//	//		task.ResultCode = ERROR_CODE::INVALID_TASK_ID;
+			//	//		break;
+			//	//}
+			//}
+
+			//if (isIdle)
+			//{
+			//	std::this_thread::sleep_for(std::chrono::milliseconds(1)); 
+			//}
 			
 		}
 	}
@@ -198,6 +259,7 @@ private:
 
 	std::mutex mReqLock;
 	std::deque<RedisTask> mRequestTask;
+	std::condition_variable mReqCV;
 
 	std::mutex mResLock;
 	std::deque<RedisTask> mResponseTask;

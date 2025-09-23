@@ -10,30 +10,25 @@ enum class MySQLTaskID : UINT16
 {
 	INVALID = 0,
 
-	//// ����� ����
 	//REQUEST_LOGIN = 2001,
 	//RESPONSE_LOGIN = 2002,
 
-	//// ����� ���
 	//REQUEST_USER_REGISTER = 2003,
 	//RESPONSE_USER_REGISTER = 2004,
 
-	//// ����� ������
 	//REQUEST_USER_PROFILE = 2005,
 	//RESPONSE_USER_PROFILE = 2006,
 
-	//// ä�� �޼���
 	//REQUEST_SAVE_CHAT_MESSAGE = 2007,
 	//RESPONSE_SAVE_CHAT_MESSAGE = 2008,
 
 
-	//// �α��� ���
 	//REQUEST_LOGIN_LOG = 2009,
 	//RESPONSE_LOGIN_LOG = 2010,
 
-	INSERT_LOGIN_EVENT = 2001,	// �α��� ���
-	INSERT_ROOM_EVENT = 2002,	// �� ����,���� �α�
-	INSERT_CHAT_MESSAGE = 2003,	// ä�� �޼��� ����
+	INSERT_LOGIN_EVENT = 2001,	//
+	INSERT_ROOM_EVENT = 2002,	// 
+	INSERT_CHAT_MESSAGE = 2003,	//
 };
 
 
@@ -62,7 +57,7 @@ struct MySQLLoginEventReq
 	UINT64 TimestampSec = 0;
 };
 
-// �� �̺�Ʈ(����/���� ��� ���)
+
 enum class RoomEventType : UINT8 
 {
 	ENTER = 1, 
@@ -87,14 +82,14 @@ struct MySQLChatMsgReq
 };
 //struct MySQLUserLoginReq
 //{
-//	char UserID[MAX_USER_ID_LENGTH + 1]; // ���� ���̵�
+//	char UserID[MAX_USER_ID_LENGTH + 1]; //
 //	char UserPW[MAX_USER_PW_LENGTH + 1];
 //};
 //
 //struct MySQLUserLoginRes
 //{
-//	UINT16 Result = (UINT16)ERROR_CODE::NONE; // ���� ����
-//	char UserID[MAX_USER_ID_LENGTH + 1]; // UserID �߰�
+//	UINT16 Result = (UINT16)ERROR_CODE::NONE; 
+//	char UserID[MAX_USER_ID_LENGTH + 1]; //
 //	UINT32 UserDBID = 0;
 //	char NickName[MAX_USER_ID_LENGTH + 1];
 //};
@@ -128,4 +123,4 @@ struct MySQLChatMsgReq
 //};
 
 
-#pragma pack(pop)	// ����Ʈ ���� ����
+#pragma pack(pop)	//

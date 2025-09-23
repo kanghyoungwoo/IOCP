@@ -1,11 +1,23 @@
-﻿  main.cpp
-C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\ChatServer.h(25,22): warning C4838: 'const int'에서 'UINT32'(으)로의 변환에는 축소 변환이 필요합니다.
-  (소스 파일 'main.cpp'을(를) 컴파일하는 중)
+﻿  PacketManager.cpp
+C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\MysqlManager.h(95,56): warning C4474: 'printf' : 서식 문자열에 전달된 인수가 너무 많습니다.
+  (소스 파일 'PacketManager.cpp'을(를) 컴파일하는 중)
+      C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\MysqlManager.h(95,56):
+      자리 표시자 및 해당 매개 변수에는 variadic 인수가 0개 필요하지만 1개가 제공되었습니다.
   
-C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\ChatServer.h(32,22): warning C4838: 'const int'에서 'UINT32'(으)로의 변환에는 축소 변환이 필요합니다.
-  (소스 파일 'main.cpp'을(를) 컴파일하는 중)
+C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\MysqlManager.h(177,69): warning C4474: 'printf' : 서식 문자열에 전달된 인수가 너무 많습니다.
+  (소스 파일 'PacketManager.cpp'을(를) 컴파일하는 중)
+      C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\MysqlManager.h(177,69):
+      자리 표시자 및 해당 매개 변수에는 variadic 인수가 0개 필요하지만 1개가 제공되었습니다.
   
-  PacketManager.cpp
-  코드를 생성하고 있습니다...
+C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\MysqlManager.h(182,68): warning C4474: 'printf' : 서식 문자열에 전달된 인수가 너무 많습니다.
+  (소스 파일 'PacketManager.cpp'을(를) 컴파일하는 중)
+      C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\MysqlManager.h(182,68):
+      자리 표시자 및 해당 매개 변수에는 variadic 인수가 0개 필요하지만 1개가 제공되었습니다.
+  
+C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\MysqlManager.h(187,69): warning C4474: 'printf' : 서식 문자열에 전달된 인수가 너무 많습니다.
+  (소스 파일 'PacketManager.cpp'을(를) 컴파일하는 중)
+      C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\MysqlManager.h(187,69):
+      자리 표시자 및 해당 매개 변수에는 variadic 인수가 0개 필요하지만 1개가 제공되었습니다.
+  
 C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\RingBuffer.h(48,1): warning C4715: 'RingBuffer<8096>::Size': 모든 제어 경로에서 값을 반환하지는 않습니다.
   IOCPChatServer.vcxproj -> C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\x64\Debug\IOCPChatServer.exe
