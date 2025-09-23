@@ -1,6 +1,8 @@
 #pragma once
 
 #define WIN32_LEAN_AND_MEAN
+#include <winsock2.h>
+#include <ws2tcpip.h>
 #include <windows.h>
 // 패킷의 ID로 클라이언트가 어떤 요청을 했는지 알아냄
 typedef struct _RawPacketData

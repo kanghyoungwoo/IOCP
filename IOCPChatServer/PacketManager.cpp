@@ -7,6 +7,9 @@
 #include "UserManager.h"
 //#include "RedisTaskDefine.h"
 #include "RedisManager.h"
+#include "MysqlManager.h"
+#include <chrono>
+#include <ctime>
 
 void PacketManager::Init(const UINT32 maxClient_)
 {
@@ -25,7 +28,7 @@ void PacketManager::Init(const UINT32 maxClient_)
 	CreateComponent(maxClient_);
 
 	mRedisManager = new RedisManager;
-
+	mMySQLManager = new MySQLManager;
 }
 
 void PacketManager::RegisterHandlers()
@@ -84,6 +87,11 @@ bool PacketManager::Run()
 		return false;
 	}
 
+	if (mMySQLManager->Run(1) == false)
+	{
+		return false;
+	}
+
 	mIsRunProcessThread = true;
 	mProcessThead = std::thread([this]() { ProcessPacket();});
 
@@ -93,6 +101,7 @@ bool PacketManager::Run()
 void PacketManager::End()
 {
 	mRedisManager->End();
+	mMySQLManager->End();
 	mIsRunProcessThread = false;
 	if (mProcessThead.joinable())
 	{
@@ -298,22 +307,20 @@ void PacketManager::ProcessLogin(UINT32 clientIndex_, UINT16 packetSize_, char* 
 		return;
 	}
 
-	// 중복 체크
-	// 이미 접속된 유저인지 확인하고 이미 접속된 유저라면 실패
 	if (mUserManager->FindUserIndexByID(pUserID) == -1)
 	{
-		RedisLoginReq dbReq;
+		RedisLoginReq redisReq;
 
-		CopyMemory(dbReq.UserID, pLoginReqPacket->UserID, (MAX_USER_ID_LENGTH + 1));
-		CopyMemory(dbReq.UserPW, pLoginReqPacket->UserPW, (MAX_USER_PW_LENGTH + 1));
+		CopyMemory(redisReq.UserID, pLoginReqPacket->UserID, (MAX_USER_ID_LENGTH + 1));
+		CopyMemory(redisReq.UserPW, pLoginReqPacket->UserPW, (MAX_USER_PW_LENGTH + 1));
 
-		RedisTask task;
-		task.UserIndex = clientIndex_;
-		task.TaskID = RedisTaskID::REQUEST_LOGIN;
-		task.DataSize = sizeof(RedisLoginReq);
-		task.pData = new char[task.DataSize];
-		CopyMemory(task.pData, (char*)&dbReq, task.DataSize);
-		mRedisManager->PushTask(task);
+		RedisTask redistask;
+		redistask.UserIndex = clientIndex_;
+		redistask.TaskID = RedisTaskID::REQUEST_LOGIN;
+		redistask.DataSize = sizeof(RedisLoginReq);
+		redistask.pData = new char[redistask.DataSize];
+		CopyMemory(redistask.pData, (char*)&redisReq, redistask.DataSize);
+		mRedisManager->PushTask(redistask);
 
 		printf("Login To Redis USER ID : %s\n", pUserID);
 	}
@@ -332,11 +339,13 @@ void PacketManager::ProcessLoginDBResult(UINT32 clientIndex_, UINT16 packetSize_
 
 	auto pBody = (RedisLoginRes*)pPacket_;
 
+	// redis 성공시
 	if (pBody->Result == (UINT16)ERROR_CODE::NONE)
 	{
 		printf("[DEBUG] Login successful for UserID: '%s'\n", pBody->UserID);
 
-		// UserManager에 사용자 추가
+		//OnLoginSuccess(clientIndex_, pBody->UserID);
+		//UserManager에 사용자 추가
 		auto result = mUserManager->Adduser(pBody->UserID, clientIndex_);
 		if (result != ERROR_CODE::NONE) {
 			printf("[ERROR] Failed to add user to UserManager\n");
@@ -346,6 +355,19 @@ void PacketManager::ProcessLoginDBResult(UINT32 clientIndex_, UINT16 packetSize_
 			auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
 			printf("[DEBUG] User added successfully. UserID: '%s'\n", pUser->GetUserID().c_str());
 			mUserManager->IncreaseUserCnt();
+
+			// MySQL: 로그인 기록
+			MySQLLoginEventReq mysqlReq{};
+			strcpy_s(mysqlReq.UserID, pUser->GetUserID().c_str());
+			mysqlReq.TimestampSec = (UINT64)time(nullptr);
+
+			MySQLTask mysqlTask;
+			mysqlTask.UserIndex = clientIndex_;
+			mysqlTask.TaskID = MySQLTaskID::INSERT_LOGIN_EVENT;
+			mysqlTask.DataSize = sizeof(MySQLLoginEventReq);
+			mysqlTask.pData = new char[mysqlTask.DataSize];
+			CopyMemory(mysqlTask.pData, &mysqlReq, mysqlTask.DataSize);
+			mMySQLManager->PushTask(mysqlTask);
 		}
 	}
 
@@ -426,6 +448,21 @@ void PacketManager::ProcessEnterRoom(UINT32 clientIndex_, UINT16 packetSize_, ch
 	// 방 입장 성공 시 방 전체에 입장 알림
 	if (roomEnterResPacket.Result == (UINT16)ERROR_CODE::NONE)
 	{
+		// MySQL : 방 입장 로그
+		MySQLRoomEventReq req{};
+		strcpy_s(req.UserID, pReqUser->GetUserID().c_str());
+		req.RoomNumber = pRoomEnterReqPacket->RoomNumber;
+		req.EventType = RoomEventType::ENTER;
+		req.TimeStampSec = (UINT64)time(nullptr);
+
+		MySQLTask task{};
+		task.UserIndex = clientIndex_;
+		task.TaskID = MySQLTaskID::INSERT_ROOM_EVENT;
+		task.DataSize = sizeof(MySQLRoomEventReq);
+		task.pData = new char[task.DataSize];
+		CopyMemory(task.pData, &req, task.DataSize);
+		mMySQLManager->PushTask(task);
+
 		auto pRoom = mRoomManager->GetRoomByNumber(pRoomEnterReqPacket->RoomNumber);
 		if (pRoom != nullptr)
 		{
@@ -478,6 +515,20 @@ void PacketManager::ProcessLeaveRoom(UINT32 clientIndex_, UINT16 packetSize_, ch
 	// 방 퇴장 성공 시 방 전체에 퇴장 알림
 	if (roomLeaveResPacket.Result == (UINT16)ERROR_CODE::NONE)
 	{	
+		MySQLRoomEventReq req{};
+		strcpy_s(req.UserID, pReqUser->GetUserID().c_str());
+		req.RoomNumber = roomNumber;
+		req.EventType = RoomEventType::LEAVE;
+		req.TimeStampSec = (UINT64)time(nullptr);
+
+		MySQLTask task{};
+		task.UserIndex = clientIndex_;
+		task.TaskID = MySQLTaskID::INSERT_ROOM_EVENT;
+		task.DataSize = sizeof(MySQLRoomEventReq);
+		task.pData = new char[task.DataSize];
+		CopyMemory(task.pData, &req, task.DataSize);
+		mMySQLManager->PushTask(task);
+
 		if (pRoom != nullptr)
 		{
 			// 임시 채팅 패킷 생성
@@ -519,6 +570,7 @@ void PacketManager::ProcessRoomChatMessage(UINT32 clientIndex_, UINT16 packetSiz
 		roomChatResPacket.PacketLength = sizeof(ROOM_CHAT_RESPONSE_PACKET);
 		roomChatResPacket.Result = (UINT16)ERROR_CODE::ENTER_ROOM_INVALID_USER_STATUS;
 		SendPacketFunc(clientIndex_, sizeof(ROOM_CHAT_RESPONSE_PACKET), (char*)&roomChatResPacket);
+		return;
 	}
 
 	auto roomNum = pReqUser->GetRoomIndex();
@@ -534,8 +586,105 @@ void PacketManager::ProcessRoomChatMessage(UINT32 clientIndex_, UINT16 packetSiz
 	
 	SendPacketFunc(clientIndex_, sizeof(ROOM_CHAT_RESPONSE_PACKET), (char*)&roomChatResPacket);
 	
+	// MySQL 채팅 메세지 저장
+	MySQLChatMsgReq chatmsg{};
+	strcpy_s(chatmsg.UserID, pReqUser->GetUserID().c_str());
+	chatmsg.RoomNumber = roomNum;
+	strcpy_s(chatmsg.Message, pRoomChatReqPacket->Message);
+	chatmsg.TimeStampSec = (UINT64)time(nullptr);
+
+	MySQLTask task{};
+	task.UserIndex = clientIndex_;
+	task.TaskID = MySQLTaskID::INSERT_CHAT_MESSAGE;
+	task.DataSize = sizeof(MySQLChatMsgReq);
+	task.pData = new char[task.DataSize];
+	CopyMemory(task.pData, &chatmsg, task.DataSize);
+	mMySQLManager->PushTask(task);
+
 	//	Room 객체에서 브로드캐스트 전송을 수행한다.
 	pRoom->NotifyChat(clientIndex_, pReqUser->GetUserID().c_str(), (char*)pRoomChatReqPacket);
 
 
 }
+//
+//void PacketManager::OnLoginSuccess(UINT32 clientIndex_,const char* userID_)
+//{
+//	// UserManager에 사용자 추가
+//	auto result = mUserManager->Adduser(const_cast<char*>(userID_), clientIndex_);
+//
+//	if (result != ERROR_CODE::NONE) 
+//	{
+//		OnLoginFailure(clientIndex_, (UINT16)result);
+//		return;
+//	}
+//	mUserManager->IncreaseUserCnt();
+//
+//	LOGIN_RESPONSE_PACKET loginResPacket;
+//	loginResPacket.PacketId = (UINT16)PACKET_ID::LOGIN_RESPONSE;
+//	loginResPacket.PacketLength = sizeof(LOGIN_RESPONSE_PACKET);
+//	loginResPacket.Result = (UINT16)ERROR_CODE::NONE;
+//
+//	SendPacketFunc(clientIndex_, sizeof(LOGIN_RESPONSE_PACKET), (char*)&loginResPacket);
+//}
+//
+//void PacketManager::OnLoginFailure(UINT32 clientIndex_, UINT16 errorCode_)
+//{
+//	LOGIN_RESPONSE_PACKET loginResPacket;
+//	loginResPacket.PacketId = (UINT16)PACKET_ID::LOGIN_RESPONSE;
+//	loginResPacket.PacketLength = sizeof(LOGIN_RESPONSE_PACKET);
+//	loginResPacket.Result = errorCode_;
+//
+//	SendPacketFunc(clientIndex_, sizeof(LOGIN_RESPONSE_PACKET), (char*)&loginResPacket);
+//}
+
+//void PacketManager::TryMySQLFallback(UINT32 clientIndex_, const char* userID_)
+//{
+//	MySQLUserLoginReq mysqlReq;
+//	//CopyMemory(mysqlReq.UserID, sizeof(mysqlReq.UserID), (MAX_USER_ID_LENGTH + 1));
+//	// CopyMemory(mysqlReq.UserID, pLoginReqPacket->UserID, (MAX_USER_ID_LENGTH + 1));
+//	strcpy_s(mysqlReq.UserID, sizeof(mysqlReq.UserID), userID_);
+//	strcpy_s(mysqlReq.UserPW, sizeof(mysqlReq.UserPW), ""); // 실제로는 원래 비밀번호
+//
+//	MySQLTask mysqlTask;
+//	mysqlTask.UserIndex = clientIndex_;
+//	mysqlTask.TaskID = MySQLTaskID::REQUEST_LOGIN;
+//	mysqlTask.DataSize = sizeof(MySQLUserLoginReq);
+//	mysqlTask.pData = new char[mysqlTask.DataSize];
+//	CopyMemory(mysqlTask.pData, (char*)&mysqlReq, mysqlTask.DataSize);
+//
+//	mMySQLManager->PushTask(mysqlTask);
+//}
+//
+//void PacketManager::ProcessMySQLLoginResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
+//{
+//	auto pBody = (MySQLUserLoginRes*)pPacket_;
+//	if (pBody->Result == (UINT16)ERROR_CODE::NONE)
+//	{
+//		// mysql인증 성공시 redis에 캐시 업데이트
+//		CacheUserTorRedis(pBody->UserID);
+//		OnLoginSuccess(clientIndex_, pBody->UserID);
+//		return;
+//	}
+//	else
+//	{
+//		// mysql실패
+//		printf("MYSQL FAIL\n");
+//		OnLoginFailure(clientIndex_, (UINT16)ERROR_CODE::LOGIN_USER_INVALID_PW);
+//	}
+//}
+
+//void PacketManager::CacheUserTorRedis(const char* userID_)
+//{
+//	RedisLoginFlagReq req;
+//	strcpy_s(req.UserID, sizeof(req.UserID), userID_);
+//	req.TTLSeconds = 3600;	// 1시간
+//	RedisTask task;
+//	//task.UserIndex = 0;
+//	task.TaskID = RedisTaskID::REQUEST_SET_LOGIN_FLAG;
+//	task.DataSize = sizeof(RedisLoginFlagReq);
+//	task.pData = new char[task.DataSize];
+//	CopyMemory(task.pData, (char*)&req, task.DataSize);
+//
+//	mRedisManager->PushTask(task);
+//	// 접속 종료시 같은 방법으로 request_delete_login_flag를 보내서 flag 지우기
+//}

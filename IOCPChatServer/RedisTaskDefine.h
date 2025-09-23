@@ -2,7 +2,7 @@
 
 #include <windows.h>
 #include "ErrorCode.h"
-//#include "Packet.h"
+#include "Packet.h"
 
 enum class RedisTaskID : UINT16
 {
@@ -10,6 +10,11 @@ enum class RedisTaskID : UINT16
 
 	REQUEST_LOGIN = 1001,
 	RESPONSE_LOGIN = 1002,
+
+	REQUEST_SET_LOGIN_FLAG = 1101,
+	REQUEST_DELETE_LOGIN_FLAG = 1102,
+	REQUEST_SET_SESSION = 1103,
+	REQUEST_DELETE_SESSION = 1104,
 };
 
 
@@ -44,5 +49,19 @@ struct RedisLoginRes
 	char UserID[MAX_USER_ID_LENGTH + 1]; // UserID 추가
 };
 
+struct RedisLoginFlagReq
+{
+	char UserID[MAX_USER_ID_LENGTH + 1];
+	UINT32 TTLSeconds; // 0일시 만료 x
+};
+
+// 세션 정보 저장
+struct RedisSessionReq
+{
+	char UserID[MAX_USER_ID_LENGTH + 1];
+	UINT32 ClientIndex;		// 세션 식별 정보
+	UINT64 LoginEpochMS;	// 로그인 시각
+	UINT32 TTLSeconds;		// 세션 만료
+};
 
 #pragma pack(pop)	// 바이트 정렬 해제

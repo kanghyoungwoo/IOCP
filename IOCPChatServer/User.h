@@ -4,6 +4,7 @@
 #include "RingBuffer.h"
 #include <string>
 #include <mutex>
+#include <atomic>
 
 class User
 {

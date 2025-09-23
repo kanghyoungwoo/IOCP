@@ -403,33 +403,6 @@ private:
 				// 최소대기시간
 				std::this_thread::sleep_for(std::chrono::milliseconds(1));
 			}
-
-			/*
-			auto curTimeSec = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
-
-			for (auto& client : mClientInfos)
-			{
-				if (client->IsConnected())
-				{
-					continue;
-				}
-
-				if ((UINT64)curTimeSec < client->GetLatestClosedTimeSec())
-				{
-					continue;
-				}
-
-				auto diff = curTimeSec - client->GetLatestClosedTimeSec();
-				if (diff <= RE_USE_SESSION_WAIT_TIMESEC)
-				{
-					continue;
-				}
-
-				client->PostAccept(mListenSocket, curTimeSec);
-			}
-
-			std::this_thread::sleep_for(std::chrono::milliseconds(32));
-			*/
 		}
 
 	}

@@ -11,8 +11,8 @@
 #include <mutex>
 
 class UserManager;
-
 class RedisManager;
+class MySQLManager;
 
 struct PacketTask
 {
@@ -57,6 +57,11 @@ private:
 	void ProcessLeaveRoom(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 	void ProcessRoomChatMessage(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 
+	//void OnLoginSuccess(UINT32 clientIndex_, const char* userID_);
+	//void OnLoginFailure(UINT32 clientIndex_, UINT16 errorCode_);
+	//void TryMySQLFallback(UINT32 clientIndex_, const char* userID_);
+	//void ProcessMySQLLoginResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
+	//void CacheUserTorRedis(const char* userID);
 
 	typedef void(PacketManager::* PROCESS_RECV_PACKET_FUNCTION)(UINT32, UINT16, char*);
 	std::unordered_map<int, PROCESS_RECV_PACKET_FUNCTION>mRecvFunctionDictionary;
@@ -64,6 +69,7 @@ private:
 	UserManager* mUserManager;
 	RedisManager* mRedisManager;
 	RoomManager* mRoomManager;
+	MySQLManager* mMySQLManager;
 
 	std::function<void(int, char*)>mSendMQDataFunc;
 

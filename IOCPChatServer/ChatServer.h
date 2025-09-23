@@ -34,16 +34,14 @@ public:
 
 	}
 
-	virtual void OnReceive(const UINT32 clientIndex_, const UINT32 size_, char* pData_) override // onreceive를 통해 받은 
+	virtual void OnReceive(const UINT32 clientIndex_, const UINT32 size_, char* pData_) override
 	{
 		printf("[OnReceive] Ciient Index : %d , DataSize : %d\n", clientIndex_, size_);
 
-		//printf("수신 패킷 PacketLength : %u, PacketId : %u\n", ,pData_->PacketLength, pHeader->PacketId);
 
 		m_pPacketManager->ReceivePacketData(clientIndex_, size_, pData_);
 	}
 	 
-	// 서버 시작할때 processpacket을 처리하는 쓰레드를 만듦
 	void Run(const UINT32 maxClient)
 	{
 		auto sendPacketFunc = [&](UINT32 clientIndex_, UINT16 packetSize_, char* pSendPacket)
@@ -65,7 +63,6 @@ public:
 		DestroyThread();
 	}
 
-	//서버 시작할때 processpacket을 처리하는 쓰레드를 만듦->queue에 있는 data를 읽어오고 그 데이터가 쓸 수 있는 데이터면(datasize가 있으면) send하고 아니라면(datasize)가 없다면 재움(cpu 낭비를 줄임)
 
 private:
 	std::unique_ptr<PacketManager>m_pPacketManager;

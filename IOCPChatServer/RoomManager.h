@@ -1,6 +1,7 @@
 #pragma once
 #include "Room.h"
-
+#include <vector>
+#include <functional>
 class RoomManager
 {
 public:

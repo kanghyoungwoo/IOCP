@@ -12,7 +12,9 @@
 #pragma comment(lib, "ws2_32.lib")
 #pragma comment(lib, "hiredis.lib")
 
-#include <winsock.h>
+//#include <winsock.h>
+#include<WinSock2.h>
+#include<ws2tcpip.h>
 #endif
 
 #ifdef _MSC_VER
