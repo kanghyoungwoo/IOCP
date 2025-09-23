@@ -67,6 +67,62 @@ Windows IOCP(I/O Completion Port)를 활용한 고성능 멀티스레드 채팅 
 └─────────────────┘
 
   ```
+```mermaid
+graph TD
+subgraph "외부 (Clients)"
+C1[Client 1]
+C2[Client 2]
+C3[Client N]
+end
+
+subgraph "Chat Server Application"
+    subgraph "① 네트워크 I/O 계층 (IOCP)"
+        direction LR
+        A(Accepter Thread) -->|접속 완료| W[I/O Worker Threads]
+    end
+
+    subgraph "② 로직 처리 계층"
+        PM(PacketManager<br/>Logic Thread)
+    end
+
+    subgraph "③ 데이터베이스 연동 계층"
+        direction LR
+        RM(RedisManager<br/>Thread)
+        MM(MySQLManager<br/>Threads)
+    end
+end
+
+subgraph "외부 데이터베이스"
+    direction LR
+    subgraph "Cache"
+        RDB[(Redis)]
+    end
+    subgraph "Persistent Storage"
+        MDB[(MySQL / RDS)]
+    end
+end
+
+%% 데이터 흐름 정의
+C1 --"TCP 접속 요청"--> A
+C2 --"TCP 접속 요청"--> A
+C3 --"TCP 접속 요청"--> A
+
+W <-->|데이터 수신/송신| C1
+W <-->|데이터 수신/송신| C2
+W <-->|데이터 수신/송신| C3
+
+W --"1. 수신된 패킷 전달<br/>(Push to Packet Queue)"--> PM
+
+PM --"2. 로그인 인증 요청<br/>(Push to Redis Task Queue)"--> RM
+RM --"3. Redis에 인증 쿼리"--> RDB
+RDB --"4. 인증 결과 반환"--> RM
+RM --"5. 처리 결과 전달<br/>(Push to Response Queue)"--> PM
+
+PM --"6. 활동 로그 기록 요청<br/>(Push to MySQL Task Queue)"--> MM
+MM --"7. DB에 로그 INSERT"--> MDB
+
+PM --"8. 응답 패킷 전송 요청"--> W
+```
 
 ### 핵심 컴포넌트
 - **IOCompletionPort**: IOCP 초기화 및 워커 스레드 관리
