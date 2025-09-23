@@ -87,6 +87,14 @@ bool PacketManager::Run()
 		return false;
 	}
 
+	mMySQLManager->configure(
+		"chatserver-database.cts4w8y0e8qh.ap-northeast-2.rds.amazonaws.com",  // RDS 엔드포인트
+		"admin",															 // 마스터 사용자명
+		"12345678",															 // 마스터 비밀번호
+		"chatserver-database",												   // 데이터베이스명
+		3306																  // 포트
+	);
+
 	if (mMySQLManager->Run(1) == false)
 	{
 		return false;

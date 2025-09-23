@@ -27,16 +27,25 @@ public:
 
 	void configure(const char* host_, const char* user_, const char* pass_, const char* db_, unsigned int port_)
 	{
-		mHost = host_ ? host_ : "127.0.0.1";
-		mUser = user_ ? user_ : "root";
-		mPass = pass_ ? pass_ : "";
-		mDB = db_ ? db_ : "chatdb";
+		mHost = host_ ? host_ : "chatserver-database.cts4w8y0e8qh.ap-northeast-2.rds.amazonaws.com";
+		mUser = user_ ? user_ : "admin";
+		mPass = pass_ ? pass_ : "12345678";
+		mDB = db_ ? db_ : "chatserver-database";
 		mPort = port_ ? port_ : 3306;
 	}
 
 	bool Run(UINT32 threadCount_)
 	{
-		
+		if (!InitandConnect())
+		{
+			printf("MySQL connection failed !\n");
+			return false;
+		}
+		if (!PrepareStatements())
+		{
+			printf("MySQL statement prepare fail\n");
+			return false;
+		}
 
 		mIsTaskRun = true;
 		// 쓰레드를 만들어 줘야 함 
@@ -72,10 +81,10 @@ private:
 	{
 		if (mHost.empty())
 		{
-			mHost = "127.0.0.1";
-			mUser = "root";
-			mPass = "";
-			mDB = "chatdb";
+			mHost = "chatserver-database.cts4w8y0e8qh.ap-northeast-2.rds.amazonaws.com";
+			mUser = "admin";
+			mPass = "12345678";
+			mDB = "chatserver-database";
 			mPort = 3306;
 		}
 
@@ -92,7 +101,7 @@ private:
 
 		if (!mysql_real_connect(mConnection, mHost.c_str(), mUser.c_str(), mPass.c_str(), mDB.c_str(), mPort, nullptr, 0))
 		{
-			printf("MySQL connection error :s ! \n", mysql_error(mConnection));
+			printf("MySQL connection error :%s ! \n", mysql_error(mConnection));
 			return false;
 		}
 		return true;
@@ -121,24 +130,24 @@ private:
 	bool PrepareStatements()
 	{
 		const char* createLogin =
-			"CREATE TALBE IF NOT EXISTS login_events("
+			"CREATE TABLE IF NOT EXISTS login_events("
 			"id INT PRIMARY KEY AUTO_INCREMENT,"
 			"user_id VARCHAR(64) NOT NULL,"
 			"timestamp BIGINT NOT NULL"
 			")";
 		const char* createRoom =
-			"CREATE TALBE IF NOT EXISTS room_events("
+			"CREATE TABLE IF NOT EXISTS room_events("
 			"id INT PRIMARY KEY AUTO_INCREMENT,"
 			"user_id VARCHAR(64) NOT NULL,"
-			"room INT NOT NULL,"
+			"room_number INT NOT NULL,"
 			"event TINYINT NOT NULL,"
 			"timestamp BIGINT NOT NULL"
 			")";
 		const char* createChat =
-			"CREATE TALBE IF NOT EXISTS chat_messages("
+			"CREATE TABLE IF NOT EXISTS chat_messages("
 			"id INT PRIMARY KEY AUTO_INCREMENT,"
 			"user_id VARCHAR(64) NOT NULL,"
-			"room INT NOT NULL,"
+			"room_number INT NOT NULL,"
 			"msg VARCHAR(256) NOT NULL,"
 			"timestamp BIGINT NOT NULL"
 			")";
@@ -169,22 +178,22 @@ private:
 		}
 
 		const char* insLogin = "INSERT INTO login_events(user_id, timestamp) VALUES(?, ?)";
-		const char* insRoom = "INSERT INTO login_events(user_id, room, event, timestamp) VALUES(?, ?, ?, ?)";
-		const char* insChat = "INSERT INTO login_events(user_id, room, msg, timestamp) VALUES(?, ?, ?, ?)";
+		const char* insRoom = "INSERT INTO login_events(user_id, room_number, event, timestamp) VALUES(?, ?, ?, ?)";
+		const char* insChat = "INSERT INTO login_events(user_id, room_number, msg, timestamp) VALUES(?, ?, ?, ?)";
 
 		if (mysql_stmt_prepare(mStmtLogin, insLogin, (unsigned long)strlen(insLogin)) != 0)
 		{
-			printf("MySQL prepare login_events failed ! \n", mysql_stmt_error(mStmtLogin));
+			printf("MySQL prepare login_events failed ! :%s \n", mysql_stmt_error(mStmtLogin));
 			return false;
 		}
 		if (mysql_stmt_prepare(mStmtRoom, insRoom, (unsigned long)strlen(insRoom)) != 0)
 		{
-			printf("MySQL prepare room_events failed ! \n", mysql_stmt_error(mStmtRoom));
+			printf("MySQL prepare room_events failed ! :%s \n", mysql_stmt_error(mStmtRoom));
 			return false;
 		}
 		if (mysql_stmt_prepare(mStmtChat, insLogin, (unsigned long)strlen(insChat)) != 0)
 		{
-			printf("MySQL prepare Chat_message failed ! \n", mysql_stmt_error(mStmtChat));
+			printf("MySQL prepare Chat_message failed ! :%s \n", mysql_stmt_error(mStmtChat));
 			return false;
 		}
 		return true;
