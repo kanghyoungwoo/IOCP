@@ -13,9 +13,9 @@ Windows IOCP(I/O Completion Port)를 활용한 고성능 멀티스레드 채팅 
 - **Room 시스템**
   - `RoomManager`를 통한 다중 채팅방 관리
   - 방 입장, 퇴장, 사용자 그룹 채팅 지원
-- **Redis 연동**
-  - 로그인 요청 시 Redis에서 계정 검증
-  - 멀티스레드 기반 Redis Task 처리
+- **데이터베이스 연동**
+  - Redis: 빠른 In-Memory 캐시로 활용하여 사용자의 로그인 인증을 담당
+  - MySQL(AWS RDS): 사용자의 모든 주요 활동(로그인, 채팅, 방 입/퇴장)을 영구적으로 기록
 - **패킷 시스템**
   - `PACKET_HEADER` 기반 구조화된 패킷 처리
   - 패킷 ID별 Dispatcher (`PacketManager`)
@@ -27,7 +27,7 @@ Windows IOCP(I/O Completion Port)를 활용한 고성능 멀티스레드 채팅 
   - IOCP 워커 스레드 풀
   - 패킷 처리 전용 스레드
   - Redis Task 처리 스레드
-
+  - MySQL Task 처리 스레드
 ## 🏗️ 아키텍처
 
 ### 전체 구조
@@ -130,13 +130,16 @@ PM --"8. 응답 패킷 전송 요청"--> W
 - **PacketManager**: 패킷 수신, 송신, 조립
 - **UserManager**: 사용자 세션 및 상태 관리
 - **RoomManager**: 채팅방 생성 및 관리
-- **RedisManager**: 데이터베이스 연동
+- **RedisManager**: 전용 스레드를 통해 빠른 사용자 인증을 수행
+- **MySQLManager**: 전용 스레드를 통해 서버의 주요 활동을 기록
 
 ## 📦 기술 스택
 - **언어**: C++17
 - **플랫폼**: Windows
 - **네트워크**: Windows Sockets (Winsock2), IOCP
-- **데이터베이스**: Redis (로그인 검증용)
+- **데이터베이스**: 
+  - Redis (로그인 검증용)
+  - MySQL: 활동 로그 영구 저장 (AWS RDS 연동)
 - **빌드 도구**: Visual Studio 2019+
 
 ## 🔧 빌드 및 실행
@@ -145,7 +148,7 @@ PM --"8. 응답 패킷 전송 요청"--> W
 - Windows 10/11
 - Visual Studio 2019 이상
 - Redis Server
-
+- MySQL Server
 ### 빌드 방법
 ```bash
 # Visual Studio에서 솔루션 파일 열기
@@ -225,9 +228,9 @@ IOCPChatServer/
 - **Problem**: `DequePacketData()`에서 `userIndex`가져와 처리하는 과정 직전에, 패킷 처리 쓰레드에서 시스템 패킷으로 `ClearConnectionInfo()`가 먼저 실행되어 `User::Clear()`가 호출이 되면 이미 초기화된 사용자 객체에 대해 패킷 처리를 시도하여 빈 패킷 반환 하게 되고, 불필요한 처용
 
 ## 🔮 향후 개선 방향
-- [✅️] std::function기반 패킷 핸들러
+- [x] ~~std::function 기반 패킷 핸들러로 리팩토링~~
+- [x] ~~MySQL 연동하여 사용자 활동 로그 기록~~
 - [ ] 더미 클라이언트 테스트
-- [ ] mysql연동
 - [ ] 멀티서버 구조 확장
 
 ## 👨‍💻 개발자
