@@ -285,19 +285,6 @@ private:
 				&numEntriesRemoved,			// 제거된 항목 수
 				INFINITE,					// 대기할 시간
 				FALSE);						// 동기식으로 처리
-			//printf("[DEBUG] GQCS 결과: bSuccess=%d, dwIoSize=%d, lpOverlapped=%p\n", bSuccess, dwIoSize, lpOverlapped);
-			// 사용자 쓰레드 종료 메세지 처리
-
-			//if (bSuccess == TRUE && dwIoSize == 0 && lpOverlapped == NULL)
-			//{
-			//	mIsWorkerRun = false;
-			//	continue;
-			//}
-
-			//if (lpOverlapped == NULL)
-			//{
-			//	continue;
-			//}
 
 			if (!bSuccess)
 			{
@@ -369,9 +356,7 @@ private:
 				else if (IOOperation::RECV == pOverlappedEx->m_eOperation)
 				{
 					OnReceive(pClientSession->GetIndex(), dwIoSize, pClientSession->RecvBuff());
-
-					// 클라이언트에 메세지를 echo
-					pClientSession->BindRecv();
+					pClientSession->BindRecv(); // 다시 recv 걸어줌
 				}
 
 				else if (IOOperation::SEND == pOverlappedEx->m_eOperation) // 연결이 완료되면

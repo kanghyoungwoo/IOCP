@@ -43,14 +43,6 @@ typedef struct _RawPacketData
 
 	}
 
-	//~_stPacketData()
-	//{
-	//	if (pPacketData != nullptr)
-	//	{
-	//		delete[] pPacketData;
-	//		pPacketData = nullptr;
-	//	}
-	//}
 
 }RawPacketData;
 

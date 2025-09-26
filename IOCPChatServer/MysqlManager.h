@@ -69,7 +69,7 @@ public:
 		}
 	}
 
-	void PushTask(MySQLTask task_)
+	void PushTask(MySQLTask task_)	// producer
 	{
 		std::lock_guard<std::mutex> guard(mReqLock);
 		mRequestTask.push_back(task_);
@@ -220,7 +220,7 @@ private:
 	}
 
 
-	void TaskProcessThread()
+	void TaskProcessThread()	// consumer
 	{
 		while (mIsTaskRun)
 		{
@@ -261,47 +261,6 @@ private:
 					break;
 			}
 			task.release();
-
-			//bool isIdle = true;
-			//if (auto task = TakeRequestTask(); task.TaskID != MySQLTaskID::INVALID)
-			//{
-			//	isIdle = false;
-
-			//	//if (task.TaskID == MySQLTaskID::INSERT_LOGIN_EVENT)
-			//	//{
-			//	//	auto pReq = reinterpret_cast<MySQLLoginEventReq*>(task.pData);
-			//	//	printf("\n");
-			//	//}
-			//	switch (task.TaskID)
-			//	{
-			//	case MySQLTaskID::INSERT_LOGIN_EVENT:
-			//	{
-			//		auto pReq = reinterpret_cast<MySQLLoginEventReq*>(task.pData);
-			//		printf("[MySQL] INSERT_LOGIN_EVENT user='%s' ts=%llu\n", pReq->UserID, (unsigned long long)pReq->TimestampSec);
-			//	}
-			//	break;
-			//	case MySQLTaskID::INSERT_ROOM_EVENT:
-			//	{
-			//		auto pReq = reinterpret_cast<MySQLRoomEventReq*>(task.pData);
-			//		printf("[MySQL] INSERT_ROOM_EVENT user='%s' room=%d type=%d ts=%llu\n",
-			//			pReq->UserID, pReq->RoomNumber, (int)pReq->EventType, (unsigned long long)pReq->TimeStampSec);
-			//	}
-			//	break;
-			//	case MySQLTaskID::INSERT_CHAT_MESSAGE:
-			//	{
-			//		auto pReq = reinterpret_cast<MySQLChatMsgReq*>(task.pData);
-			//		printf("[MySQL] INSERT_CHAT_MESSAGE user='%s' room=%d msg='%s' ts=%llu\n",
-			//			pReq->UserID, pReq->RoomNumber, pReq->Message, (unsigned long long)pReq->TimeStampSec);
-			//	}
-			//	break;
-			//	default:
-			//		break;
-			//	}
-
-			//	task.release();
-
-			//	
-			//}
 		}
 	}
 

@@ -5,6 +5,7 @@
 #include <mutex>
 #include <unordered_map>
 #include <vector>
+#include <atomic>
 //#include <string>
 
 
@@ -49,7 +50,8 @@ public:
 	{
 		if (mCurrentUserCnt > 0)
 		{
-			mCurrentUserCnt--;
+			//std::lock_guard<std::mutex>lock(mLock);
+			--mCurrentUserCnt;
 		}
 	}
 
@@ -103,6 +105,7 @@ public:
 		printf("사용자 정보 삭제 : %s\n", user_->GetUserID().c_str());
 		mUserIDDictionary.erase(user_->GetUserID());
 		user_->Clear();
+		DecreaseUserCnt();
 	}
 
 
@@ -123,12 +126,13 @@ public:
 	}
 
 private:
-	INT32 mCurrentUserCnt = 0;
+	//INT32 mCurrentUserCnt = 0;
+	std::atomic<int> mCurrentUserCnt = { 0 };
 	INT32 mMaxUserCnt = -1;
 
 	std::vector<User*> mUserObjPool;
 	//std::vector<std::shared_ptr<User>> mUserObjPool;
 	std::unordered_map<std::string, int>mUserIDDictionary;
-	
+	std::mutex mLock;
 	//std::mutex mUserDictMutex;
 };

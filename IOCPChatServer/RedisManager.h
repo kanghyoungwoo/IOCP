@@ -55,7 +55,7 @@ public:
 		mConn.disConnect();
 	}
 
-	void PushTask(RedisTask task_)
+	void PushTask(RedisTask task_)	// producer
 	{
 		{
 			std::lock_guard<std::mutex> guard(mReqLock);
@@ -125,7 +125,7 @@ private:
 				strcpy_s(bodyData.UserID, sizeof(bodyData.UserID), pRequest->UserID);
 
 				std::string value;
-				bool got = mConn.get(pRequest->UserID, value); // single
+				bool got = mConn.get(pRequest->UserID, value);
 				
 				if (got)
 				{

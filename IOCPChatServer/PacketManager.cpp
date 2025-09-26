@@ -259,6 +259,7 @@ void PacketManager::ProcessRecvPacket(const UINT32 clientIndex_, const UINT16 pa
 	//	printf("알 수 없는 패킷 ID : %d (ClientIndex: %d)\n", packetId_, clientIndex_);
 	//}
 
+	// 패킷key값(packetid)을 찾으면 
 	auto it = mPacketHandlers.find(packetId_);
 	if (it != mPacketHandlers.end())
 		it->second(clientIndex_, packetSize_, pPacket_);
@@ -276,9 +277,28 @@ void PacketManager::ProcessLogin(UINT32 clientIndex_, UINT16 packetSize_, char* 
 	}
 
 	auto pLoginReqPacket = reinterpret_cast<LOGIN_REQUEST_PACKET*>(pPacket_);
-
+	
 	auto pUserID = pLoginReqPacket->UserID;
 	printf("Requested user ID : %s\n", pUserID);
+
+	//// 로드 테스트용 코드
+	//// id가 test_user일시 인증 뛰어넘고 즉시 로그인 처리
+	//if (pUserID == "test_user")
+	//{
+	//	auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
+	//	pUser->SetLogin(pUserID);
+
+	//	// 로그인 성공 응답
+	//	LOGIN_RESPONSE_PACKET loginResPacket;
+	//	loginResPacket.PacketId = (UINT16)PACKET_ID::LOGIN_RESPONSE;
+	//	loginResPacket.PacketLength = sizeof(loginResPacket);
+	//	loginResPacket.Result = (UINT16)ERROR_CODE::NONE;
+	//	
+
+	//}
+
+	//// 여기까지가 로드테스트용도를 위한 코드
+
 
 	LOGIN_RESPONSE_PACKET loginResPacket;
 	loginResPacket.PacketId = (UINT16)PACKET_ID::LOGIN_RESPONSE;
@@ -303,8 +323,6 @@ void PacketManager::ProcessLogin(UINT32 clientIndex_, UINT16 packetSize_, char* 
 		printf("중복 로그인 거부 응답 전송 완료\n");
 		return;
 	}
-
-
 
 	// 접속자 수가 최대수인지 확인
 	if (mUserManager->GetCurrentUserCnt() >= mUserManager->GetMaxUserCnt())

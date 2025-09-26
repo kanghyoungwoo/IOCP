@@ -3,7 +3,7 @@
 #include <Ws2tcpip.h>
 #include <mswsock.h>
 
-//#define MAX_SOCKBUF 1024	// 패킷 크기
+//#define MAX_SOCKBUF 1024	// 패킷 size
 const UINT32 MAX_SOCKBUF = 1024;
 const UINT32 MAX_SOCK_SENDBUF = 4096;	// 소켓 버퍼 크기
 const UINT64 RE_USE_SESSION_WAIT_TIMESEC = 3; 
