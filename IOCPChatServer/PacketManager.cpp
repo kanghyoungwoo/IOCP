@@ -134,13 +134,13 @@ void PacketManager::ProcessPacket()
 	{
 		bool isIdle = true;
 
-		if (auto packetData = DequePacketData(); packetData.PacketId > (UINT16)PACKET_ID::SYS_END)
+		if (auto packetData = DequeSystemPacketData(); packetData.PacketId != 0)
 		{
 			isIdle = false;
 			ProcessRecvPacket(packetData.ClientIndex, packetData.PacketId, packetData.DataSize, packetData.pDataPtr);
 		}
 
-		if (auto packetData = DequeSystemPacketData(); packetData.PacketId != 0)
+		if (auto packetData = DequePacketData(); packetData.PacketId > (UINT16)PACKET_ID::SYS_END)
 		{
 			isIdle = false;
 			ProcessRecvPacket(packetData.ClientIndex, packetData.PacketId, packetData.DataSize, packetData.pDataPtr);
@@ -200,6 +200,7 @@ PacketInfo PacketManager::DequePacketData()
 		return PacketInfo();
 	if (pUser->GetGeneration() != task.generation)
 	{
+		// Generation 불일치로 패킷 처리 중단
 		printf("enqueue generation: %d 이 current generation: %d 맞지 않습니다\n", task.generation, pUser->GetGeneration());
 		return PacketInfo();
 	}

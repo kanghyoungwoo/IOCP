@@ -310,8 +310,15 @@ private:
 			for (ULONG i = 0; i < numEntriesRemoved; ++i)
 			{
 				auto& entry = completionEntries[i];
-
+				// 여기서 이미 삭제된 메모리를 가리키게 된다면..?
+				// pClientSession이 이미 삭제된 메모리를 가리킴 -> crash 발생 (Dangling pointer)
+				
 				ClientSession* pClientSession = reinterpret_cast<ClientSession*>(entry.lpCompletionKey);
+				if (!pClientSession || !pClientSession->IsConnected())
+				{
+					continue;
+				}
+				
 				DWORD dwIoSize = entry.dwNumberOfBytesTransferred;
 				LPOVERLAPPED lpOverlapped = entry.lpOverlapped;
 
@@ -396,6 +403,10 @@ private:
 	// 소켓의 연결을 종료
 	void CloseSocket(ClientSession* pClientSession, bool bIsForce = false)
 	{
+		if (pClientSession->IsConnected() == false)
+		{
+			return;
+		}
 		UINT32 ClientIndex = pClientSession->GetIndex();
 		pClientSession->Closed(bIsForce);
 		OnClose(ClientIndex);
