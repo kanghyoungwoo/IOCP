@@ -224,8 +224,10 @@ IOCPChatServer/
 - **Approach**: Mutex추가로 쓰레드 안전성 확보
 - **Solution**: `User` 클래스에 `mPacketRingBuffMutex` 추가, `SetPacketData()`, `GetPacket()`, `Clear()` 메서드를 동일한 뮤텍스로 보호
 
-### Challenge 3: 연결 종료 중 잔여 인덱스 처리
-- **Problem**: `DequePacketData()`에서 `userIndex`가져와 처리하는 과정 직전에, 패킷 처리 쓰레드에서 시스템 패킷으로 `ClearConnectionInfo()`가 먼저 실행되어 `User::Clear()`가 호출이 되면 이미 초기화된 사용자 객체에 대해 패킷 처리를 시도하여 빈 패킷 반환 하게 되고, 불필요한 처용
+### Challenge 3: 비동기 이벤트 처리 중 발생하는 상태 불일치 문제
+- **Problem**: I/O 쓰레드가 작업을 생성한 후 큐에 넣기 전 사이에 다른 쓰레드가 사용자의 상태를 변경하면 ProcessPacket쓰레드엔 무효화된 작업이 들어가게됨
+- **Approach**: Client 객체의 생명 주기를 추적할 수 있도록 Generation token 도입으로 상태 검증
+- **Solution**: User클래스에 generation token을 도입하여 패킷 처리 작업을 생성할 때 당시의 generation token 값을 함께 기록하여 queue에서 꺼내어 작업을 할 때 generation token 값을 비교 하여 값이 다를 경우 해당 패킷을 무효화 된 패킷처리
 
 ## 🔮 향후 개선 방향
 - [x] ~~std::function 기반 패킷 핸들러로 리팩토링~~
