@@ -1,11 +1,12 @@
 #pragma once
 #pragma comment(lib, "ws2_32")
+#pragma comment(lib, "mswsock.lib")
 
 #include "Define.h"
 #include "ClientSession.h"
 #include <thread>
 #include <vector>
-
+#include <mswsock.h>
 
 
 class IOCompletionPort
@@ -285,7 +286,7 @@ private:
 				&numEntriesRemoved,			// 제거된 항목 수
 				INFINITE,					// 대기할 시간
 				FALSE);						// 동기식으로 처리
-
+			//printf("[DEBUG] GetQueuedCompletionStatusEx 결과: bSuccess=%d, numEntries=%d, LastError=%d\n",bSuccess, numEntriesRemoved, GetLastError());
 			if (!bSuccess)
 			{
 				DWORD error = GetLastError();
@@ -306,7 +307,7 @@ private:
 					continue;
 				}
 			}
-
+			printf("[DEBUG] %d개 완료 이벤트 처리 시작\n", numEntriesRemoved);
 			for (ULONG i = 0; i < numEntriesRemoved; ++i)
 			{
 				auto& entry = completionEntries[i];
@@ -314,10 +315,10 @@ private:
 				// pClientSession이 이미 삭제된 메모리를 가리킴 -> crash 발생 (Dangling pointer)
 				
 				ClientSession* pClientSession = reinterpret_cast<ClientSession*>(entry.lpCompletionKey);
-				if (!pClientSession || !pClientSession->IsConnected())
-				{
-					continue;
-				}
+				//if (!pClientSession || !pClientSession->IsConnected())
+				//{
+				//	continue;
+				//}
 				
 				DWORD dwIoSize = entry.dwNumberOfBytesTransferred;
 				LPOVERLAPPED lpOverlapped = entry.lpOverlapped;
@@ -335,14 +336,18 @@ private:
 				}
 
 				auto pOverlappedEx = (stOverlappedEx*)lpOverlapped;
-
+				printf("[DEBUG] IOCP 이벤트 수신: Operation=%d, ClientIndex=%d, IoSize=%d\n",
+					(int)pOverlappedEx->m_eOperation,
+					pOverlappedEx->clientSessionIndex,
+					dwIoSize);
 				// client가 접속을 끊었을때
 				if (dwIoSize == 0 && pOverlappedEx->m_eOperation != IOOperation::ACCEPT)
 				{
 					CloseSocket(pClientSession);
 					continue;
 				}
-
+				printf("[DEBUG] Operation=%d, ClientSessionIndex=%d\n",
+					(int)pOverlappedEx->m_eOperation, pOverlappedEx->clientSessionIndex);
 				if (IOOperation::ACCEPT == pOverlappedEx->m_eOperation)
 				{
 					pClientSession = GetClientInfo(pOverlappedEx->clientSessionIndex);
