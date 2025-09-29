@@ -169,6 +169,10 @@ IOCPChatServer.sln
 ![서로다른채팅방](https://github.com/user-attachments/assets/1d0586ef-4a7d-4af5-ab42-e74c615e3a07)
 ![로그인실패중복된로그인방입장하지않고메세지](https://github.com/user-attachments/assets/6e91bd00-2db3-4877-8c28-746cf93d7fff)
 
+### ▶️ 더미 클라이언트 테스트 영상
+![DummyClientTest-ezgif com-optimize](https://github.com/user-attachments/assets/9ffc338d-c45d-4952-bdbe-462b06e3f24b)
+
+
 ## 📊 성능 특징
 - **동시 접속자**: 최대 10000명 (설정 가능)
 - **방 생성**: 최대 10개 (설정 가능)
