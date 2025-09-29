@@ -165,6 +165,7 @@ IOCPChatServer.sln
 4. 클라이언트 연결 (포트 11021)
 
 ### ▶️ 시연 영상
+![KakaoTalk_Recording_20250905_160030 (1)](https://github.com/user-attachments/assets/bc99abc7-e3d9-41c1-8b06-03baf6d62534)
 ![서로다른채팅방](https://github.com/user-attachments/assets/1d0586ef-4a7d-4af5-ab42-e74c615e3a07)
 ![로그인실패중복된로그인방입장하지않고메세지](https://github.com/user-attachments/assets/6e91bd00-2db3-4877-8c28-746cf93d7fff)
 
