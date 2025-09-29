@@ -164,10 +164,15 @@ IOCPChatServer.sln
 3. IOCPChatServer.sln 실행
 4. 클라이언트 연결 (포트 11021)
 
+### ▶️ 시연 영상
+![KakaoTalk_Recording_20250905_160030 (1)](https://github.com/user-attachments/assets/bc99abc7-e3d9-41c1-8b06-03baf6d62534)
+![서로다른채팅방](https://github.com/user-attachments/assets/1d0586ef-4a7d-4af5-ab42-e74c615e3a07)
+![로그인실패중복된로그인방입장하지않고메세지](https://github.com/user-attachments/assets/6e91bd00-2db3-4877-8c28-746cf93d7fff)
+
 ## 📊 성능 특징
-- **동시 접속자**: 최대 1000명 (설정 가능)
+- **동시 접속자**: 최대 10000명 (설정 가능)
 - **방 생성**: 최대 10개 (설정 가능)
-- **방당 사용자**: 최대 4명
+- **방당 사용자**: 최대 4명(설정 가능)
 - **패킷 처리**: 비동기 큐 기반 처리
 - **메모리 사용**: 링버퍼로 효율적인 메모리 관리
 
