@@ -307,7 +307,7 @@ private:
 					continue;
 				}
 			}
-			printf("[DEBUG] %d개 완료 이벤트 처리 시작\n", numEntriesRemoved);
+			//printf("[DEBUG] %d개 완료 이벤트 처리 시작\n", numEntriesRemoved);
 			for (ULONG i = 0; i < numEntriesRemoved; ++i)
 			{
 				auto& entry = completionEntries[i];
@@ -315,10 +315,6 @@ private:
 				// pClientSession이 이미 삭제된 메모리를 가리킴 -> crash 발생 (Dangling pointer)
 				
 				ClientSession* pClientSession = reinterpret_cast<ClientSession*>(entry.lpCompletionKey);
-				//if (!pClientSession || !pClientSession->IsConnected())
-				//{
-				//	continue;
-				//}
 				
 				DWORD dwIoSize = entry.dwNumberOfBytesTransferred;
 				LPOVERLAPPED lpOverlapped = entry.lpOverlapped;
@@ -336,18 +332,14 @@ private:
 				}
 
 				auto pOverlappedEx = (stOverlappedEx*)lpOverlapped;
-				printf("[DEBUG] IOCP 이벤트 수신: Operation=%d, ClientIndex=%d, IoSize=%d\n",
-					(int)pOverlappedEx->m_eOperation,
-					pOverlappedEx->clientSessionIndex,
-					dwIoSize);
 				// client가 접속을 끊었을때
 				if (dwIoSize == 0 && pOverlappedEx->m_eOperation != IOOperation::ACCEPT)
 				{
 					CloseSocket(pClientSession);
 					continue;
 				}
-				printf("[DEBUG] Operation=%d, ClientSessionIndex=%d\n",
-					(int)pOverlappedEx->m_eOperation, pOverlappedEx->clientSessionIndex);
+				//printf("[DEBUG] Operation=%d, ClientSessionIndex=%d\n",
+				//	(int)pOverlappedEx->m_eOperation, pOverlappedEx->clientSessionIndex);
 				if (IOOperation::ACCEPT == pOverlappedEx->m_eOperation)
 				{
 					pClientSession = GetClientInfo(pOverlappedEx->clientSessionIndex);

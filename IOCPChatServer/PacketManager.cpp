@@ -284,19 +284,23 @@ void PacketManager::ProcessLogin(UINT32 clientIndex_, UINT16 packetSize_, char* 
 
 	//// 로드 테스트용 코드
 	//// id가 test_user일시 인증 뛰어넘고 즉시 로그인 처리
-	//if (pUserID == "test_user")
-	//{
-	//	auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
-	//	pUser->SetLogin(pUserID);
+	const char* prefix = "test_user";
+	size_t prefixLen = strlen(prefix);
+	if (strncmp(pUserID, prefix, prefixLen) == 0) // prefic로 시작하는 아이디면
+	{
+		// usermanager에 사용자 추가
+		auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
+		pUser->SetLogin(pUserID);
+		mUserManager->Adduser(pUserID, clientIndex_);
 
-	//	// 로그인 성공 응답
-	//	LOGIN_RESPONSE_PACKET loginResPacket;
-	//	loginResPacket.PacketId = (UINT16)PACKET_ID::LOGIN_RESPONSE;
-	//	loginResPacket.PacketLength = sizeof(loginResPacket);
-	//	loginResPacket.Result = (UINT16)ERROR_CODE::NONE;
-	//	
+		LOGIN_RESPONSE_PACKET loginResPacket;
+		loginResPacket.PacketId = (UINT16)PACKET_ID::LOGIN_RESPONSE;
+		loginResPacket.PacketLength = sizeof(loginResPacket);
+		loginResPacket.Result = (UINT16)ERROR_CODE::NONE;
+		SendPacketFunc(clientIndex_, sizeof(LOGIN_RESPONSE_PACKET), (char*)&loginResPacket);
 
-	//}
+		printf("[Load Test] Dummy login Success: %s\n", pUserID);
+	}
 
 	//// 여기까지가 로드테스트용도를 위한 코드
 
