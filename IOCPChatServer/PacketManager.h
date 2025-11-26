@@ -9,6 +9,7 @@
 #include <functional>
 #include <thread>
 #include <mutex>
+#include <condition_variable>
 
 class UserManager;
 class RedisManager;
@@ -57,6 +58,7 @@ private:
 	void ProcessLeaveRoom(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 	void ProcessRoomChatMessage(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 
+	void NotifyPacketEvent();
 	//void OnLoginSuccess(UINT32 clientIndex_, const char* userID_);
 	//void OnLoginFailure(UINT32 clientIndex_, UINT16 errorCode_);
 	//void TryMySQLFallback(UINT32 clientIndex_, const char* userID_);
@@ -76,6 +78,7 @@ private:
 	bool mIsRunProcessThread = false;
 	std::thread mProcessThead;
 	std::mutex mLock;
+	std::condition_variable mPacketEventCV;
 
 	// queue를 2개 가지고 있음 
 	// IOCP에서 패킷을 처리하면 공용객체에 락을 걸어야 하기 떄문에 락을 안걸기 위해

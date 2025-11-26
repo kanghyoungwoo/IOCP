@@ -10,12 +10,15 @@
 #include <thread>
 #include <mutex>
 #include <chrono>
+#include <functional>
 
 class RedisManager
 {
 public:
 	RedisManager() = default;
 	~RedisManager() = default;
+
+	std::function<void()> OnResponsePushed;
 
 	bool Run(std::string ip_, UINT16 port_, const UINT32 threadCount_)
 	{
@@ -75,6 +78,12 @@ public:
 		mResponseTask.pop_front();
 
 		return task;
+	}
+
+	bool HasResponseTask()
+	{
+		std::lock_guard<std::mutex> guard(mResLock);
+		return !mResponseTask.empty();
 	}
 
 
@@ -236,8 +245,16 @@ private:
 
 	void PushResponse(RedisTask task_)
 	{
-		std::lock_guard<std::mutex> guard(mResLock);
-		mResponseTask.push_back(task_);
+		{
+			std::lock_guard<std::mutex> guard(mResLock);
+			mResponseTask.push_back(task_);
+		}
+
+		// 응답 오면 패킷 처리 쓰레드에 알려줌
+		if (OnResponsePushed)
+		{
+			OnResponsePushed();
+		}
 	}
 
 	RedisTask TakeRequestTask()

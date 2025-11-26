@@ -29,6 +29,11 @@ void PacketManager::Init(const UINT32 maxClient_)
 
 	mRedisManager = new RedisManager;
 	mMySQLManager = new MySQLManager;
+
+	mRedisManager->OnResponsePushed = [this]()
+	{
+		NotifyPacketEvent();
+	};
 }
 
 void PacketManager::RegisterHandlers()
@@ -110,7 +115,14 @@ void PacketManager::End()
 {
 	mRedisManager->End();
 	mMySQLManager->End();
-	mIsRunProcessThread = false;
+
+	{
+		std::lock_guard<std::mutex> lock(mLock);
+		mIsRunProcessThread = false;
+	}
+	// wait중인 processPacket 쓰레드 깨움
+	mPacketEventCV.notify_all();
+	//mIsRunProcessThread = false;
 	if (mProcessThead.joinable())
 	{
 		mProcessThead.join();
@@ -132,31 +144,66 @@ void PacketManager::ProcessPacket()
 {
 	while (mIsRunProcessThread)
 	{
-		bool isIdle = true;
+		{
+			std::unique_lock<std::mutex> lock(mLock);
 
+			mPacketEventCV.wait(lock, [this]()
+			{
+				if (!mIsRunProcessThread)
+					return true;
+
+				if (!mSystemPacketQueue.empty())
+					return true;
+
+				if (!mInComingPacketUserIndex.empty())
+					return true;
+
+				if (mRedisManager && mRedisManager->HasResponseTask())
+					return true;
+
+				return false;
+			});
+			//if (mSystemPacketQueue.empty() && mInComingPacketUserIndex.empty())
+			//{
+			//	mPacketEventCV.wait_for(lock,
+			//		std::chrono::milliseconds(1),
+			//		[this]()
+			//		{
+			//			return !mIsRunProcessThread || !mSystemPacketQueue.empty() || !mInComingPacketUserIndex.empty();
+			//		});
+			//}
+			if (!mIsRunProcessThread)
+				break;
+		}
+
+
+		//bool isIdle = true;
+		// 시스템 패킷 처리
 		if (auto packetData = DequeSystemPacketData(); packetData.PacketId != 0)
 		{
-			isIdle = false;
+			//isIdle = false;
 			ProcessRecvPacket(packetData.ClientIndex, packetData.PacketId, packetData.DataSize, packetData.pDataPtr);
 		}
-
+		
+		// 일반 패킷 처리
 		if (auto packetData = DequePacketData(); packetData.PacketId > (UINT16)PACKET_ID::SYS_END)
 		{
-			isIdle = false;
+			//isIdle = false;
 			ProcessRecvPacket(packetData.ClientIndex, packetData.PacketId, packetData.DataSize, packetData.pDataPtr);
 		}
 
+		// redis 처리
 		if (auto task = mRedisManager->TakeResponseTask(); task.TaskID != RedisTaskID::INVALID)
 		{
-			isIdle = false;
+			//isIdle = false;
 			ProcessRecvPacket(task.UserIndex, (UINT16)task.TaskID, task.DataSize, task.pData);
 			task.release();
 		}
 
-		if (isIdle)
-		{
-			std::this_thread::sleep_for(std::chrono::milliseconds(1));
-		}
+		//if (isIdle)
+		//{
+		//	std::this_thread::sleep_for(std::chrono::milliseconds(1));
+		//}
 	}
 	// 이미 연결이 된 유저가 보낸 패킷이 있는지 알아보고 
 	// 있으면 처리하고 
@@ -165,15 +212,19 @@ void PacketManager::ProcessPacket()
 
 void PacketManager::EnqueuePacketData(const UINT32 clientIndex_)
 {
-	std::lock_guard<std::mutex> guard(mLock);
-	auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
-	if (pUser)
 	{
-		PacketTask task;
-		task.clientIndex = clientIndex_;
-		task.generation = pUser->GetGeneration();	// 현재 generation
-		mInComingPacketUserIndex.push_back(task);
+		std::lock_guard<std::mutex> guard(mLock);
+		auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
+		if (pUser)
+		{
+			PacketTask task;
+			task.clientIndex = clientIndex_;
+			task.generation = pUser->GetGeneration();	// 현재 generation
+			mInComingPacketUserIndex.push_back(task);
+		}
 	}
+	// 큐에 새로운 패킷이 들어왔다고 처리 쓰레드 깨움
+	NotifyPacketEvent();
 	//mInComingPacketUserIndex.push_back(clientIndex_);
 }
 
@@ -227,8 +278,12 @@ void PacketManager::ProcessUserDisconnect(UINT32 clientIndex_, UINT16 packetSize
 
 void PacketManager::PushSystemPacket(PacketInfo packet_)
 {
-	std::lock_guard<std::mutex>guard(mLock);
-	mSystemPacketQueue.push_back(packet_);
+	{
+		std::lock_guard<std::mutex>guard(mLock);
+		mSystemPacketQueue.push_back(packet_);
+	}
+	// 시스템 패킷 들어왔으니 처리 쓰레드 깨움
+	NotifyPacketEvent();
 }
 
 
@@ -636,6 +691,11 @@ void PacketManager::ProcessRoomChatMessage(UINT32 clientIndex_, UINT16 packetSiz
 	pRoom->NotifyChat(clientIndex_, pReqUser->GetUserID().c_str(), (char*)pRoomChatReqPacket);
 
 
+}
+
+void PacketManager::NotifyPacketEvent()
+{
+	mPacketEventCV.notify_one();
 }
 //
 //void PacketManager::OnLoginSuccess(UINT32 clientIndex_,const char* userID_)
