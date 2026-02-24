@@ -40,6 +40,12 @@ public:
 		return m_socketClient;
 	}
 
+	UINT32 GetGeneration() const 
+	{ 
+		return mGeneration;
+	}
+
+
 	char* RecvBuff()
 	{
 		return mRecvBuf;
@@ -60,6 +66,7 @@ public:
 	{
 		m_socketClient = socket;
 		mIsConnected = true;
+		++mGeneration;
 
 		//Clear();
 		if (BindIOCompletionPort(iocpHandle) == false)
@@ -134,6 +141,7 @@ public:
 		pSendOvl->wsaBuf.buf = pSendOvl->buffer;	// 내장 버퍼를 가리킴
 		CopyMemory(pSendOvl->buffer, pMsg, dataSize);
 		pSendOvl->operation = IOOperation::SEND;
+		pSendOvl->generation = mGeneration;
 
 		std::lock_guard<std::mutex> guard(mSendLock);
 		mSendDataqueue.push(pSendOvl);
@@ -182,6 +190,7 @@ public:
 		m_stRecvOverlappedEx.m_wsaBuf.len = MAX_SOCKBUF;
 		m_stRecvOverlappedEx.m_wsaBuf.buf = mRecvBuf;
 		m_stRecvOverlappedEx.m_eOperation = IOOperation::RECV;
+		m_stRecvOverlappedEx.generation = mGeneration;
 
 		int nRet = WSARecv(m_socketClient,
 			&(m_stRecvOverlappedEx.m_wsaBuf),
@@ -441,4 +450,5 @@ private:
 	char mAcceptbuf[128];				// AcceptEx의 3번째 인자로 넘겨줄 버퍼
 	UINT64 mLatestClosedTimeSec = 0;		// 마지막으로 연결이 종료된 시간
 	
+	UINT32 mGeneration = 0;
 };

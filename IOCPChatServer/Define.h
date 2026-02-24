@@ -23,7 +23,8 @@ typedef struct _stOverlappedEx
 	//SOCKET			m_socketClient;		// Client
 	WSABUF			m_wsaBuf;				// Overlapped I/O
 	IOOperation		m_eOperation;			// 
-	UINT32			clientSessionIndex = 0;
+	UINT32			clientSessionIndex = 0;	//추가
+	UINT32			generation = 0;
 }stOverlappedEx;
 
 // Send 전용 통합 구조체: Overlapped + 데이터 버퍼를 하나로 합침
@@ -34,6 +35,7 @@ struct SendOverlappedEx
 	WSABUF			wsaBuf;
 	IOOperation		operation;
 	UINT32			sessionIndex = 0;
+	UINT32			generation = 0;			// 추가
 	char			buffer[MAX_SOCKBUF];	// 고정 크기 내장 버퍼
 };
 

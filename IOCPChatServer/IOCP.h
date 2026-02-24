@@ -368,12 +368,30 @@ private:
 				// Overlapped I/O Recv 작업 결과 뒤 처리
 				else if (IOOperation::RECV == pOverlappedEx->m_eOperation)
 				{
+
+					// Stale I/O 검증
+					if (pOverlappedEx->generation != pClientSession->GetGeneration())
+					{
+						printf("[Stale I/O] RECV 무시 - gen: %d vs %d\n",
+							pOverlappedEx->generation, pClientSession->GetGeneration());
+						continue;
+					}
+
 					OnReceive(pClientSession->GetIndex(), dwIoSize, pClientSession->RecvBuff());
 					pClientSession->BindRecv(); // 다시 recv 걸어줌
 				}
 
 				else if (IOOperation::SEND == pOverlappedEx->m_eOperation) // 연결이 완료되면
 				{
+					// Stale I/O 검증
+					auto pSendOvl = (SendOverlappedEx*)lpOverlapped;
+					if (pSendOvl->generation != pClientSession->GetGeneration())
+					{
+						printf("[Stale I/O] SEND 무시 - gen: %d vs %d\n",
+							pSendOvl->generation, pClientSession->GetGeneration());
+						mSendBufferPool.Free(pSendOvl);  // 풀에는 반납
+						continue;
+					}
 					pClientSession->SendComplete(dwIoSize);
 				}
 				// 예외
