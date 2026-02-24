@@ -184,17 +184,26 @@ public:
 private:
 	void CreateClient(const int maxClientCount)
 	{
+		mSendBufferPool.Init(maxClientCount * 4);
+
 		for (int i = 0;i < maxClientCount;++i)
 		{
 			auto client = std::make_unique<ClientSession>();
-			client->Init(i, mIOCPHandle);
+			client->Init(i, mIOCPHandle, &mSendBufferPool);
 			mClientInfos.emplace_back(std::move(client));
-
-			//auto client = new ClientSession(); // 메모리 누수 가능성
-			//client->Init(i,mIOCPHandle);
-			//mClientInfos.emplace_back(client);
-
 		}
+
+		//for (int i = 0;i < maxClientCount;++i)
+		//{
+		//	auto client = std::make_unique<ClientSession>();
+		//	client->Init(i, mIOCPHandle);
+		//	mClientInfos.emplace_back(std::move(client));
+
+		//	//auto client = new ClientSession(); // 메모리 누수 가능성
+		//	//client->Init(i,mIOCPHandle);
+		//	//mClientInfos.emplace_back(client);
+
+		//}
 	}
 
 	// WaitingThread Queue에서 대기할 쓰레드들 생성 
@@ -447,4 +456,7 @@ private:
 	// 클라이언트 정보 저장 구조체
 	//std::vector<ClientSession*> mClientInfos;
 	std::vector<std::unique_ptr<ClientSession>> mClientInfos;
+
+	ObjectPool<SendOverlappedEx> mSendBufferPool;
+
 };

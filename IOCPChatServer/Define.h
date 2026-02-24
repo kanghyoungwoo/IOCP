@@ -3,11 +3,11 @@
 #include <Ws2tcpip.h>
 #include <mswsock.h>
 
-//#define MAX_SOCKBUF 1024	// ÆĞÅ¶ size
+//#define MAX_SOCKBUF 1024
 const UINT32 MAX_SOCKBUF = 1024;
-const UINT32 MAX_SOCK_SENDBUF = 4096;	// ¼ÒÄÏ ¹öÆÛ Å©±â
+const UINT32 MAX_SOCK_SENDBUF = 4096;	
 const UINT64 RE_USE_SESSION_WAIT_TIMESEC = 3; 
-#define MAX_WORKERTHREAD 4	// ¾²·¹µå Ç®¿¡ ³ÖÀ» ¾²·¹µå ¼ö
+#define MAX_WORKERTHREAD 4
 
 enum class IOOperation
 {
@@ -16,14 +16,25 @@ enum class IOOperation
 	ACCEPT
 };
 
-//WSAOVERLAPPED ±¸Á¶Ã¼¸¦ È®Àå ½ÃÄÑ ÇÊ¿äÇÑ Á¤º¸¸¦ ´õ ³ÖÀ½
+//WSAOVERLAPPED 
 typedef struct _stOverlappedEx
 {
-	WSAOVERLAPPED	m_wsaOverlapped;		// Overlapped I/O ±¸Á¶Ã¼
-	//SOCKET			m_socketClient;			// Client ¼ÒÄÏ
-	WSABUF			m_wsaBuf;				// Overlapped I/OÀÛ¾÷ ¹öÆÛ
-	IOOperation		m_eOperation;			// ÀÛ¾÷ µ¿ÀÛ Á¾·ù
+	WSAOVERLAPPED	m_wsaOverlapped;		// Overlapped I/O
+	//SOCKET			m_socketClient;		// Client
+	WSABUF			m_wsaBuf;				// Overlapped I/O
+	IOOperation		m_eOperation;			// 
 	UINT32			clientSessionIndex = 0;
 }stOverlappedEx;
+
+// Send ì „ìš© í†µí•© êµ¬ì¡°ì²´: Overlapped + ë°ì´í„° ë²„í¼ë¥¼ í•˜ë‚˜ë¡œ í•©ì¹¨
+// ë©”ëª¨ë¦¬ í’€ì—ì„œ ì´ ë‹¨ìœ„ë¡œ í• ë‹¹/ë°˜ë‚©í•˜ë¯€ë¡œ í™ í• ë‹¹ì´ ë°œìƒí•˜ì§€ ì•ŠëŠ”ë‹¤.
+struct SendOverlappedEx
+{
+	WSAOVERLAPPED	wsaOverlapped;
+	WSABUF			wsaBuf;
+	IOOperation		operation;
+	UINT32			sessionIndex = 0;
+	char			buffer[MAX_SOCKBUF];	// ê³ ì • í¬ê¸° ë‚´ì¥ ë²„í¼
+};
 
 

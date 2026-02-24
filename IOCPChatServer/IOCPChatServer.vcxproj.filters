@@ -36,6 +36,9 @@
     <ClInclude Include="RingBuffer.h" />
     <ClInclude Include="MysqlManager.h" />
     <ClInclude Include="MySQLTaskDefine.h" />
+    <ClInclude Include="ObjectPool.h">
+      <Filter>ServerNetwork</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />

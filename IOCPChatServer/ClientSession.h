@@ -3,6 +3,7 @@
 
 #include <MSWSock.h>
 #include "Define.h"
+#include "ObjectPool.h"
 #include <stdio.h>
 #include <mutex>
 #include <queue>
@@ -16,10 +17,11 @@ public:
 		m_socketClient = INVALID_SOCKET;
 	}
 
-	void Init(const UINT32 index, HANDLE iocpHandle)
+	void Init(const UINT32 index, HANDLE iocpHandle, ObjectPool<SendOverlappedEx>* pSendPool)
 	{
 		mIndex = index;
 		mIOCPHandle = iocpHandle;
+		mSendPool = pSendPool;
 	}
 
 	UINT32 GetIndex()
@@ -101,8 +103,10 @@ public:
 
 		while (!mSendDataqueue.empty())
 		{
-			delete[] mSendDataqueue.front()->m_wsaBuf.buf;
-			delete mSendDataqueue.front();
+			//delete[] mSendDataqueue.front()->m_wsaBuf.buf;
+			//delete mSendDataqueue.front();
+			//mSendDataqueue.pop();
+			mSendPool->Free(mSendDataqueue.front());	// 풀에 반납
 			mSendDataqueue.pop();
 		}
 		
@@ -118,16 +122,33 @@ public:
 	// WSASend Overlapped I/O 작업을 시작
 	bool SendMsg(const UINT32 dataSize, char* pMsg)
 	{
-		// overlapped 구조체 생성
-		auto sendOverlappedEx = new stOverlappedEx;
-		ZeroMemory(sendOverlappedEx, sizeof(stOverlappedEx));
-		sendOverlappedEx->m_wsaBuf.len = dataSize;
-		sendOverlappedEx->m_wsaBuf.buf = new char[dataSize];
-		CopyMemory(sendOverlappedEx->m_wsaBuf.buf, pMsg, dataSize);
-		sendOverlappedEx->m_eOperation = IOOperation::SEND;
+		// 풀에서 SendOverlappedEx 하나를 꺼낸다 (힙 할당 없음)
+		auto pSendOvl = mSendPool->Alloc();
+		if (pSendOvl == nullptr)
+		{
+			printf("[ERROR] SendPool 소진! dataSize=%d\n", dataSize);
+			return false;
+		}
+		ZeroMemory(&pSendOvl->wsaOverlapped, sizeof(WSAOVERLAPPED));
+		pSendOvl->wsaBuf.len = dataSize;
+		pSendOvl->wsaBuf.buf = pSendOvl->buffer;	// 내장 버퍼를 가리킴
+		CopyMemory(pSendOvl->buffer, pMsg, dataSize);
+		pSendOvl->operation = IOOperation::SEND;
 
 		std::lock_guard<std::mutex> guard(mSendLock);
-		mSendDataqueue.push(sendOverlappedEx);
+		mSendDataqueue.push(pSendOvl);
+
+		//// overlapped 구조체 생성
+		//auto sendOverlappedEx = new stOverlappedEx;
+		//ZeroMemory(sendOverlappedEx, sizeof(stOverlappedEx));
+		//sendOverlappedEx->m_wsaBuf.len = dataSize;
+		//sendOverlappedEx->m_wsaBuf.buf = new char[dataSize];
+		//CopyMemory(sendOverlappedEx->m_wsaBuf.buf, pMsg, dataSize);
+		//sendOverlappedEx->m_eOperation = IOOperation::SEND;
+
+		//std::lock_guard<std::mutex> guard(mSendLock);
+		//mSendDataqueue.push(sendOverlappedEx);
+		
 		// 데이터가 1개라면 앞에 데이터가 없으니 바로 wsasend
 		if (mSendDataqueue.size() == 1)
 		{
@@ -205,7 +226,8 @@ public:
 		DWORD dwRecvNumBytes = 0;
 		int nRet = WSASend(
 			m_socketClient,
-			&(sendOverlappedEx->m_wsaBuf),
+			&(sendOverlappedEx->wsaBuf),
+			//&(sendOverlappedEx->m_wsaBuf),
 			1,
 			&dwRecvNumBytes,
 			0,
@@ -264,8 +286,9 @@ public:
 		*/
 		printf("[송신 완료] bytes : %d\n", dataSize_);
 		std::lock_guard<std::mutex> guard(mSendLock);
-		delete[] mSendDataqueue.front()->m_wsaBuf.buf;
-		delete mSendDataqueue.front();
+		//delete[] mSendDataqueue.front()->m_wsaBuf.buf;
+		//delete mSendDataqueue.front();
+		mSendPool->Free(mSendDataqueue.front());
 		mSendDataqueue.pop();
 		if (mSendDataqueue.empty() == false)
 		{
@@ -406,13 +429,14 @@ private:
 	bool mIsSending = false;
 	UINT64 mSendPos = 0; // SendBuffer의 시작위치 지정 변수
 	HANDLE mIOCPHandle = INVALID_HANDLE_VALUE;
-
+	ObjectPool<SendOverlappedEx>* mSendPool = nullptr;
 	//bool mAcceptPending = false;
 	
 	char mRecvBuf[MAX_SOCKBUF];	// 데이터 버퍼
 	char mSendBuf[MAX_SOCKBUF]; // 데이터 버퍼
 	char mSendingBuf[MAX_SOCK_SENDBUF];
-	std::queue<stOverlappedEx*> mSendDataqueue;
+	//std::queue<stOverlappedEx*> mSendDataqueue;
+	std::queue<SendOverlappedEx*> mSendDataqueue;
 	bool mIsConnected = false;			// Client가 접속 요청을 했는지 확인하는 변수
 	char mAcceptbuf[128];				// AcceptEx의 3번째 인자로 넘겨줄 버퍼
 	UINT64 mLatestClosedTimeSec = 0;		// 마지막으로 연결이 종료된 시간
