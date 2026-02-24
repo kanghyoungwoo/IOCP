@@ -188,9 +188,25 @@ void PacketManager::ProcessPacket()
 		// 일반 패킷 처리
 		if (auto packetData = DequePacketData(); packetData.PacketId > (UINT16)PACKET_ID::SYS_END)
 		{
-			//isIdle = false;
 			ProcessRecvPacket(packetData.ClientIndex, packetData.PacketId, packetData.DataSize, packetData.pDataPtr);
+
+			// 같은 유저의 링버퍼에 남은 패킷이 있으면 계속 처리
+			auto pUser = mUserManager->GetUserByConnIdx(packetData.ClientIndex);
+			if (pUser)
+			{
+				while (true)
+				{
+					auto nextPacket = pUser->GetPacket();
+					if (nextPacket.PacketId == 0)
+						break;
+					nextPacket.ClientIndex = packetData.ClientIndex;
+					ProcessRecvPacket(nextPacket.ClientIndex, nextPacket.PacketId, nextPacket.DataSize, nextPacket.pDataPtr);
+				}
+			}
 		}
+			//isIdle = false;
+			//ProcessRecvPacket(packetData.ClientIndex, packetData.PacketId, packetData.DataSize, packetData.pDataPtr);
+		
 
 		// redis 처리
 		if (auto task = mRedisManager->TakeResponseTask(); task.TaskID != RedisTaskID::INVALID)
