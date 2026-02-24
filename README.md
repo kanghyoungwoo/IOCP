@@ -238,6 +238,11 @@ IOCPChatServer/
 - **Approach**: Client 객체의 생명 주기를 추적할 수 있도록 Generation token 도입으로 상태 검증
 - **Solution**: User클래스에 generation token을 도입하여 패킷 처리 작업을 생성할 때 당시의 generation token 값을 함께 기록하여 queue에서 꺼내어 작업을 할 때 generation token 값을 비교 하여 값이 다를 경우 해당 패킷을 무효화 된 패킷처리
 
+### Challenge 4: 기존 Send 로직의 잦은 동적 할당(new/delete)으로 인한 힙 메모리 단편화 및 다중 스레드 환경에서의 Lock 경합 병목 발생
+- **Problem**: 패킷 전송 시마다 발생하는 잦은 동적 할당(new/delete)으로 인해 힙 메모리 단편화가 유발되고, 다중 스레드 환경에서 Lock 경합이 발생
+- **Approach**: 동적할당을 없애고 메모리 풀 도입
+- **Solution**: 메모리 풀을 구현하여 런타임 동적 할당 오버헤드를 제거하였고, 메모리 연속성을 통해 송신 처리 속도 개선
+  
 ## 🔮 향후 개선 방향
 - [x] ~~std::function 기반 패킷 핸들러로 리팩토링~~
 - [x] ~~MySQL 연동하여 사용자 활동 로그 기록~~
