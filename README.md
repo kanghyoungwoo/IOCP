@@ -242,6 +242,13 @@ IOCPChatServer/
 - **Problem**: 패킷 전송 시마다 발생하는 잦은 동적 할당(new/delete)으로 인해 힙 메모리 단편화가 유발되고, 다중 스레드 환경에서 Lock 경합이 발생
 - **Approach**: 동적할당을 없애고 메모리 풀 도입
 - **Solution**: 메모리 풀을 구현하여 런타임 동적 할당 오버헤드를 제거하였고, 메모리 연속성을 통해 송신 처리 속도 개선
+
+### Challenge 5: Graceful Shutdown 구현
+- **Problem**: 서버 강제 종료 시 진행 중인 I/O와 DB 작업이 유실되고, 리소스가 정리되지 않아 데이터 손실과 메모리 누수가 발생
+- **Approach**: 5단계 순차 종료(Accept 차단 → 클라이언트 킥 + CancelIoEx → I/O Draining → PQCS 워커 종료 → 리소스 정리)하고, DB/Redis 쓰레드는 queue draining 후 종료
+- **Solution**: DestroyThread()를 5단계로 구성, MySQL/Redis의 TaskProcessThread()를 빈 큐 확인 패턴으로 변경하여 잔여 작업을 모두 처리한 뒤 종료하도록 구현. 추가로 SetConsoleCtrlHandler로 Ctrl+C 및 콘솔 종료도 Graceful Shutdown으로 구현
+
+
   
 ## 🔮 향후 개선 방향
 - [x] ~~std::function 기반 패킷 핸들러로 리팩토링~~
