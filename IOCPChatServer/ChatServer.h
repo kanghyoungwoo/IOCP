@@ -59,8 +59,12 @@ public:
 
 	void End()
 	{
-		m_pPacketManager->End();
-		DestroyThread();
+		DestroyThread();			// step1~5, 네트워크 레이어 정리
+		m_pPacketManager->End();	// step6: 패킷스레드 + DBㅈㅇ리
+
+		// 기존 종료 방식
+		//m_pPacketManager->End();
+		//DestroyThread();
 	}
 
 

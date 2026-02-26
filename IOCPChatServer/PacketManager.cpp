@@ -113,20 +113,37 @@ bool PacketManager::Run()
 
 void PacketManager::End()
 {
-	mRedisManager->End();
-	mMySQLManager->End();
-
+	// 패킷 처리 스레드 먼저 종료
 	{
 		std::lock_guard<std::mutex> lock(mLock);
 		mIsRunProcessThread = false;
 	}
-	// wait중인 processPacket 쓰레드 깨움
+
 	mPacketEventCV.notify_all();
-	//mIsRunProcessThread = false;
 	if (mProcessThead.joinable())
-	{
 		mProcessThead.join();
-	}
+
+	// DB 쓰레드 종료(큐 소진후)
+	mRedisManager->End();
+	mMySQLManager->End();
+
+
+
+	// 기존 종료 방식
+	//mRedisManager->End();
+	//mMySQLManager->End();
+
+	//{
+	//	std::lock_guard<std::mutex> lock(mLock);
+	//	mIsRunProcessThread = false;
+	//}
+	//// wait중인 processPacket 쓰레드 깨움
+	//mPacketEventCV.notify_all();
+	////mIsRunProcessThread = false;
+	//if (mProcessThead.joinable())
+	//{
+	//	mProcessThead.join();
+	//}
 
 }
 

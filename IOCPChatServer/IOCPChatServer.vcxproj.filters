@@ -39,6 +39,9 @@
     <ClInclude Include="ObjectPool.h">
       <Filter>ServerNetwork</Filter>
     </ClInclude>
+    <ClInclude Include="ObjectMemoryPool.h">
+      <Filter>ServerNetwork</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />

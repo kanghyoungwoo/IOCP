@@ -59,7 +59,12 @@ public:
 
 	void End()
 	{
-		mIsTaskRun = false;
+		{
+			std::lock_guard<std::mutex> guard(mReqLock);
+			mIsTaskRun = false;
+		}
+
+		mReqCV.notify_all();	// cv 통지 추가
 		for (auto& thread : mTaskThreads)
 		{
 			if (thread.joinable())
@@ -67,6 +72,20 @@ public:
 				thread.join();
 			}
 		}
+		mTaskThreads.clear();
+		CleanupStatements();	// state정리
+		CloseConnection();		// 연결 정리
+
+
+		//기존 종료 방식
+		//mIsTaskRun = false;
+		//for (auto& thread : mTaskThreads)
+		//{
+		//	if (thread.joinable())
+		//	{
+		//		thread.join();
+		//	}
+		//}
 	}
 
 	void PushTask(MySQLTask task_)	// producer
@@ -222,12 +241,13 @@ private:
 
 	void TaskProcessThread()	// consumer
 	{
-		while (mIsTaskRun)
+		while (true) // mIsTaskRun->true
 		{
 			MySQLTask task;
 			{
 				std::unique_lock<std::mutex> lock(mReqLock);
 				mReqCV.wait(lock, [this]() { return !mRequestTask.empty() || !mIsTaskRun; });
+				//종료신호 + 큐 비어있을때만 탈출
 				if (!mIsTaskRun && mRequestTask.empty())
 					break;
 				task = mRequestTask.front();

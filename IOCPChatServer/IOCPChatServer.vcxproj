@@ -146,6 +146,7 @@
     <ClInclude Include="IOCP.h" />
     <ClInclude Include="MysqlManager.h" />
     <ClInclude Include="MySQLTaskDefine.h" />
+    <ClInclude Include="ObjectMemoryPool.h" />
     <ClInclude Include="ObjectPool.h" />
     <ClInclude Include="Packet.h" />
     <ClInclude Include="PacketManager.h" />

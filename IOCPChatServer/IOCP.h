@@ -150,24 +150,72 @@ public:
 	// 생성되어 있는 쓰레드를 파괴한다
 	void DestroyThread()
 	{
+		//Todo: GracefunShutDown구현하기
+		// step1. Accept차단
+		mIsAccepterRun = false;
+		closesocket(mListenSocket);		// AcceptEx 대기 해제
+		mListenSocket = INVALID_SOCKET;
+		if (mAccepterThread.joinable())
+			mAccepterThread.join();
+		printf("step1 Accept 차단 완료\n");
+		
+		// step2. 기존유저 내보내기 + IO취소
+		for (auto& client : mClientInfos)
+		{
+			if (client->IsConnected())
+			{
+				// 연결된 클라이언트가 있다면
+				// 해당 소켓 모든 비동기 IO 취소
+				CancelIoEx((HANDLE)client->GetSocket(), NULL);
+				client->Closed(true);	// 소켓 강제 종료
+			}
+		}
+		printf("step2 모든 클라이언트 연결 해제 완료\n");
+
+
+		// step3. 잔여 IO Draining
+		// 소켓 닫으면 OS 가 잔여 완료 신호 IOCP queue에 넣음
+		// 짧은 대기 로 처리 시간줌
+		std::this_thread::sleep_for(std::chrono::milliseconds(500));
+		printf("step3: 잔여 IO Draining 완료\n");
+
+		// step4. 워커 쓰레드 퇴근 - PQCS로 종료
 		mIsWorkerRun = false;
-
-		CloseHandle(mIOCPHandle);
-
+		for (size_t i = 0;i < mIOWorkerThreads.size();++i)
+		{
+			PostQueuedCompletionStatus(mIOCPHandle, 0, 0, NULL);
+		}
 		for (auto& th : mIOWorkerThreads)
 		{
 			if (th.joinable())
-			{
 				th.join();
-			}
 		}
+		printf("step4: worker thread 종료 완료\n");
+		// step5. IOCP Handle 정리
+		CloseHandle(mIOCPHandle);
+		mIOCPHandle = INVALID_HANDLE_VALUE;
+		printf("step5: 자원 정리 완료\n");
 
-		mIsAccepterRun = false;
-		closesocket(mListenSocket);
-		if (mAccepterThread.joinable())
-		{
-			mAccepterThread.join();
-		}
+
+		// 기존 종료 방식
+		//mIsWorkerRun = false;
+
+		//CloseHandle(mIOCPHandle);
+
+		//for (auto& th : mIOWorkerThreads)
+		//{
+		//	if (th.joinable())
+		//	{
+		//		th.join();
+		//	}
+		//}
+
+		//mIsAccepterRun = false;
+		//closesocket(mListenSocket);
+		//if (mAccepterThread.joinable())
+		//{
+		//	mAccepterThread.join();
+		//}
 	}
 	// 클라이언트의 정보를 받아서
 	// 클라이언트에게 메세지를 send하는 함수

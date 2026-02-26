@@ -107,12 +107,13 @@ private:
 	void TaskProcessThread()
 	{
 		printf("Redis 쓰레드 시작\n");
-		while (mIsTaskRun)
+		while (true) // mIsTaskRun -> true
 		{
 			RedisTask task;
 			{
 				std::unique_lock<std::mutex>lock(mReqLock);
 				mReqCV.wait(lock, [this]() {return !mRequestTask.empty() || !mIsTaskRun;});
+				// 종료신호 + 큐 비었을때만 탈출
 				if (!mIsTaskRun && mRequestTask.empty())
 					break;
 				task = mRequestTask.front();
