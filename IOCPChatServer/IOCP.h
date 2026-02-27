@@ -134,12 +134,25 @@ public:
 		{
 			return false;
 		}
-
-		bRet = CreateAccepterThread();
-		if (bRet == false)
+		
+		// 초기 AcceptEx 100개 걸어두기
+		for (UINT32 i = 0; i < MAX_PENDING_ACCEPT;++i)
 		{
-			return false;
+			// pop으로 인덱스 꺼내고
+			UINT32 emptyIndex = PopFreeSessionIndex();
+			if (emptyIndex != UINT32_MAX)
+			{
+				// 해당세션의 postImmediate호출
+				auto pClient = GetClientInfo(emptyIndex);
+				pClient->PostImmediateAccept(mListenSocket);
+			}
 		}
+		
+		//bRet = CreateAccepterThread();
+		//if (bRet == false)
+		//{
+		//	return false;
+		//}
 
 		//CreateSendThread();
 
@@ -152,11 +165,11 @@ public:
 	{
 		//Todo: GracefunShutDown구현하기
 		// step1. Accept차단
-		mIsAccepterRun = false;
+		//mIsAccepterRun = false;
 		closesocket(mListenSocket);		// AcceptEx 대기 해제
 		mListenSocket = INVALID_SOCKET;
-		if (mAccepterThread.joinable())
-			mAccepterThread.join();
+		//if (mAccepterThread.joinable())
+		//	mAccepterThread.join();
 		printf("step1 Accept 차단 완료\n");
 		
 		// step2. 기존유저 내보내기 + IO취소
@@ -241,6 +254,14 @@ private:
 			mClientInfos.emplace_back(std::move(client));
 		}
 
+		// 최적화..재할당 방지를 위해 메모리 공간을 미리 확보 (Capacity = maxCount)
+		mFreeSessionList.reserve(maxClientCount);
+
+		// 역순으로 스택에 채워넣기)
+		for (UINT32 i = maxClientCount; i > 0; --i)
+		{
+			mFreeSessionList.push_back(i-1);
+		}
 		//for (int i = 0;i < maxClientCount;++i)
 		//{
 		//	auto client = std::make_unique<ClientSession>();
@@ -268,15 +289,15 @@ private:
 		return true;
 	}
 
-	// accept 요청을 처리하는 쓰레드 생성
-	bool CreateAccepterThread()
-	{
-		mIsAccepterRun = true;
-		mAccepterThread = std::thread([this]() { AccepterThread(); });
+	//// accept 요청을 처리하는 쓰레드 생성
+	//bool CreateAccepterThread()
+	//{
+	//	mIsAccepterRun = true;
+	//	mAccepterThread = std::thread([this]() { AccepterThread(); });
 
-		printf("AccepterThread 시작\n");
-		return true;
-	}
+	//	printf("AccepterThread 시작\n");
+	//	return true;
+	//}
 
 	//void CreateSendThread()
 	//{
@@ -285,18 +306,19 @@ private:
 	//	printf("SendThread Start !\n");
 	//}
 
-	// 사용하지 않는 클라이언트의 정보 구조체를 반환
-	ClientSession* GetEmptyClientInfo()
-	{
-		for (auto& client : mClientInfos)
-		{
-			if (client->IsConnected() == false)
-			{
-				return client.get();
-			}
-		}
-		return nullptr;
-	}
+	// FreeList로 대체됨
+	//// 사용하지 않는 클라이언트의 정보 구조체를 반환
+	//ClientSession* GetEmptyClientInfo()
+	//{
+	//	for (auto& client : mClientInfos)
+	//	{
+	//		if (client->IsConnected() == false)
+	//		{
+	//			return client.get();
+	//		}
+	//	}
+	//	return nullptr;
+	//}
 
 	// 클라이언트의 index를 넣으면 client의 info를 리턴하는 함수
 	ClientSession* GetClientInfo(const UINT32 clientSessionIndex)
@@ -403,6 +425,8 @@ private:
 					
 					if (pClientSession->AcceptCompletion(mListenSocket))
 					{
+						// 여러 쓰레드 동시에 호출해도 문제 없도록 atomic처리
+						std::atomic<int>mClientCnt = 0;
 						++mClientCnt;
 						OnConnect(pClientSession->GetIndex());
 						printf("######################################### 접속됨 #################################\n");
@@ -410,6 +434,14 @@ private:
 					else
 					{
 						CloseSocket(pClientSession, true);
+					}
+
+					// 소진된 AcceptEx 1개 보충하기 
+					UINT32 nextEmptyIndex = PopFreeSessionIndex();
+					if (nextEmptyIndex != UINT32_MAX)
+					{
+						auto pNextClient = GetClientInfo(nextEmptyIndex);
+						pNextClient->PostImmediateAccept(mListenSocket);
 					}
 				}
 
@@ -453,23 +485,23 @@ private:
 	}
 
 	//사용자의 접속을 받는 쓰레드
-	void AccepterThread()
-	{
-		while (mIsAccepterRun)
-		{
-			for (auto& client : mClientInfos)
-			{
-				if (client->IsConnected())
-					continue;
-				// 대기 시간 없이 바로 AccpetEx
-				client->PostImmediateAccept(mListenSocket);
+	//void AccepterThread()
+	//{
+	//	while (mIsAccepterRun)
+	//	{
+	//		for (auto& client : mClientInfos)
+	//		{
+	//			if (client->IsConnected())
+	//				continue;
+	//			// 대기 시간 없이 바로 AccpetEx
+	//			client->PostImmediateAccept(mListenSocket);
 
-				// 최소대기시간
-				std::this_thread::sleep_for(std::chrono::milliseconds(1));
-			}
-		}
+	//			// 최소대기시간
+	//			std::this_thread::sleep_for(std::chrono::milliseconds(1));
+	//		}
+	//	}
 
-	}
+	//}
 
 
 	// 소켓의 연결을 종료
@@ -482,6 +514,34 @@ private:
 		UINT32 ClientIndex = pClientSession->GetIndex();
 		pClientSession->Closed(bIsForce);
 		OnClose(ClientIndex);
+
+		// 세션 정리가 끝났으므로 번호표 반납 
+		PushFreeSessionIndex(ClientIndex);
+	}
+
+	// 빈 세션 하나 꺼내는 함수
+	UINT32 PopFreeSessionIndex()
+	{
+		// 잠금
+		std::lock_guard<std::mutex> lock(mFreeListLock);
+		
+		// 큐가 비어있는지 확인 (동접자 꽉 찬 경우 )
+		if (mFreeSessionList.empty())
+		{
+			return UINT32_MAX;
+		}
+		auto index = mFreeSessionList.back();
+		mFreeSessionList.pop_back();
+		return index;
+	}
+	// 세션 반납 함수
+	void PushFreeSessionIndex(const UINT32 index)
+	{
+		// 잠금
+		std::lock_guard<std::mutex>lock(mFreeListLock);
+
+		// 맨 뒤 반납
+		mFreeSessionList.push_back(index);
 	}
 
 	// 클라이언트 정보 저장 구조체
@@ -496,8 +556,8 @@ private:
 	// IO worker 쓰레드
 	std::vector<std::thread> mIOWorkerThreads;
 
-	// Accept 쓰레드
-	std::thread mAccepterThread;
+	//// Accept 쓰레드
+	//std::thread mAccepterThread;
 
 	// Send 쓰레드
 	std::thread mSendThread;
@@ -508,8 +568,8 @@ private:
 	// 작업 쓰레드 동작 플래그
 	bool	mIsWorkerRun = true;
 
-	// 접속 쓰레드 동작 플래그
-	bool	mIsAccepterRun = true;
+	//// 접속 쓰레드 동작 플래그
+	//bool	mIsAccepterRun = true;
 
 	//bool	mIsSenderRun = false;
 
@@ -524,5 +584,15 @@ private:
 	std::vector<std::unique_ptr<ClientSession>> mClientInfos;
 
 	ObjectPool<SendOverlappedEx> mSendBufferPool;
+
+	// FreeList
+	std::vector<UINT32>mFreeSessionList;
+	
+	// FreeList 보호 뮤텍스
+	std::mutex mFreeListLock;
+
+	// 초기 AcceptEx개수 100개
+	static constexpr UINT32 MAX_PENDING_ACCEPT = 100;
+
 
 };
