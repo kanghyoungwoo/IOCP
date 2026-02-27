@@ -213,7 +213,7 @@ IOCPChatServer/
 
 ### 3. 멀티스레드 아키텍처
 - IOCP 워커 스레드: 네트워크 I/O 처리
-- Accepter 스레드: 연결 수락
+- ~~Accepter 스레드: 연결 수락~~
 - 패킷 처리 스레드: 비즈니스 로직
 
 ### 4. 방 기반 채팅
@@ -248,11 +248,15 @@ IOCPChatServer/
 - **Approach**: 5단계 순차 종료(Accept 차단 → 클라이언트 킥 + CancelIoEx → I/O Draining → PQCS 워커 종료 → 리소스 정리)하고, DB/Redis 쓰레드는 queue draining 후 종료
 - **Solution**: DestroyThread()를 5단계로 구성, MySQL/Redis의 TaskProcessThread()를 빈 큐 확인 패턴으로 변경하여 잔여 작업을 모두 처리한 뒤 종료하도록 구현. 추가로 SetConsoleCtrlHandler로 Ctrl+C 및 콘솔 종료도 Graceful Shutdown으로 구현
 
-
+### Challenge 7: AcceptEx 빈 세션 탐색 방식의 비효율
+- **Problem**: AccepterThread가 빈 세션을 찾기 위해 매번 전체 10,000개를 O(N) 선형 탐색하며, 이미 AcceptEx가 걸린 세션에 중복 호출하여 소켓 누수가 발생 가능성 존재
+- **Approach**: FreeList를 도입하여 O(1) Pop/Push로 빈 세션을 관리하고, 서버 시작 시 100개만 미리 AcceptEx를 걸어둔 뒤 워커 스레드가 완료 시 1개씩 보충하는 방식으로 변경
+- **Solution**: AccepterThread를 제거하고 PopFreeSessionIndex()/PushFreeSessionIndex()로 세션을 관리하며 ACCEPT 완료 시 워커 스레드가 자동으로 AcceptEx를 보충하도록 구현. 커널에는 항상 ~100개의 대기 소켓만 유지
   
 ## 🔮 향후 개선 방향
 - [x] ~~std::function 기반 패킷 핸들러로 리팩토링~~
 - [x] ~~MySQL 연동하여 사용자 활동 로그 기록~~
+- [ ] DB Connection Pool 적용
 - [ ] 더미 클라이언트 테스트
 - [ ] Lock-Free-Queue 구현하고 적용하기
 - [ ] 멀티서버 구조 확장
