@@ -426,7 +426,6 @@ private:
 					if (pClientSession->AcceptCompletion(mListenSocket))
 					{
 						// 여러 쓰레드 동시에 호출해도 문제 없도록 atomic처리
-						std::atomic<int>mClientCnt = 0;
 						++mClientCnt;
 						OnConnect(pClientSession->GetIndex());
 						printf("######################################### 접속됨 #################################\n");
@@ -517,6 +516,7 @@ private:
 
 		// 세션 정리가 끝났으므로 번호표 반납 
 		PushFreeSessionIndex(ClientIndex);
+		--mClientCnt;
 	}
 
 	// 빈 세션 하나 꺼내는 함수
@@ -551,7 +551,7 @@ private:
 	SOCKET mListenSocket = INVALID_SOCKET;
 
 	// 접속 되어있는 클라이언트 수
-	int mClientCnt = 0;
+	std::atomic<int>mClientCnt = 0;
 
 	// IO worker 쓰레드
 	std::vector<std::thread> mIOWorkerThreads;
