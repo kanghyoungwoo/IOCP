@@ -15,16 +15,14 @@ class MySQLManager
 public:
 	MySQLManager()
 	{
-		mConnection = nullptr;
-		mStmtLogin = nullptr;
-		mStmtRoom = nullptr;
-		mStmtChat = nullptr;
+
 	}
 	~MySQLManager()
 	{
 		End();
 	}
 
+	// 접속 정보 멤버 변수에 저장
 	void configure(const char* host_, const char* user_, const char* pass_, const char* db_, unsigned int port_)
 	{
 		mHost = host_ ? host_ : "chatserver-database.cts4w8y0e8qh.ap-northeast-2.rds.amazonaws.com";
@@ -34,37 +32,52 @@ public:
 		mPort = port_ ? port_ : 3306;
 	}
 
+	// 연결 -> 준비 -> 스레드 시작 로직 
 	bool Run(UINT32 threadCount_)
 	{
-		if (!InitandConnect())
+		mIsTaskRun = true;
+
+		for (UINT32 i = 0;i < threadCount_;++i)
 		{
-			printf("MySQL connection failed !\n");
-			return false;
-		}
-		if (!PrepareStatements())
-		{
-			printf("MySQL statement prepare fail\n");
-			return false;
+			mTaskThreads.emplace_back([this]() {TaskProcessThread();});
 		}
 
-		mIsTaskRun = true;
-		// 쓰레드를 만들어 줘야 함 
-		for (UINT32 i = 0; i < threadCount_; ++i)
-		{
-			mTaskThreads.emplace_back([this]() { TaskProcessThread();});
-		}
+		// 기존 로직
+		//// 1. MySQL 서버에 연결
+		//if (!InitandConnect())
+		//{
+		//	printf("MySQL connection failed !\n");
+		//	return false;
+		//}
+		//// 2. Prepared Statement 준비(테이블생성 + 쿼리 미리 파싱)
+		//if (!PrepareStatements())
+		//{
+		//	printf("MySQL statement prepare fail\n");
+		//	return false;
+		//}
+		//
+		//// 3. 작업 스레드 시작
+		//mIsTaskRun = true;
+		//// 쓰레드를 만들어 줘야 함 
+		//for (UINT32 i = 0; i < threadCount_; ++i)
+		//{
+		//	mTaskThreads.emplace_back([this]() { TaskProcessThread();});
+		//}
 		printf("MySQL task worker started\n");
 		return true;
 	}
 
 	void End()
 	{
+		// 종료 세팅
 		{
 			std::lock_guard<std::mutex> guard(mReqLock);
 			mIsTaskRun = false;
 		}
-
+		// 자고있는 스레드 깨우기
 		mReqCV.notify_all();	// cv 통지 추가
+
+		// 모든 스레드 join(큐 비울때까지 기다림)
 		for (auto& thread : mTaskThreads)
 		{
 			if (thread.joinable())
@@ -72,9 +85,10 @@ public:
 				thread.join();
 			}
 		}
+		// 정리
 		mTaskThreads.clear();
-		CleanupStatements();	// state정리
-		CloseConnection();		// 연결 정리
+		//CleanupStatements();	// state정리
+		//CloseConnection();		// 연결 정리
 
 
 		//기존 종료 방식
@@ -87,17 +101,26 @@ public:
 		//	}
 		//}
 	}
-
+	// 작업 넣기 
 	void PushTask(MySQLTask task_)	// producer
 	{
-		std::lock_guard<std::mutex> guard(mReqLock);
-		mRequestTask.push_back(task_);
-		mReqCV.notify_one();
+		std::lock_guard<std::mutex> guard(mReqLock); // 큐 잠금
+		mRequestTask.push_back(task_); // 큐에 추가
+		mReqCV.notify_one(); // 대기중인 스레드 깨우기
 	}
 
 
 private:
-	bool InitandConnect()
+	struct MySQLConnection
+	{
+		MYSQL*		connection = nullptr;
+		MYSQL_STMT* stmtLogin = nullptr;
+		MYSQL_STMT* stmtRoom = nullptr;
+		MYSQL_STMT* stmtChat = nullptr;
+	};
+
+
+	bool InitandConnect(MySQLConnection& conn)
 	{
 		if (mHost.empty())
 		{
@@ -108,46 +131,55 @@ private:
 			mPort = 3306;
 		}
 
-		mConnection = mysql_init(nullptr);
+		conn.connection = mysql_init(nullptr);
 
-		if (!mConnection)
+		if (!conn.connection)
 		{
 			printf("MySQL init fail! \n");
 			return false;
 		}
 
-		mysql_options(mConnection, MYSQL_SET_CHARSET_NAME, "utf8mb4");
-		mysql_options(mConnection, MYSQL_OPT_CONNECT_TIMEOUT, &mConnectTimeoutSec);
+		mysql_options(conn.connection, MYSQL_SET_CHARSET_NAME, "utf8mb4");
+		mysql_options(conn.connection, MYSQL_OPT_CONNECT_TIMEOUT, &mConnectTimeoutSec);
 
-		if (!mysql_real_connect(mConnection, mHost.c_str(), mUser.c_str(), mPass.c_str(), mDB.c_str(), mPort, nullptr, 0))
+		if (!mysql_real_connect(conn.connection, mHost.c_str(), mUser.c_str(), mPass.c_str(), mDB.c_str(), mPort, nullptr, 0))
 		{
-			printf("MySQL connection error :%s ! \n", mysql_error(mConnection));
+			printf("MySQL connection error :%s ! \n", mysql_error(conn.connection));
 			return false;
 		}
 		return true;
 	}
 
-	void CloseConnection()
+	void CloseConnection(MySQLConnection& conn)
 	{
-		if (mConnection)
+		if (conn.connection)
 		{
-			mysql_close(mConnection);
-			mConnection = nullptr;
+			mysql_close(conn.connection);
+			conn.connection = nullptr;
 		}
 	}
 	
-	bool EnsureConnection()
+	bool EnsureConnection(MySQLConnection& conn)
 	{
-		if (mConnection && mysql_ping(mConnection) == 0)
+		// 커넥션이 살아있으면 ok
+		if (conn.connection && mysql_ping(conn.connection) == 0)
 		{
 			return true;
 		}
+		// 기존 것들을 정리 해야함
+		CleanupStatements(conn);
 
-		CloseConnection();
-		return InitandConnect();
+		// 죽었다면 닫고 재연결.. (mysql 서버가 오래 안쓰면 연결을 끊음)
+		CloseConnection(conn);
+
+		// 새로 연결
+		if (!InitandConnect(conn))
+			return false;
+		return PrepareStatements(conn);
 	}
 
-	bool PrepareStatements()
+	// 테이블 생성 + 쿼리 준비
+	bool PrepareStatements(MySQLConnection& conn)
 	{
 		const char* createLogin =
 			"CREATE TABLE IF NOT EXISTS login_events("
@@ -171,27 +203,27 @@ private:
 			"msg VARCHAR(256) NOT NULL,"
 			"timestamp BIGINT NOT NULL"
 			")";
-
-		if (mysql_query(mConnection, createLogin) != 0)
+		// 1. 테이블 없으면 생성
+		if (mysql_query(conn.connection, createLogin) != 0)
 		{
-			printf("MySQL create login_events fail ! : %s \n", mysql_error(mConnection));
+			printf("MySQL create login_events fail ! : %s \n", mysql_error(conn.connection));
 			return false;
 		}
-		if (mysql_query(mConnection, createRoom) != 0)
+		if (mysql_query(conn.connection, createRoom) != 0)
 		{
-			printf("MySQL create room_events fail ! : %s \n", mysql_error(mConnection));
+			printf("MySQL create room_events fail ! : %s \n", mysql_error(conn.connection));
 			return false;
 		}
-		if (mysql_query(mConnection, createChat) != 0)
+		if (mysql_query(conn.connection, createChat) != 0)
 		{
-			printf("MySQL create chat_messages fail ! : %s \n", mysql_error(mConnection));
+			printf("MySQL create chat_messages fail ! : %s \n", mysql_error(conn.connection));
 			return false;
 		}
-
-		mStmtLogin = mysql_stmt_init(mConnection);
-		mStmtRoom = mysql_stmt_init(mConnection);
-		mStmtChat = mysql_stmt_init(mConnection);
-		if (!mStmtLogin || !mStmtRoom || !mStmtChat)
+		// prepared statement 초기화
+		conn.stmtLogin = mysql_stmt_init(conn.connection);
+		conn.stmtRoom = mysql_stmt_init(conn.connection);
+		conn.stmtChat = mysql_stmt_init(conn.connection);
+		if (!conn.stmtLogin || !conn.stmtRoom || !conn.stmtChat)
 		{
 			printf("MySQL stmt init faile !! \n");
 			return false;
@@ -200,68 +232,76 @@ private:
 		const char* insLogin = "INSERT INTO login_events(user_id, timestamp) VALUES(?, ?)";
 		const char* insRoom = "INSERT INTO room_events(user_id, room_number, event, timestamp) VALUES(?, ?, ?, ?)";
 		const char* insChat = "INSERT INTO chat_messages(user_id, room_number, msg, timestamp) VALUES(?, ?, ?, ?)";
-
-		if (mysql_stmt_prepare(mStmtLogin, insLogin, (unsigned long)strlen(insLogin)) != 0)
+		// 3. SQL 미리 파싱
+		if (mysql_stmt_prepare(conn.stmtLogin, insLogin, (unsigned long)strlen(insLogin)) != 0)
 		{
-			printf("MySQL prepare login_events failed ! :%s \n", mysql_stmt_error(mStmtLogin));
+			printf("MySQL prepare login_events failed ! :%s \n", mysql_stmt_error(conn.stmtLogin));
 			return false;
 		}
-		if (mysql_stmt_prepare(mStmtRoom, insRoom, (unsigned long)strlen(insRoom)) != 0)
+		if (mysql_stmt_prepare(conn.stmtRoom, insRoom, (unsigned long)strlen(insRoom)) != 0)
 		{
-			printf("MySQL prepare room_events failed ! :%s \n", mysql_stmt_error(mStmtRoom));
+			printf("MySQL prepare room_events failed ! :%s \n", mysql_stmt_error(conn.stmtRoom));
 			return false;
 		}
-		if (mysql_stmt_prepare(mStmtChat, insChat, (unsigned long)strlen(insChat)) != 0)
+		if (mysql_stmt_prepare(conn.stmtChat, insChat, (unsigned long)strlen(insChat)) != 0)
 		{
-			printf("MySQL prepare Chat_message failed ! :%s \n", mysql_stmt_error(mStmtChat));
+			printf("MySQL prepare Chat_message failed ! :%s \n", mysql_stmt_error(conn.stmtChat));
 			return false;
 		}
 		return true;
 	}
 
-	void CleanupStatements()
+	void CleanupStatements(MySQLConnection& conn)
 	{
-		if (mStmtLogin)
+		if (conn.stmtLogin)
 		{
-			mysql_stmt_close(mStmtLogin);
-			mStmtLogin = nullptr;
+			mysql_stmt_close(conn.stmtLogin);
+			conn.stmtLogin = nullptr;
 		}
-		if (mStmtRoom)
+		if (conn.stmtRoom)
 		{
-			mysql_stmt_close(mStmtRoom);
-			mStmtRoom = nullptr;
+			mysql_stmt_close(conn.stmtRoom);
+			conn.stmtRoom = nullptr;
 		}
-		if (mStmtChat)
+		if (conn.stmtChat)
 		{
-			mysql_stmt_close(mStmtChat);
-			mStmtChat = nullptr;
+			mysql_stmt_close(conn.stmtChat);
+			conn.stmtChat = nullptr;
 		}
 	}
 
 
 	void TaskProcessThread()	// consumer
 	{
+		MySQLConnection myConn;
+		InitandConnect(myConn);
+		PrepareStatements(myConn);
+
 		while (true) // mIsTaskRun->true
 		{
 			MySQLTask task;
 			{
+				// 큐에서 작업 꺼내기 (없으면 대기)
 				std::unique_lock<std::mutex> lock(mReqLock);
-				mReqCV.wait(lock, [this]() { return !mRequestTask.empty() || !mIsTaskRun; });
-				//종료신호 + 큐 비어있을때만 탈출
+				mReqCV.wait(lock, [this]() { return !mRequestTask.empty() || !mIsTaskRun; }); // 큐에 뭔가 들어오거나 신호 종료 신호가 올 때 까지 잠듦
+				//종료신호 + 큐 비어있으면 -> 루프탈출
 				if (!mIsTaskRun && mRequestTask.empty())
 					break;
+				// 작업 꺼내기
 				task = mRequestTask.front();
 				mRequestTask.pop_front();
 			}
-
+			// lock 해제
 			if (task.TaskID == MySQLTaskID::INVALID)
 			{
 				task.release();
 				continue;
 			}
-			if (!EnsureConnection())
+
+			// 커넥션 살아있는지 확인하고 끊겼으면 재연결
+			if (!EnsureConnection(myConn))
 			{
-				printf("mysql ensuer connection failed! : %s\n", mysql_error(mConnection));
+				printf("mysql ensuer connection failed! : %s\n", mysql_error(myConn.connection));
 				task.release();
 				continue;
 			}
@@ -269,45 +309,54 @@ private:
 			switch (task.TaskID)
 			{
 				case MySQLTaskID::INSERT_LOGIN_EVENT:
-					HandleInsertLogin(task);
+					HandleInsertLogin(myConn, task);
 					break;
 				case MySQLTaskID::INSERT_ROOM_EVENT:
-					HandleInsertRoom(task);
+					HandleInsertRoom(myConn, task);
 					break;
 				case MySQLTaskID::INSERT_CHAT_MESSAGE:
-					HandleInsertChat(task);
+					HandleInsertChat(myConn, task);
 					break;
 				default:
 					break;
 			}
 			task.release();
 		}
+		CleanupStatements(myConn);
+		CloseConnection(myConn);
+		mysql_thread_end();	// 안할시 메모리 누수
 	}
-
-	void HandleInsertLogin(const MySQLTask& task)
+	// 실제 insert 실행
+	void HandleInsertLogin(MySQLConnection& conn, const MySQLTask& task)
 	{
 		auto pLoginReqPacket = reinterpret_cast<const MySQLLoginEventReq*>(task.pData);
+
+		// mysql_bind: mysql_stmt_prepare에 ? 자리에 넣을 값 설정
 		MYSQL_BIND bind[2] = {};
 
+		// bind[0] = user_id(문자열)
 		unsigned long useridLen = (unsigned long)strnlen(pLoginReqPacket->UserID, sizeof(pLoginReqPacket->UserID));
 		bind[0].buffer_type = MYSQL_TYPE_STRING;
-		bind[0].buffer = (void*)pLoginReqPacket;
+		bind[0].buffer = (void*)pLoginReqPacket->UserID;
 		bind[0].buffer_length = useridLen;
+		bind[0].length = &useridLen;
 
+		// bind[1] = timestamp(정수)
 		unsigned long long timestamp = (unsigned long long)pLoginReqPacket->TimestampSec;
 		bind[1].buffer_type = MYSQL_TYPE_LONGLONG;
 		bind[1].buffer = (void*)&timestamp;
 
-		if (mysql_stmt_bind_param(mStmtLogin, bind) != 0 || mysql_stmt_execute(mStmtLogin) != 0)
+		// ? 자리에 값 바인딩 + 실행
+		if (mysql_stmt_bind_param(conn.stmtLogin, bind) != 0 || mysql_stmt_execute(conn.stmtLogin) != 0)
 		{
-			printf("mysql insert login failed !: %s \n", mysql_stmt_error(mStmtLogin));
-			mysql_stmt_reset(mStmtLogin);
+			printf("mysql insert login failed !: %s \n", mysql_stmt_error(conn.stmtLogin));
+			mysql_stmt_reset(conn.stmtLogin); // 다음 실행을 위한 초기화
 			return;
 		}
-		mysql_stmt_reset(mStmtLogin);
+		mysql_stmt_reset(conn.stmtLogin);
 	}
 
-	void HandleInsertRoom(const MySQLTask& task)
+	void HandleInsertRoom(MySQLConnection& conn, const MySQLTask& task)
 	{
 		auto pRoomEventReqPacket = reinterpret_cast<const MySQLRoomEventReq*>(task.pData);
 		MYSQL_BIND bind[4] = {};
@@ -330,17 +379,17 @@ private:
 		bind[3].buffer_type = MYSQL_TYPE_LONGLONG;
 		bind[3].buffer = (void*)&timestamp;
 
-		if (mysql_stmt_bind_param(mStmtRoom, bind) != 0 || mysql_stmt_execute(mStmtRoom) != 0)
+		if (mysql_stmt_bind_param(conn.stmtRoom, bind) != 0 || mysql_stmt_execute(conn.stmtRoom) != 0)
 		{
-			printf("mysql insert room fail ! : %s\n", mysql_stmt_error(mStmtRoom));
-			mysql_stmt_reset(mStmtRoom);
+			printf("mysql insert room fail ! : %s\n", mysql_stmt_error(conn.stmtRoom));
+			mysql_stmt_reset(conn.stmtRoom);
 			return;
 		}
-		mysql_stmt_reset(mStmtRoom);
+		mysql_stmt_reset(conn.stmtRoom);
 
 	}
 
-	void HandleInsertChat(const MySQLTask& task)
+	void HandleInsertChat(MySQLConnection& conn, const MySQLTask& task)
 	{
 		auto pChatMessageReqPacket = reinterpret_cast<const MySQLChatMsgReq*>(task.pData);
 		MYSQL_BIND bind[4] = {};
@@ -365,13 +414,13 @@ private:
 		bind[3].buffer_type = MYSQL_TYPE_LONGLONG;
 		bind[3].buffer = (void*)&timestamp;
 
-		if (mysql_stmt_bind_param(mStmtChat, bind) != 0 || mysql_stmt_execute(mStmtChat) != 0)
+		if (mysql_stmt_bind_param(conn.stmtChat, bind) != 0 || mysql_stmt_execute(conn.stmtChat) != 0)
 		{
-			printf("MySQL insert chat failed ! : %s\n", mysql_stmt_error(mStmtChat));
-			mysql_stmt_reset(mStmtChat);
+			printf("MySQL insert chat failed ! : %s\n", mysql_stmt_error(conn.stmtChat));
+			mysql_stmt_reset(conn.stmtChat);
 			return;
 		}
-		mysql_stmt_reset(mStmtChat);
+		mysql_stmt_reset(conn.stmtChat);
 	}
 
 	MySQLTask TakeRequestTask()
@@ -395,11 +444,11 @@ private:
 
 	bool mIsTaskRun = false;
 	
-	// 연결
-	MYSQL* mConnection;
-	MYSQL_STMT* mStmtLogin;
-	MYSQL_STMT* mStmtRoom;
-	MYSQL_STMT* mStmtChat;
+	//// 연결
+	//MYSQL* conn.connection;
+	//MYSQL_STMT* conn.stmtLogin;
+	//MYSQL_STMT* conn.stmtRoom;
+	//MYSQL_STMT* conn.stmtChat;
 
 	std::string mHost;
 	std::string mUser;

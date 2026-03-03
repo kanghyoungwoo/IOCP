@@ -9,7 +9,7 @@
 class User
 {
 	//const UINT32 PACKET_DATA_BUFFER_SIZE = 8096;
-	static constexpr size_t PACKET_DATA_BUFFER_SIZE = 8096;
+	static constexpr size_t MAX_PACKET_DATA_BUFFER_SIZE = 8096;
 public:
 	enum class DOMAIN_STATE
 	{
@@ -129,8 +129,10 @@ public:
 		}
 		
 		// 패킷 데이터 임시 버퍼에 읽어오기
-		static char tempPacketBuffer[PACKET_DATA_BUFFER_SIZE];
-		size_t readBytes = mPacketDataBuffer.Read(tempPacketBuffer, pHeader->PacketLength);
+		//static char tempPacketBuffer[MAX_PACKET_DATA_BUFFER_SIZE];
+		
+		
+		size_t readBytes = mPacketDataBuffer.Read(m_tempPacketBuffer, pHeader->PacketLength);
 
 		if (readBytes != pHeader->PacketLength)
 		{
@@ -141,7 +143,8 @@ public:
 		PacketInfo packetInfo;
 		packetInfo.PacketId = pHeader->PacketId;
 		packetInfo.DataSize = pHeader->PacketLength;
-		packetInfo.pDataPtr = tempPacketBuffer;
+		//packetInfo.pDataPtr = m_tempPacketBuffer;
+		packetInfo.pDataPtr = m_tempPacketBuffer;
 
 		return packetInfo;
 	}
@@ -190,11 +193,14 @@ private:
 	//char* mPacketDataBuffer = nullptr;
 	
 	// ringbuffer로 패킷 데이터 교체
-	RingBuffer<PACKET_DATA_BUFFER_SIZE> mPacketDataBuffer;
+	RingBuffer<MAX_PACKET_DATA_BUFFER_SIZE> mPacketDataBuffer;
 	
 	DOMAIN_STATE mCurDomainState = DOMAIN_STATE::NONE;
 
 	std::mutex mPacketRingBuffMutex;
 	
+	// 이 유저만의 전용 패킷 조립 버퍼
+	char m_tempPacketBuffer[MAX_PACKET_DATA_BUFFER_SIZE];
+
 	
 };

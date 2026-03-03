@@ -91,7 +91,9 @@ bool PacketManager::Run()
 	{
 		return false;
 	}
-
+#ifdef  USE_AMAZON_AWS_DB
+	// AWS_연동
+	printf("AMAZON AWS MySQL 모드로 실행.\n");
 	mMySQLManager->configure(
 		"chatserver-database.cts4w8y0e8qh.ap-northeast-2.rds.amazonaws.com",  // RDS 엔드포인트
 		"admin",															 // 마스터 사용자명
@@ -99,6 +101,21 @@ bool PacketManager::Run()
 		"chatserver-database",												   // 데이터베이스명
 		3306																  // 포트
 	);
+#else
+	// 로컬 MySQL연동
+	printf("Local MySQL 모드로 서버를 실행.\n");
+	mMySQLManager->configure(
+		"127.0.0.1",
+		"root",															
+		"1234",															 
+		"chatserver_local",												   
+		3306																  
+	);
+
+
+#endif //  USE_AMAZON_AWS_DB
+
+
 
 	if (mMySQLManager->Run(1) == false)
 	{

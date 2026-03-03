@@ -72,7 +72,6 @@ struct MySQLRoomEventReq
 	UINT64 TimeStampSec = 0;
 };
 
-// ä�� �޼��� ����
 struct MySQLChatMsgReq
 {
 	char UserID[MAX_USER_ID_LENGTH + 1] = { 0, };

@@ -8,6 +8,7 @@ const UINT32 MAX_SOCKBUF = 1024;
 const UINT32 MAX_SOCK_SENDBUF = 4096;	
 const UINT64 RE_USE_SESSION_WAIT_TIMESEC = 3; 
 #define MAX_WORKERTHREAD 4
+//#define USE_AMAZON_AWS_DB // 주석처리 로컬모드
 
 enum class IOOperation
 {

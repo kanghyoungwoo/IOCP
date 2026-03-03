@@ -22,11 +22,13 @@ public:
 
 	bool Run(std::string ip_, UINT16 port_, const UINT32 threadCount_)
 	{
-		if (Connect(ip_, port_) == false)
-		{
-			printf("Redis connection failed: %s\n", mConn.getErrorStr().c_str());
-			return false;
-		}
+		mIP = ip_;
+		mPort = port_;
+		//if (Connect(ip_, port_) == false)
+		//{
+		//	printf("Redis connection failed: %s\n", mConn.getErrorStr().c_str());
+		//	return false;
+		//}
 		mIsTaskRun = true;
 		// 쓰레드를 만들어 줘야 함 
 		for (UINT32 i = 0; i < threadCount_; ++i)
@@ -34,7 +36,7 @@ public:
 			mTaskThreads.emplace_back([this]() { TaskProcessThread();});
 		}
 
-		printf("Working... \n");
+		printf("Redis thread Working... \n");
 		return true;
 	}
 
@@ -55,7 +57,7 @@ public:
 		}
 		mTaskThreads.clear();
 
-		mConn.disConnect();
+		//mConn.disConnect();
 	}
 
 	void PushTask(RedisTask task_)	// producer
@@ -89,23 +91,27 @@ public:
 
 private:
 
-	bool Connect(std::string ip_, UINT16 port_)
-	{
-		mConn.init(ip_, port_);
-		if (mConn.connect() == false)
-		{
-			return false;
-		}
-		else
-		{
-			printf("Redis connection successful\n");
-		}
-		return true;
-	}
+	//bool Connect(std::string ip_, UINT16 port_)
+	//{
+	//	mConn.init(ip_, port_);
+	//	if (mConn.connect() == false)
+	//	{
+	//		return false;
+	//	}
+	//	else
+	//	{
+	//		printf("Redis connection successful\n");
+	//	}
+	//	return true;
+	//}
 
 	// Redis 요청을 처리함
 	void TaskProcessThread()
 	{
+		RedisCpp::CRedisConn Conn; // 생성
+		Conn.init(mIP,mPort); // 초기화
+		Conn.connect();// 연결 
+
 		printf("Redis 쓰레드 시작\n");
 		while (true) // mIsTaskRun -> true
 		{
@@ -135,7 +141,7 @@ private:
 				strcpy_s(bodyData.UserID, sizeof(bodyData.UserID), pRequest->UserID);
 
 				std::string value;
-				bool got = mConn.get(pRequest->UserID, value);
+				bool got = Conn.get(pRequest->UserID, value);
 				
 				if (got)
 				{
@@ -242,6 +248,7 @@ private:
 			//}
 			
 		}
+		Conn.disConnect(); // 정리
 	}
 
 	void PushResponse(RedisTask task_)
@@ -272,7 +279,7 @@ private:
 
 	std::vector<std::thread> mTaskThreads;
 
-	RedisCpp::CRedisConn mConn;
+	//RedisCpp::CRedisConn mConn;
 	bool mIsTaskRun = false;
 
 	std::mutex mReqLock;
@@ -281,4 +288,7 @@ private:
 
 	std::mutex mResLock;
 	std::deque<RedisTask> mResponseTask;
+
+	std::string mIP;
+	UINT16 mPort;
 };
