@@ -105,6 +105,7 @@ public:
 		printf("사용자 정보 삭제 : %s\n", user_->GetUserID().c_str());
 		mUserIDDictionary.erase(user_->GetUserID());
 		user_->Clear();
+		user_->IncrementGeneration();
 		DecreaseUserCnt();
 	}
 

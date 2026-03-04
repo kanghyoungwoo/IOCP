@@ -77,7 +77,7 @@ void PacketManager::CreateComponent(const UINT32 maxClient_)
 	mUserManager->Init(maxClient_);
 
 	UINT32 startRoomNumber = 0;
-	UINT32 maxRoomUserCount = 4;
+	UINT32 maxRoomUserCount = 8;
 	UINT32 maxRoomCount = 250;
 	mRoomManager = new RoomManager;
 	mRoomManager->SendPacketFunc = SendPacketFunc;
@@ -178,6 +178,7 @@ void PacketManager::ProcessPacket()
 {
 	while (mIsRunProcessThread)
 	{
+		// 1. wait + swap (lock은 1회만)
 		{
 			std::unique_lock<std::mutex> lock(mLock);
 
@@ -186,10 +187,16 @@ void PacketManager::ProcessPacket()
 				if (!mIsRunProcessThread)
 					return true;
 
-				if (!mSystemPacketQueue.empty())
+				//if (!mSystemPacketQueue.empty())
+				//	return true;
+
+				//if (!mInComingPacketUserIndex.empty())
+				//	return true;
+
+				if (!mSystemWriteBuffer.empty())
 					return true;
 
-				if (!mInComingPacketUserIndex.empty())
+				if (!mWriteBuffer.empty())
 					return true;
 
 				if (mRedisManager && mRedisManager->HasResponseTask())
@@ -208,47 +215,119 @@ void PacketManager::ProcessPacket()
 			//}
 			if (!mIsRunProcessThread)
 				break;
+
+			// 더블 버퍼링, swap and release lock
+			std::swap(mSystemWriteBuffer, mSystemReadBuffer);
+			std::swap(mWriteBuffer, mReadBuffer);
 		}
 
-
-		//bool isIdle = true;
-		// 시스템 패킷 처리
-		if (auto packetData = DequeSystemPacketData(); packetData.PacketId != 0)
-		{
-			//isIdle = false;
-			ProcessRecvPacket(packetData.ClientIndex, packetData.PacketId, packetData.DataSize, packetData.pDataPtr);
-		}
+		// lock 해제, 아래는 전부 lock-free
 		
-		// 일반 패킷 처리
-		if (auto packetData = DequePacketData(); packetData.PacketId > (UINT16)PACKET_ID::SYS_END)
+		int generationMismatchCount = 0;	// 배치 내 generation 불일치 카운트
+		
+		// Queue Depth logging (5sec interval)
 		{
+			static auto lastQueueLog = std::chrono::steady_clock::now();
+			auto now = std::chrono::steady_clock::now();
+			auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - lastQueueLog).count();
+			if (elapsed >= 5)
+			{
+				printf("[QueueDepth] batch_size=%zu  sys_batch=%zu\n", mReadBuffer.size(), mSystemReadBuffer.size());lastQueueLog = now;
+			}
+		 }
+
+		// 시스템 패킷 처리
+		for (auto& sysPacket : mSystemReadBuffer)
+		{
+			ProcessRecvPacket(sysPacket.ClientIndex, sysPacket.PacketId, sysPacket.DataSize, sysPacket.pDataPtr);
+		}
+		mSystemReadBuffer.clear();
+
+		////bool isIdle = true;
+		//// 시스템 패킷 처리
+		//if (auto packetData = DequeSystemPacketData(); packetData.PacketId != 0)
+		//{
+		//	//isIdle = false;
+		//	ProcessRecvPacket(packetData.ClientIndex, packetData.PacketId, packetData.DataSize, packetData.pDataPtr);
+		//}
+
+		// 일반 패킷 처리
+		for (auto& task : mReadBuffer)
+		{
+			auto pUser = mUserManager->GetUserByConnIdx(task.clientIndex);
+			if (!pUser)
+				continue;
+
+			if (pUser->GetGeneration() != task.generation)
+			{
+				//printf("Enqueue Generation: %d와 현재 Generation: %d가 서로 맞지 않습니다.\n", task.generation, pUser->GetGeneration());
+				continue;
+			}
+
+			auto packetData = pUser->GetPacket();
+			if (packetData.PacketId == 0)
+				continue;
+
+			packetData.ClientIndex = task.clientIndex;
 			ProcessRecvPacket(packetData.ClientIndex, packetData.PacketId, packetData.DataSize, packetData.pDataPtr);
 
-			// 같은 유저의 링버퍼에 남은 패킷이 있으면 계속 처리
-			auto pUser = mUserManager->GetUserByConnIdx(packetData.ClientIndex);
-			if (pUser)
+			// 같은 유저의 링버퍼에 남은 패킷 있으면 계속 처리
+			while (true)
 			{
-				while (true)
+				auto nextPacket = pUser->GetPacket();
+				if (nextPacket.PacketId == 0)
 				{
-					auto nextPacket = pUser->GetPacket();
-					if (nextPacket.PacketId == 0)
-						break;
-					nextPacket.ClientIndex = packetData.ClientIndex;
-					ProcessRecvPacket(nextPacket.ClientIndex, nextPacket.PacketId, nextPacket.DataSize, nextPacket.pDataPtr);
+					break;
 				}
+				nextPacket.ClientIndex = task.clientIndex;
+				ProcessRecvPacket(nextPacket.ClientIndex, nextPacket.PacketId, nextPacket.DataSize, nextPacket.pDataPtr);
 			}
+
 		}
+		mReadBuffer.clear();
+
+		
+		//// 일반 패킷 처리
+		//if (auto packetData = DequePacketData(); packetData.PacketId > (UINT16)PACKET_ID::SYS_END)
+		//{
+		//	ProcessRecvPacket(packetData.ClientIndex, packetData.PacketId, packetData.DataSize, packetData.pDataPtr);
+
+		//	// 같은 유저의 링버퍼에 남은 패킷이 있으면 계속 처리
+		//	auto pUser = mUserManager->GetUserByConnIdx(packetData.ClientIndex);
+		//	if (pUser)
+		//	{
+		//		while (true)
+		//		{
+		//			auto nextPacket = pUser->GetPacket();
+		//			if (nextPacket.PacketId == 0)
+		//				break;
+		//			nextPacket.ClientIndex = packetData.ClientIndex;
+		//			ProcessRecvPacket(nextPacket.ClientIndex, nextPacket.PacketId, nextPacket.DataSize, nextPacket.pDataPtr);
+		//		}
+		//	}
+		//}
 			//isIdle = false;
 			//ProcessRecvPacket(packetData.ClientIndex, packetData.PacketId, packetData.DataSize, packetData.pDataPtr);
 		
-
-		// redis 처리
-		if (auto task = mRedisManager->TakeResponseTask(); task.TaskID != RedisTaskID::INVALID)
+		while (true)
 		{
-			//isIdle = false;
+			auto task = mRedisManager->TakeResponseTask();
+			if (task.TaskID == RedisTaskID::INVALID)
+				break;
+
 			ProcessRecvPacket(task.UserIndex, (UINT16)task.TaskID, task.DataSize, task.pData);
 			task.release();
 		}
+
+
+		// redis 처리
+		// 루프마다 시스템1개 + 데이터 1개 + redis1개 처리
+		//if (auto task = mRedisManager->TakeResponseTask(); task.TaskID != RedisTaskID::INVALID)
+		//{
+		//	//isIdle = false;
+		//	ProcessRecvPacket(task.UserIndex, (UINT16)task.TaskID, task.DataSize, task.pData);
+		//	task.release();
+		//}
 
 		//if (isIdle)
 		//{
@@ -270,7 +349,9 @@ void PacketManager::EnqueuePacketData(const UINT32 clientIndex_)
 			PacketTask task;
 			task.clientIndex = clientIndex_;
 			task.generation = pUser->GetGeneration();	// 현재 generation
-			mInComingPacketUserIndex.push_back(task);
+			//mInComingPacketUserIndex.push_back(task);
+			// 더블 버퍼링 구현
+			mWriteBuffer.push_back(task);
 		}
 	}
 	// 큐에 새로운 패킷이 들어왔다고 처리 쓰레드 깨움
@@ -278,45 +359,45 @@ void PacketManager::EnqueuePacketData(const UINT32 clientIndex_)
 	//mInComingPacketUserIndex.push_back(clientIndex_);
 }
 
-PacketInfo PacketManager::DequePacketData()
-{
-	//UINT32 userIndex = 0;
-	PacketTask task;
-	// 요청을 보낸 유저가 있는지 확인 후 
-	// empty면 리턴
-	{
-		std::lock_guard<std::mutex>guard(mLock);
-		if (mInComingPacketUserIndex.empty())
-		{
-			return PacketInfo();
-		}
-		// 있으면 데이터를 뽑아내고 
-		// user index를 통해서 user 객체를 알아내고 링버퍼를 이용
-		//userIndex = mInComingPacketUserIndex.front();
-		task = mInComingPacketUserIndex.front();
-		mInComingPacketUserIndex.pop_front();
-	}
-	auto pUser = mUserManager->GetUserByConnIdx(task.clientIndex);
-	if (!pUser) // 유저가 이미 삭제됐으면
-		return PacketInfo();
-	if (pUser->GetGeneration() != task.generation)
-	{
-		// Generation 불일치로 패킷 처리 중단
-		printf("enqueue generation: %d 이 current generation: %d 맞지 않습니다\n", task.generation, pUser->GetGeneration());
-		return PacketInfo();
-	}
-
-	auto packetData = pUser->GetPacket();
-	packetData.ClientIndex = task.clientIndex;
-
-	return packetData;
-}
+//PacketInfo PacketManager::DequePacketData()
+//{
+//	//UINT32 userIndex = 0;
+//	PacketTask task;
+//	// 요청을 보낸 유저가 있는지 확인 후 
+//	// empty면 리턴
+//	{
+//		std::lock_guard<std::mutex>guard(mLock);
+//		if (mInComingPacketUserIndex.empty())
+//		{
+//			return PacketInfo();
+//		}
+//		// 있으면 데이터를 뽑아내고 
+//		// user index를 통해서 user 객체를 알아내고 링버퍼를 이용
+//		//userIndex = mInComingPacketUserIndex.front();
+//		task = mInComingPacketUserIndex.front();
+//		mInComingPacketUserIndex.pop_front();
+//	}
+//	auto pUser = mUserManager->GetUserByConnIdx(task.clientIndex);
+//	if (!pUser) // 유저가 이미 삭제됐으면
+//		return PacketInfo();
+//	if (pUser->GetGeneration() != task.generation)
+//	{
+//		// Generation 불일치로 패킷 처리 중단
+//		printf("enqueue generation: %d 이 current generation: %d 맞지 않습니다\n", task.generation, pUser->GetGeneration());
+//		return PacketInfo();
+//	}
+//
+//	auto packetData = pUser->GetPacket();
+//	packetData.ClientIndex = task.clientIndex;
+//
+//	return packetData;
+//}
 
 void PacketManager::ProcessUserConnect(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket)
 {
 	printf("[ProcessUserConnect] ClientIndex : %d\n", clientIndex_);
 	auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
-	pUser->Clear();
+	//pUser->Clear();
 }
 
 void PacketManager::ProcessUserDisconnect(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket)
@@ -330,24 +411,25 @@ void PacketManager::PushSystemPacket(PacketInfo packet_)
 {
 	{
 		std::lock_guard<std::mutex>guard(mLock);
-		mSystemPacketQueue.push_back(packet_);
+		//mSystemPacketQueue.push_back(packet_);
+		mSystemWriteBuffer.push_back(packet_);
 	}
 	// 시스템 패킷 들어왔으니 처리 쓰레드 깨움
 	NotifyPacketEvent();
 }
 
 
-PacketInfo PacketManager::DequeSystemPacketData()
-{
-	std::lock_guard<std::mutex>guard(mLock);
-	if (mSystemPacketQueue.empty())
-	{
-		return PacketInfo();
-	}
-	auto packetData = mSystemPacketQueue.front();
-	mSystemPacketQueue.pop_front();
-	return packetData;
-}
+//PacketInfo PacketManager::DequeSystemPacketData()
+//{
+//	std::lock_guard<std::mutex>guard(mLock);
+//	if (mSystemPacketQueue.empty())
+//	{
+//		return PacketInfo();
+//	}
+//	auto packetData = mSystemPacketQueue.front();
+//	mSystemPacketQueue.pop_front();
+//	return packetData;
+//}
 
 
 void PacketManager::ProcessRecvPacket(const UINT32 clientIndex_, const UINT16 packetId_, const UINT16 packetSize_, char* pPacket_)
@@ -405,6 +487,8 @@ void PacketManager::ProcessLogin(UINT32 clientIndex_, UINT16 packetSize_, char* 
 		SendPacketFunc(clientIndex_, sizeof(LOGIN_RESPONSE_PACKET), (char*)&loginResPacket);
 
 		printf("[Load Test] Dummy login Success: %s\n", pUserID);
+		
+		return;
 	}
 
 	//// 여기까지가 로드테스트용도를 위한 코드
@@ -519,12 +603,13 @@ void PacketManager::ClearConnectionInfo(INT32 clientIndex_)
 	{
 		// queue에서 해당 유저의 대기중인 task 제거
 		std::lock_guard<std::mutex>guard(mLock);
-		auto it = mInComingPacketUserIndex.begin();
-		while (it != mInComingPacketUserIndex.end())
+		//auto it = mInComingPacketUserIndex.begin();
+		auto it = mWriteBuffer.begin();
+		while (it != mWriteBuffer.end())
 		{
 			if (it->clientIndex == clientIndex_)
 			{
-				it = mInComingPacketUserIndex.erase(it);
+				it = mWriteBuffer.erase(it);
 				printf("remove enqueue packetdata for disconnected used : %d\n", clientIndex_);
 			}
 			else

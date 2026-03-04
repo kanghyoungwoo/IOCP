@@ -44,8 +44,8 @@ private:
 	void ClearConnectionInfo(INT32 clientIndex_);
 
 	void EnqueuePacketData(const UINT32 clientIndex_);
-	PacketInfo DequePacketData();
-	PacketInfo DequeSystemPacketData();
+	//PacketInfo DequePacketData();
+	//PacketInfo DequeSystemPacketData();
 	void ProcessPacket();
 	void ProcessRecvPacket(const UINT32 clientIndex_, const UINT16 packetId_, const UINT16 packetSize_, char* pPacket_);
 	void ProcessUserConnect(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket);
@@ -84,6 +84,13 @@ private:
 	// IOCP에서 패킷을 처리하면 공용객체에 락을 걸어야 하기 떄문에 락을 안걸기 위해
 	// packet처리 쓰레드는 여기서만 사용하고 iocp는 네트워크 처리
 	//std::deque<INT32> mInComingPacketUserIndex;		// 실제 데이터가 왔을 때 사용하는 queue
-	std::deque<PacketTask>mInComingPacketUserIndex;
-	std::deque<PacketInfo> mSystemPacketQueue;		// 네트워크 연결 처리하는 queue.. 이 두 가지 queue를 합치는게 제일 좋긴 함
+	//std::deque<PacketTask>mInComingPacketUserIndex;
+	//std::deque<PacketInfo> mSystemPacketQueue;		// 네트워크 연결 처리하는 queue.. 이 두 가지 queue를 합치는게 제일 좋긴 함
+
+	// 더블 버퍼링
+	std::deque<PacketInfo>mSystemWriteBuffer;
+	std::deque<PacketInfo>mSystemReadBuffer;
+
+	std::deque<PacketTask> mWriteBuffer;	// IOCP Worker Thread가 push
+	std::deque<PacketTask> mReadBuffer;		// ProcessThread가 소비
 };

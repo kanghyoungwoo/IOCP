@@ -37,7 +37,7 @@ public:
 		mAuthToken = "";
 		mCurDomainState = DOMAIN_STATE::NONE;
 		mPacketDataBuffer.Clear();
-		mGeneration++;	// 세션 종료마다 증가
+		//mGeneration++;	// 세션 종료마다 증가
 	}
 
 	std::string GetUserID() const
@@ -143,7 +143,7 @@ public:
 		PacketInfo packetInfo;
 		packetInfo.PacketId = pHeader->PacketId;
 		packetInfo.DataSize = pHeader->PacketLength;
-		//packetInfo.pDataPtr = m_tempPacketBuffer;
+		//packetInfo.pDataPtr = tempPacketBuffer;
 		packetInfo.pDataPtr = m_tempPacketBuffer;
 
 		return packetInfo;
@@ -177,6 +177,11 @@ public:
 	bool IsBufferFull() const
 	{
 		return mPacketDataBuffer.IsFull();
+	}
+
+	void IncrementGeneration()
+	{
+		mGeneration++;
 	}
 
 private:
