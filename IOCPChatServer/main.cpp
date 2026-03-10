@@ -4,7 +4,7 @@
 #include <iostream>
 const UINT16 SERVER_PORT = 11021;
 const UINT16 MAX_CLIENT = 2000;	// 총 접속 가능한 클라이언트 수
-const UINT32 MAX_IO_WORKER_THREAD = 4;
+const UINT32 MAX_IO_WORKER_THREAD =8;
 
 
 // Ctrl+c, 콘솔 종료 버튼에서 gracefunshutdown을 호출하기 위한 포인터
