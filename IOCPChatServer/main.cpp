@@ -1,5 +1,6 @@
 //#include "IOCP.h"
 #include "ChatServer.h"
+#include "CrashDump.h"
 #include <string>
 #include <iostream>
 const UINT16 SERVER_PORT = 11021;
@@ -28,11 +29,12 @@ BOOL WINAPI ConsoleCtrlHandler(DWORD ctrlType)
 }
 int main()
 {
+	CrashDump::Init();
+	SetConsoleCtrlHandler(ConsoleCtrlHandler, TRUE);
+
 	//IOCompletionPort ioCompletionPort;
 	ChatServer Server;
 	g_pServer = &Server;
-
-	SetConsoleCtrlHandler(ConsoleCtrlHandler, TRUE);
 
 	// 소켓을 초기화
 	Server.Init(MAX_IO_WORKER_THREAD);
