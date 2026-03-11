@@ -42,6 +42,7 @@
     <ClInclude Include="ObjectMemoryPool.h">
       <Filter>ServerNetwork</Filter>
     </ClInclude>
+    <ClInclude Include="CrashDump.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />

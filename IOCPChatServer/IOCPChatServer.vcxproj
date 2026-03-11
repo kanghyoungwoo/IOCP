@@ -140,6 +140,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ClientSession.h" />
+    <ClInclude Include="CrashDump.h" />
     <ClInclude Include="Define.h" />
     <ClInclude Include="ChatServer.h" />
     <ClInclude Include="ErrorCode.h" />

@@ -3,7 +3,7 @@
 #include <DbgHelp.h>
 #include <cstdio>
 
-#pragma comment(lib, "Dbhelp.lib")
+#pragma comment(lib, "Dbghelp.lib")
 
 namespace CrashDump
 {
