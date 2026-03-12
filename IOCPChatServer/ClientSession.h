@@ -425,6 +425,16 @@ public:
 
 		return true;
 	}
+	
+	void UpdateActivity()
+	{
+		mLastActivityTime.store(GetTickCount64(), std::memory_order_relaxed);
+	}
+
+	ULONGLONG GetLastActivityTime() const
+	{
+		return mLastActivityTime.load(std::memory_order_relaxed);
+	}
 
 	//bool mAcceptPendingg = false;
 private:
@@ -451,4 +461,6 @@ private:
 	UINT64 mLatestClosedTimeSec = 0;		// 마지막으로 연결이 종료된 시간
 	
 	UINT32 mGeneration = 0;
+
+	std::atomic<ULONGLONG> mLastActivityTime = 0;
 };

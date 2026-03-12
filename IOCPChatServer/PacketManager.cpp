@@ -69,6 +69,12 @@ void PacketManager::RegisterHandlers()
 		{
 			ProcessRoomChatMessage(clientIndex, packetSize, pPacket);
 		};
+
+	// 좀비세션 관련 핸들러
+	mPacketHandlers[(UINT16)PACKET_ID::SYS_PONG] = [this](UINT32 clientIndex, UINT16 packetSize, char* pPacket)
+		{
+			// RECV에서 이미 UpdateActivity() 완료. 추가 처리 없음.
+		};
 }
 
 void PacketManager::CreateComponent(const UINT32 maxClient_)

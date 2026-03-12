@@ -148,6 +148,8 @@ public:
 			}
 		}
 		
+		mIsTimeoutRun = true;
+		mTimeoutThread = std::thread([this]() { TimeoutCheckThread(); });
 		//bRet = CreateAccepterThread();
 		//if (bRet == false)
 		//{
@@ -163,7 +165,14 @@ public:
 	// 생성되어 있는 쓰레드를 파괴한다
 	void DestroyThread()
 	{
+
+		mIsTimeoutRun = false;
+		if (mTimeoutThread.joinable())
+			mTimeoutThread.join();
+		printf("TimeoutThread 종료 완료\n");
+
 		//Todo: GracefunShutDown구현하기
+		
 		// step1. Accept차단
 		//mIsAccepterRun = false;
 		closesocket(mListenSocket);		// AcceptEx 대기 해제
@@ -287,6 +296,47 @@ private:
 
 		printf("WorkerThread 시작 \n");
 		return true;
+	}
+
+	void TimeoutCheckThread()
+	{
+		const ULONGLONG TIMEOUT_MS = 60000; // 60초 무응답 시 강제 종료
+		const ULONGLONG PING_INTERVAL_MS = 30000; // 30초 동안 무응답시 PING
+		const ULONGLONG CHECK_INTERVAL_MS = 10000; // 10초 순회주기
+		while (mIsTimeoutRun)
+		{
+			ULONGLONG now = GetTickCount64();
+
+			for (size_t i = 0;i<mClientInfos.size();i++)
+			{
+				ClientSession* pSession = GetClientInfo(i);
+
+				// 연결이 안됐으면 건너뜀
+				if (pSession == nullptr || !pSession->IsConnected())
+					continue;
+
+				ULONGLONG lastActivity = pSession->GetLastActivityTime();
+				
+				if (now - lastActivity >= TIMEOUT_MS) // 60초
+				{
+					// 좀비 세션
+					CloseSocket(pSession, true);
+				}
+				else if (now - lastActivity > PING_INTERVAL_MS) // 30초
+				{
+					// 핑 전송
+					PACKET_HEADER pingHeader;
+					pingHeader.PacketLength = sizeof(PACKET_HEADER); // 패킷 전체 길이
+					pingHeader.PacketId = (UINT16)PACKET_ID::SYS_PING;
+					pingHeader.PacketType = 0;
+
+					pSession->SendMsg(pingHeader.PacketLength, (char*)&pingHeader);
+				}
+
+				//최근 활동이 있으면 아무것도 하지 않고 넘어감
+			}
+			Sleep(CHECK_INTERVAL_MS); // 10초
+		}
 	}
 
 	//// accept 요청을 처리하는 쓰레드 생성
@@ -456,6 +506,9 @@ private:
 						continue;
 					}
 
+					// 좀비세션 확인 로직 추가
+					pClientSession->UpdateActivity();
+
 					OnReceive(pClientSession->GetIndex(), dwIoSize, pClientSession->RecvBuff());
 					pClientSession->BindRecv(); // 다시 recv 걸어줌
 				}
@@ -594,5 +647,6 @@ private:
 	// 초기 AcceptEx개수 100개
 	static constexpr UINT32 MAX_PENDING_ACCEPT = 100;
 
-
+	std::thread mTimeoutThread;
+	std::atomic<bool> mIsTimeoutRun{ false };
 };

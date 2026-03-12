@@ -61,6 +61,10 @@ enum class PACKET_ID : UINT16
 	// SYSTEM
 	SYS_USER_CONNECT = 11,
 	SYS_USER_DISCONNECT = 12,
+
+	SYS_PING = 21,	// 서버 -> 클라
+	SYS_PONG = 22,	// 클라 -> 서버
+
 	SYS_END = 30,
 
 	// DB
