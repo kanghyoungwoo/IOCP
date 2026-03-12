@@ -316,21 +316,32 @@ private:
 					continue;
 
 				ULONGLONG lastActivity = pSession->GetLastActivityTime();
+				ULONGLONG elapsed = now - lastActivity;
 				
-				if (now - lastActivity >= TIMEOUT_MS) // 60초
+				if (elapsed >= TIMEOUT_MS) // 60초
 				{
+					// 60초동안 응답 없어서 Disconnect호출하여 킥
+					printf("[TimeoutThread] Client Index(%d) 타임아웃! (60초 무응답) -> 강제 종료 수행\n", pSession->GetIndex());
 					// 좀비 세션
-					CloseSocket(pSession, true);
+					//CloseSocket(pSession, true);
+					pSession->DisconnectAsync();
 				}
-				else if (now - lastActivity > PING_INTERVAL_MS) // 30초
+				else if (elapsed >= PING_INTERVAL_MS) // 30초
 				{
-					// 핑 전송
-					PACKET_HEADER pingHeader;
-					pingHeader.PacketLength = sizeof(PACKET_HEADER); // 패킷 전체 길이
-					pingHeader.PacketId = (UINT16)PACKET_ID::SYS_PING;
-					pingHeader.PacketType = 0;
+					ULONGLONG lastping = pSession->GetLastPingTime();
+					if (now - lastping >= PING_INTERVAL_MS)
+					{
+						pSession->SetLastPingTime(now);
 
-					pSession->SendMsg(pingHeader.PacketLength, (char*)&pingHeader);
+						// 서버가 30초 무응답 유저 감지하고 PING보냄
+						printf("[TimeoutThread] Client Index(%d)에게 PING 발송 (무응답 %llu ms)\n", pSession->GetIndex(), elapsed);
+						// 핑 전송
+						PACKET_HEADER pingHeader;
+						pingHeader.PacketLength = sizeof(PACKET_HEADER); // 패킷 전체 길이
+						pingHeader.PacketId = (UINT16)PACKET_ID::SYS_PING;
+						pingHeader.PacketType = 0;
+						pSession->SendMsg(pingHeader.PacketLength, (char*)&pingHeader);
+					}
 				}
 
 				//최근 활동이 있으면 아무것도 하지 않고 넘어감

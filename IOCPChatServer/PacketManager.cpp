@@ -74,6 +74,7 @@ void PacketManager::RegisterHandlers()
 	mPacketHandlers[(UINT16)PACKET_ID::SYS_PONG] = [this](UINT32 clientIndex, UINT16 packetSize, char* pPacket)
 		{
 			// RECV에서 이미 UpdateActivity() 완료. 추가 처리 없음.
+			printf("[PacketManager] Client Index(%d)로부터 PONG 수신 완료 (생존 연장)\n", clientIndex);
 		};
 }
 

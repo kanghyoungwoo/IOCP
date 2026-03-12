@@ -68,6 +68,9 @@ public:
 		mIsConnected = true;
 		++mGeneration;
 
+		// 연결 직후 타임아웃 방지를 위해 시간 갱신
+		UpdateActivity();
+
 		//Clear();
 		if (BindIOCompletionPort(iocpHandle) == false)
 		{
@@ -428,12 +431,33 @@ public:
 	
 	void UpdateActivity()
 	{
+		ULONGLONG now = GetTickCount64();
 		mLastActivityTime.store(GetTickCount64(), std::memory_order_relaxed);
+		// 클라이언트가 정상 활동 중이므로 ping 보낸 기록도 리셋
+		mLastPingTime.store(0, std::memory_order_relaxed);
 	}
 
 	ULONGLONG GetLastActivityTime() const
 	{
 		return mLastActivityTime.load(std::memory_order_relaxed);
+	}
+
+	void SetLastPingTime(ULONGLONG time)
+	{
+		mLastPingTime.store(time, std::memory_order_relaxed);
+	}
+	
+	ULONGLONG GetLastPingTime() const
+	{
+		return mLastPingTime.load(std::memory_order_relaxed);
+	}
+
+	void DisconnectAsync()
+	{
+		if (m_socketClient != INVALID_SOCKET)
+		{
+			shutdown(m_socketClient, SD_BOTH);
+		}
 	}
 
 	//bool mAcceptPendingg = false;
@@ -462,5 +486,6 @@ private:
 	
 	UINT32 mGeneration = 0;
 
-	std::atomic<ULONGLONG> mLastActivityTime = 0;
+	std::atomic<ULONGLONG> mLastActivityTime{ 0 };
+	std::atomic<ULONGLONG> mLastPingTime{ 0 };
 };
