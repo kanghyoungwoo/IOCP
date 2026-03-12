@@ -4,6 +4,7 @@
 
 #include "Define.h"
 #include "ClientSession.h"
+#include "Packet.h"
 #include <thread>
 #include <vector>
 #include <mswsock.h>
