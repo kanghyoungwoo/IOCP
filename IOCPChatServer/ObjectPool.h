@@ -1,10 +1,8 @@
 #pragma once
-
+#include "LockFreeStack.h"
 #include <cstdint>
-#include <vector>
-#include <mutex>
 #include <cassert>
-
+#include <vector>
 // 고정 크기 객체 풀 (스레드 세이프)
 // - 서버 시작 시 N개를 미리 할당하고, Alloc/Free로 재사용
 // - 내부적으로 Free List(스택)를 사용하여 O(1) 할당/반납을 보장
@@ -18,12 +16,12 @@ public:
 	~ObjectPool()
 	{
 		// 풀이 소유한 메모리 해제
-		for (auto* block : mAllBlocks)
+		if (m_poolBlock != nullptr)
 		{
-			delete block;
+			delete[] m_poolBlock;
+			m_poolBlock = nullptr;
 		}
-		mAllBlocks.clear();
-		mFreeList.clear();
+
 	}
 
 	// 복사/이동 금지
@@ -33,14 +31,16 @@ public:
 	// poolSize개의 객체를 미리 할당
 	void Init(const uint32_t poolSize)
 	{
-		mAllBlocks.reserve(poolSize);
-		mFreeList.reserve(poolSize);
+		//mFreeList.reserve(poolSize);
 
+		// 연속된 배열로 할당
+		m_poolBlock = new T[poolSize];
+
+		// 스택에 배열 시작주소 알려줌
+		mFreeStack.Init(m_poolBlock);	// 시작 주소 전달
 		for (uint32_t i = 0; i < poolSize; ++i)
 		{
-			T* obj = new T();
-			mAllBlocks.push_back(obj);
-			mFreeList.push_back(obj);
+			mFreeStack.Push(&m_poolBlock[i]);
 		}
 
 		mPoolSize = poolSize;
@@ -50,14 +50,7 @@ public:
 	// 풀이 비었으면 nullptr 반환 (호출 측에서 처리)
 	T* Alloc()
 	{
-		std::lock_guard<std::mutex> guard(mLock);
-		if (mFreeList.empty())
-		{
-			return nullptr;
-		}
-		T* obj = mFreeList.back();
-		mFreeList.pop_back();
-		return obj;
+		return mFreeStack.Pop(); // nullptr이면 풀 소진 
 	}
 
 	// 사용이 끝난 객체를 풀에 반납한다.
@@ -67,22 +60,21 @@ public:
 		{
 			return;
 		}
-		std::lock_guard<std::mutex> guard(mLock);
-		mFreeList.push_back(obj);
-	}
+		mFreeStack.Push(obj);
 
-	// 현재 사용 가능한 객체 수
-	uint32_t GetAvailableCount()
-	{
-		std::lock_guard<std::mutex> guard(mLock);
-		return static_cast<uint32_t>(mFreeList.size());
 	}
+	
+	// 테스트 용도
+	 bool IsLockFree() const
+	{
+		 return mFreeStack.IsLockFree();
+	 }
 
 	uint32_t GetPoolSize() const { return mPoolSize; }
 
 private:
-	std::vector<T*> mAllBlocks;		// 메모리 해제용 (소유권)
-	std::vector<T*> mFreeList;		// 사용 가능한 객체 스택
-	std::mutex mLock;
+	//std::vector<T*> mAllBlocks;		// 메모리 해제용 (소유권)
+	T* m_poolBlock = nullptr;
 	uint32_t mPoolSize = 0;
+	LockFreeStack<T> mFreeStack;
 };

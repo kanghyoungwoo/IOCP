@@ -2,7 +2,7 @@
 #include <winsock2.h>
 #include <Ws2tcpip.h>
 #include <mswsock.h>
-
+#include <cstdint>
 //#define MAX_SOCKBUF 1024
 const UINT32 MAX_SOCKBUF = 1024;
 const UINT32 MAX_SOCK_SENDBUF = 4096;	
@@ -38,6 +38,8 @@ struct SendOverlappedEx
 	UINT32			sessionIndex = 0;
 	UINT32			generation = 0;			// 추가
 	char			buffer[MAX_SOCKBUF];	// 고정 크기 내장 버퍼
+	//SendOverlappedEx* poolNext = nullptr;
+	uint32_t poolNext = UINT32_MAX;	//NULL_INDEX
 };
 
 

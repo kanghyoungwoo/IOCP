@@ -1,6 +1,7 @@
 //#include "IOCP.h"
 #include "ChatServer.h"
 #include "CrashDump.h"
+#include "ObjectPool.h"
 #include <string>
 #include <iostream>
 const UINT16 SERVER_PORT = 11021;
@@ -31,7 +32,15 @@ int main()
 {
 	CrashDump::Init();
 	SetConsoleCtrlHandler(ConsoleCtrlHandler, TRUE);
-
+	ObjectPool<SendOverlappedEx> pool;
+	if (pool.IsLockFree())
+	{
+		printf("성공, 락프리로 동작함\n");
+	}
+	else
+	{
+		printf("실패, Lock이 걸림\n");
+	}
 	//IOCompletionPort ioCompletionPort;
 	ChatServer Server;
 	g_pServer = &Server;

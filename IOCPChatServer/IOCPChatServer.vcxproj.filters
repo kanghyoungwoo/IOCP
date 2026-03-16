@@ -43,6 +43,12 @@
       <Filter>ServerNetwork</Filter>
     </ClInclude>
     <ClInclude Include="CrashDump.h" />
+    <ClInclude Include="LockFreeStack.h">
+      <Filter>ServerNetwork</Filter>
+    </ClInclude>
+    <ClInclude Include="MPSCQueue.h">
+      <Filter>ServerNetwork</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
