@@ -6,7 +6,14 @@ class RoomManager
 {
 public:
 	RoomManager() = default;
-	~RoomManager() = default;
+	~RoomManager()
+	{
+		if (mRooms != nullptr)
+		{
+			delete[] mRooms;
+			mRooms = nullptr;
+		}
+	}
 
 	void Init(const INT32 beginRoomNumber_, const INT32 maxRoomCount_, const INT32 maxRoomUserCount_)
 	{
@@ -14,13 +21,19 @@ public:
 		mMaxRoomCount = maxRoomCount_;
 		mEndRoomNumber = beginRoomNumber_ + maxRoomCount_;
 
-		mRoomList = std::vector <Room*> (mMaxRoomCount);
+		//mRoomList = std::vector <Room*> (mMaxRoomCount);
 
-		for (int i = 0;i < maxRoomCount_; i++)
+		//for (int i = 0;i < maxRoomCount_; i++)
+		//{
+		//	mRoomList[i] = new Room;
+		//	mRoomList[i]->SendPacketFunc = SendPacketFunc;
+		//	mRoomList[i]->Init(i + beginRoomNumber_, maxRoomUserCount_);
+		//}
+		mRooms = new Room[mMaxRoomCount];
+		for (int i = 0;i < maxRoomCount_;i++)
 		{
-			mRoomList[i] = new Room;
-			mRoomList[i]->SendPacketFunc = SendPacketFunc;
-			mRoomList[i]->Init(i + beginRoomNumber_, maxRoomUserCount_);
+			mRooms[i].SendPacketFunc = SendPacketFunc;
+			mRooms[i].Init(i + beginRoomNumber_, maxRoomCount_);
 		}
 	}
 
@@ -62,13 +75,15 @@ public:
 			return nullptr;
 		}
 		INT32 index = number_ - mBeginRoomNumber;
-		return mRoomList[index];
+		//return mRoomList[index];
+		return &mRooms[index];
 	}
 
 
 	std::function<void(UINT32, UINT32, char*)>SendPacketFunc;
 private:
-	std::vector<Room*> mRoomList;
+	//std::vector<Room*> mRoomList;
+	Room* mRooms = nullptr;
 	INT32 mBeginRoomNumber = 0;
 	INT32 mMaxRoomCount = 0;
 	INT32 mEndRoomNumber = 0;

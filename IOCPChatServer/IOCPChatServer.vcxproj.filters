@@ -49,6 +49,9 @@
     <ClInclude Include="MPSCQueue.h">
       <Filter>ServerNetwork</Filter>
     </ClInclude>
+    <ClInclude Include="PacketJob.h">
+      <Filter>ServerNetwork</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
