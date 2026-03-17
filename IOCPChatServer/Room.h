@@ -13,6 +13,13 @@ class Room
 {
 	friend class LockFreeStack<Room>;
 public:
+	enum class EnqueueResult
+	{
+		SUCCESS_FIRST,
+		SUCCESS_APPENDED,
+		FAILED_DROPPED
+	};
+
 	Room() = default;
 	~Room() = default;
 
@@ -129,6 +136,27 @@ public:
 		{
 
 		}
+	}
+
+	EnqueueResult EnqueueJob(PacketJob* pJob)
+	{
+		// 실패시 즉시 거절
+		if (mIsBroken.load(std::memory_order_acquire))
+			return EnqueueResult::FAILED_DROPPED;
+
+		if (pJob->targetGeneration != mGeneration.load(std::memory_order_acquire))
+			return EnqueueResult::FAILED_DROPPED;
+
+		// 큐에 삽입
+		mLocalQueue.Push(pJob);
+
+		// 카운터로 등록 여부 결정
+		if (mMsgCount.fetch_add(1, std::memory_order_acq_rel) == 0)
+		{
+			return EnqueueResult::SUCCESS_FIRST;
+		}
+
+		return EnqueueResult::SUCCESS_APPENDED;
 	}
 
 	// Strand 접근자
