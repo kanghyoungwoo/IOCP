@@ -159,6 +159,16 @@ public:
 		return EnqueueResult::SUCCESS_APPENDED;
 	}
 
+	User* FindUserByClientIndex(uint32_t clientIndex)
+	{
+		for (auto pUser : mUserList)
+		{
+			if (pUser != nullptr && pUser->GetNetConnIndex() == clientIndex)
+				return pUser;
+		}
+		return nullptr;
+	}
+
 	// Strand 접근자
 	MPSCQueue<PacketJob>&	GetLocalQueue()	{ return mLocalQueue; }
 	std::atomic<int>&		GetMsgCount()	{ return mMsgCount; }
@@ -170,10 +180,10 @@ private:
 
 	void SendToAllUser(const UINT16 dataSize_, char* data_, const INT32 skipUserIndex_, bool skip_)
 	{
-		// 1. Room 객체는 모든 유저의 정보를 리스트로 관리하고 있다.
-		// 2. 해당 리스트를 반복을 돌며 Send 요청을 보내면 된다.
+		// 1. Room 객체는 모든 유저의 정보를 리스트로 관리
+		// 2. 해당 리스트를 반복을 돌며 Send 요청을 보내면 됨
 		// 3. 여기서 특이한 점은 패킷 매니저의 함수를 함수 포인터로 받아 유저 객체에 저장한 뒤
-		// 4. 그 함수 포인터를 사용하여 패킷 매니저의 함수를 호출하여 전송을 수행한다.
+		// 4. 그 함수 포인터를 사용하여 패킷 매니저의 함수를 호출하여 전송을 수행
 
 		//std::lock_guard<std::mutex> lock(mUserListMutex);
 

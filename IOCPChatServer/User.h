@@ -38,6 +38,8 @@ public:
 		mCurDomainState = DOMAIN_STATE::NONE;
 		mPacketDataBuffer.Clear();
 		//mGeneration++;	// 세션 종료마다 증가
+
+		mIsDisconnecting.store(false);
 	}
 
 	std::string GetUserID() const
@@ -184,6 +186,9 @@ public:
 		mGeneration++;
 	}
 
+	bool IsDisconnecting() const { return mIsDisconnecting.load(); }
+	void SetDisconnecting() { mIsDisconnecting.store(true); }
+
 private:
 	INT32 mIndex = -1;
 	std::string mUserID = "";
@@ -207,5 +212,6 @@ private:
 	// 이 유저만의 전용 패킷 조립 버퍼
 	char m_tempPacketBuffer[MAX_PACKET_DATA_BUFFER_SIZE];
 
+	std::atomic<bool> mIsDisconnecting{ false };
 	
 };

@@ -3,6 +3,7 @@
 #include "Packet.h"
 //#include "RedisManager.h"
 #include "RoomManager.h"
+#include "StrandProcessor.h"
 
 #include <unordered_map>
 #include <deque>
@@ -55,15 +56,10 @@ private:
 
 
 	void ProcessEnterRoom(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
-	void ProcessLeaveRoom(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
-	void ProcessRoomChatMessage(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
+	//void ProcessLeaveRoom(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
+	//void ProcessRoomChatMessage(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 
 	void NotifyPacketEvent();
-	//void OnLoginSuccess(UINT32 clientIndex_, const char* userID_);
-	//void OnLoginFailure(UINT32 clientIndex_, UINT16 errorCode_);
-	//void TryMySQLFallback(UINT32 clientIndex_, const char* userID_);
-	//void ProcessMySQLLoginResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
-	//void CacheUserTorRedis(const char* userID);
 
 	typedef void(PacketManager::* PROCESS_RECV_PACKET_FUNCTION)(UINT32, UINT16, char*);
 	std::unordered_map<int, PROCESS_RECV_PACKET_FUNCTION>mRecvFunctionDictionary;
@@ -72,6 +68,7 @@ private:
 	RedisManager* mRedisManager;
 	RoomManager* mRoomManager;
 	MySQLManager* mMySQLManager;
+	StrandProcessor m_strandProcessor;
 
 	std::function<void(int, char*)>mSendMQDataFunc;
 
@@ -93,4 +90,5 @@ private:
 
 	std::deque<PacketTask> mWriteBuffer;	// IOCP Worker Thread가 push
 	std::deque<PacketTask> mReadBuffer;		// ProcessThread가 소비
+
 };
