@@ -90,7 +90,7 @@ void PacketManager::CreateComponent(const UINT32 maxClient_)
 	mRoomManager->SendPacketFunc = SendPacketFunc;
 	mRoomManager->Init(startRoomNumber, maxRoomCount, maxRoomUserCount);
 
-	m_strandProcessor.Init(10000, 1000);
+	m_strandProcessor.Init(10000, 1000, maxRoomCount);
 }
 
 

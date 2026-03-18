@@ -1,12 +1,22 @@
 #pragma once
 #include "ObjectPool.h"
-#include "GlobalQueue_MutexCV.h"
+//#include "GlobalQueue_MutexCV.h"
 #include "PacketJob.h"
 #include "Room.h"
 #include "StrandCallback.h"
 #include<vector>
 #include <thread>
 #include <intrin.h>
+
+//#define USE_LOCKFREE_GLOBAL_QUEUE
+
+#ifdef USE_LOCKFREE_GLOBAL_QUEUE
+    #include "GlobalQueue_LockFree.h"
+    using GlobalQueue = GlobalQueue_LockFree;
+#else
+    #include "GlobalQueue_MutexCV.h"
+    using GlobalQueue = GlobalQueue_MutexCV;
+#endif
 
 class StrandProcessor
 {
@@ -17,10 +27,15 @@ public:
         //Stop();
     }
 
-    void Init(uint32_t jobPoolSize, uint32_t callbackPoolSize)
+    void Init(uint32_t jobPoolSize, uint32_t callbackPoolSize, uint32_t maxRoomCount)
     {
         mJobPool.Init(jobPoolSize);
         mCallbackPool.Init(callbackPoolSize);
+#ifdef USE_LOCKFREE_GLOBAL_QUEUE
+        // Lock-Free 버전일 때만 2의 제곱수로 사이즈를 맞춰서 큐를 초기화합니다.
+        uint32_t globalQueueSize = GetNextPowerOf2(maxRoomCount);
+        mGlobalQueue.Init(globalQueueSize);
+#endif
     }
 
     void Start(int threadCount)
@@ -45,6 +60,19 @@ public:
         }
         mLogicThreads.clear();
         printf("StrandProcessor: 모든 Logic Thread 안전하게 Stop 완료\n");
+    }
+
+    // 2의 제곱수로 올림해주는 도우미 함수
+    inline uint32_t GetNextPowerOf2(uint32_t v)
+    {
+        v--;
+        v |= v >> 1;
+        v |= v >> 2;
+        v |= v >> 4;
+        v |= v >> 8;
+        v |= v >> 16;
+        v++;
+        return v;
     }
 
     void EnqueueJob(Room* pRoom, uint32_t clientIndex, uint32_t targetGeneration, uint16_t packetId, uint16_t dataSize, const char* data)
@@ -270,8 +298,9 @@ private:
     }
 
     ObjectPool<PacketJob>    mJobPool;       // Job 할당/해제
-    GlobalQueue_MutexCV      mGlobalQueue;   // 방 분배 큐
+   // GlobalQueue_MutexCV      mGlobalQueue;   // 방 분배 큐
     std::vector<std::thread> mLogicThreads;  // 처리 스레드 풀
+    GlobalQueue mGlobalQueue;
 
     MPSCQueue<StrandCallback> mCallbackQueue;   // Logic Thread → 라우터
     ObjectPool<StrandCallback> mCallbackPool;   // 락프리 메모리풀

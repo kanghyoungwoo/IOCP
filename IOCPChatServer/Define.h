@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <winsock2.h>
 #include <Ws2tcpip.h>
 #include <mswsock.h>
