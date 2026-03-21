@@ -1,4 +1,4 @@
-ï»¿#pragma once
+#pragma once
 
 #include <windows.h>
 #include "ErrorCode.h"
@@ -39,29 +39,29 @@ struct RedisTask
 
 struct RedisLoginReq
 {
-	char UserID[MAX_USER_ID_LENGTH + 1]; // ìœ ì € ì•„ì´ë””
+	char UserID[MAX_USER_ID_LENGTH + 1]; // À¯Àú ¾ÆÀÌµğ
 	char UserPW[MAX_USER_PW_LENGTH + 1];
 };
 
 struct RedisLoginRes
 {
-	UINT16 Result = (UINT16)ERROR_CODE::NONE; // ê²°ê³¼ ì½”ë“œ
-	char UserID[MAX_USER_ID_LENGTH + 1]; // UserID ì¶”ê°€
+	UINT16 Result = (UINT16)ERROR_CODE::NONE; // ¼º°ø ¿©ºÎ
+	char UserID[MAX_USER_ID_LENGTH + 1]; // UserID Ãß°¡
 };
 
 struct RedisLoginFlagReq
 {
 	char UserID[MAX_USER_ID_LENGTH + 1];
-	UINT32 TTLSeconds; // 0ì¼ì‹œ ë§Œë£Œ ì—†ìŒ
+	UINT32 TTLSeconds; // 0ÀÏ½Ã ¸¸·á x
 };
 
-// ì„¸ì…˜ ì •ë³´ ì €ì¥
+// ¼¼¼Ç Á¤º¸ ÀúÀå
 struct RedisSessionReq
 {
 	char UserID[MAX_USER_ID_LENGTH + 1];
-	UINT32 ClientIndex;		// ì„¸ì…˜ ì‹ë³„ ë²ˆí˜¸
-	UINT64 LoginEpochMS;	// ë¡œê·¸ì¸ ì‹œê°
-	UINT32 TTLSeconds;		// ì„¸ì…˜ ë§Œë£Œ
+	UINT32 ClientIndex;		// ¼¼¼Ç ½Äº° Á¤º¸
+	UINT64 LoginEpochMS;	// ·Î±×ÀÎ ½Ã°¢
+	UINT32 TTLSeconds;		// ¼¼¼Ç ¸¸·á
 };
 
-#pragma pack(pop)	// ë°”ì´íŠ¸ ì •ë ¬ ë³µì›
+#pragma pack(pop)	// ¹ÙÀÌÆ® Á¤·Ä ÇØÁ¦

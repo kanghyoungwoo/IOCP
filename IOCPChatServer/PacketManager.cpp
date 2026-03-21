@@ -8,8 +8,11 @@
 //#include "RedisTaskDefine.h"
 #include "RedisManager.h"
 #include "MysqlManager.h"
+#include "Define.h"
 #include <chrono>
 #include <ctime>
+
+
 
 void PacketManager::Init(const UINT32 maxClient_)
 {
@@ -74,7 +77,7 @@ void PacketManager::RegisterHandlers()
 	mPacketHandlers[(UINT16)PACKET_ID::SYS_PONG] = [this](UINT32 clientIndex, UINT16 packetSize, char* pPacket)
 		{
 			// RECV에서 이미 UpdateActivity() 완료. 추가 처리 없음.
-			printf("[PacketManager] Client Index(%d)로부터 PONG 수신 완료 (생존 연장)\n", clientIndex);
+			LOG_DEBUG("[PacketManager] Client Index(%d)로부터 PONG 수신 완료 (생존 연장)\n", clientIndex);
 		};
 }
 
@@ -90,7 +93,7 @@ void PacketManager::CreateComponent(const UINT32 maxClient_)
 	mRoomManager->SendPacketFunc = SendPacketFunc;
 	mRoomManager->Init(startRoomNumber, maxRoomCount, maxRoomUserCount);
 
-	m_strandProcessor.Init(10000, 1000, maxRoomCount);
+	m_strandProcessor.Init(4000000, 4000, maxRoomCount);
 }
 
 
@@ -102,7 +105,7 @@ bool PacketManager::Run()
 	}
 #ifdef  USE_AMAZON_AWS_DB
 	// AWS_연동
-	printf("AMAZON AWS MySQL 모드로 실행.\n");
+	LOG_DEBUG("AMAZON AWS MySQL 모드로 실행.\n");
 	mMySQLManager->configure(
 		"chatserver-database.cts4w8y0e8qh.ap-northeast-2.rds.amazonaws.com",  // RDS 엔드포인트
 		"admin",															 // 마스터 사용자명
@@ -112,7 +115,7 @@ bool PacketManager::Run()
 	);
 #else
 	// 로컬 MySQL연동
-	printf("Local MySQL 모드로 서버를 실행.\n");
+	LOG_DEBUG("Local MySQL 모드로 서버를 실행.\n");
 	mMySQLManager->configure(
 		"127.0.0.1",
 		"root",															
@@ -133,7 +136,7 @@ bool PacketManager::Run()
 
 	mIsRunProcessThread = true;
 	mProcessThead = std::thread([this]() { ProcessPacket();});
-	m_strandProcessor.Start(1);
+	m_strandProcessor.Start(MAX_LOGICTHREAD);
 
 	return true;
 }
@@ -162,7 +165,27 @@ void PacketManager::End()
 	mRedisManager->End();
 	mMySQLManager->End();
 
+	FILE* fp = nullptr;
+	fopen_s(&fp, "benchmark_result.txt", "a");
+	if (fp) {
+		fprintf(fp, "=== Benchmark Result ===\n");
+		fprintf(fp, "Job Pool Size: %u\n", m_strandProcessor.GetJobPoolSize());
+		fprintf(fp, "Alloc Fail Count: %llu\n", m_strandProcessor.GetAllocFailCount());
+		fprintf(fp, "========================\n\n");
 
+		fprintf(fp, "=== Benchmark Result ===\n");
+		fprintf(fp, "IOCP Workers: %u\n", MAX_WORKERTHREAD);
+		fprintf(fp, "Logic Threads: %u\n", MAX_LOGICTHREAD);
+		fprintf(fp, "Job Pool Size: %u\n", m_strandProcessor.GetJobPoolSize());
+		fprintf(fp, "Alloc Fail Count: %llu\n", m_strandProcessor.GetAllocFailCount());
+		fprintf(fp, "Current Pool Free Count: %u\n", m_strandProcessor.GetCurrentFreeCount());
+		fprintf(fp, "Alloc Total Attempts: %llu\n", m_strandProcessor.GetAllocTotalCount());
+
+		fprintf(fp, "========================\n\n");
+
+
+		fclose(fp);
+	}
 	// 기존 종료 방식
 	//mRedisManager->End();
 	//mMySQLManager->End();
@@ -249,7 +272,7 @@ void PacketManager::ProcessPacket()
 			auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - lastQueueLog).count();
 			if (elapsed >= 5)
 			{
-				printf("[QueueDepth] batch_size=%zu  sys_batch=%zu\n", mReadBuffer.size(), mSystemReadBuffer.size());lastQueueLog = now;
+				LOG_DEBUG("[QueueDepth] batch_size=%zu  sys_batch=%zu\n", mReadBuffer.size(), mSystemReadBuffer.size());lastQueueLog = now;
 			}
 		 }
 
@@ -430,14 +453,14 @@ void PacketManager::EnqueuePacketData(const UINT32 clientIndex_)
 
 void PacketManager::ProcessUserConnect(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket)
 {
-	printf("[ProcessUserConnect] ClientIndex : %d\n", clientIndex_);
+	LOG_DEBUG("[ProcessUserConnect] ClientIndex : %d\n", clientIndex_);
 	auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
 	//pUser->Clear();
 }
 
 void PacketManager::ProcessUserDisconnect(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket)
 {
-	printf("[ProcessUserDisconnect] ClientIndex : %d\n", clientIndex_);
+	LOG_DEBUG("[ProcessUserDisconnect] ClientIndex : %d\n", clientIndex_);
 	ClearConnectionInfo(clientIndex_);
 	
 }
@@ -487,7 +510,7 @@ void PacketManager::ProcessRecvPacket(const UINT32 clientIndex_, const UINT16 pa
 	if (it != mPacketHandlers.end())
 		it->second(clientIndex_, packetSize_, pPacket_);
 	else
-		printf("알 수 없는 패킷 ID : %d (ClientIndex: %d)\n", packetId_, clientIndex_);
+		LOG_ERROR("알 수 없는 패킷 ID : %d (ClientIndex: %d)\n", packetId_, clientIndex_);
 
 }
 
@@ -502,7 +525,7 @@ void PacketManager::ProcessLogin(UINT32 clientIndex_, UINT16 packetSize_, char* 
 	auto pLoginReqPacket = reinterpret_cast<LOGIN_REQUEST_PACKET*>(pPacket_);
 	
 	auto pUserID = pLoginReqPacket->UserID;
-	printf("Requested user ID : %s\n", pUserID);
+	LOG_DEBUG("Requested user ID : %s\n", pUserID);
 
 	//// 로드 테스트용 코드
 	//// id가 test_user일시 인증 뛰어넘고 즉시 로그인 처리
@@ -521,7 +544,7 @@ void PacketManager::ProcessLogin(UINT32 clientIndex_, UINT16 packetSize_, char* 
 		loginResPacket.Result = (UINT16)ERROR_CODE::NONE;
 		SendPacketFunc(clientIndex_, sizeof(LOGIN_RESPONSE_PACKET), (char*)&loginResPacket);
 
-		printf("[Load Test] Dummy login Success: %s\n", pUserID);
+		LOG_DEBUG("[Load Test] Dummy login Success: %s\n", pUserID);
 		
 		return;
 	}
@@ -535,21 +558,21 @@ void PacketManager::ProcessLogin(UINT32 clientIndex_, UINT16 packetSize_, char* 
 
 	// 디버깅
 	auto existingIndex = mUserManager->FindUserIndexByID(pUserID);
-	printf("기존 사용자 검색 : UserID = %s -> Index = %d\n", pUserID, existingIndex);
+	LOG_DEBUG("기존 사용자 검색 : UserID = %s -> Index = %d\n", pUserID, existingIndex);
 
 	if (existingIndex == -1)
 	{
-		printf("새로운 사용자 - Redis로 전송\n");
+		LOG_DEBUG("새로운 사용자 - Redis로 전송\n");
 		// Redis 요청
-		printf("Login To Redis USER ID : %s\n", pUserID);
+		LOG_DEBUG("Login To Redis USER ID : %s\n", pUserID);
 	}
 	else
 	{
-		printf("중복 로그인 차단! UserID='%s', 기존Index=%d, 새요청Index=%d\n",
+		LOG_DEBUG("중복 로그인 차단! UserID='%s', 기존Index=%d, 새요청Index=%d\n",
 			pUserID, existingIndex, clientIndex_);
 		loginResPacket.Result = (UINT16)ERROR_CODE::LOGIN_USER_ALREADY;
 		SendPacketFunc(clientIndex_, sizeof(LOGIN_RESPONSE_PACKET), (char*)&loginResPacket);
-		printf("중복 로그인 거부 응답 전송 완료\n");
+		LOG_DEBUG("중복 로그인 거부 응답 전송 완료\n");
 		return;
 	}
 
@@ -577,7 +600,7 @@ void PacketManager::ProcessLogin(UINT32 clientIndex_, UINT16 packetSize_, char* 
 		CopyMemory(redistask.pData, (char*)&redisReq, redistask.DataSize);
 		mRedisManager->PushTask(redistask);
 
-		printf("Login To Redis USER ID : %s\n", pUserID);
+		LOG_DEBUG("Login To Redis USER ID : %s\n", pUserID);
 	}
 	else
 	{
@@ -590,25 +613,25 @@ void PacketManager::ProcessLogin(UINT32 clientIndex_, UINT16 packetSize_, char* 
 
 void PacketManager::ProcessLoginDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
 {
-	printf("ProcessLoginDBResult. UserIndex : %d \n", clientIndex_);
+	LOG_DEBUG("ProcessLoginDBResult. UserIndex : %d \n", clientIndex_);
 
 	auto pBody = (RedisLoginRes*)pPacket_;
 
 	// redis 성공시
 	if (pBody->Result == (UINT16)ERROR_CODE::NONE)
 	{
-		printf("[DEBUG] Login successful for UserID: '%s'\n", pBody->UserID);
+		LOG_DEBUG("[DEBUG] Login successful for UserID: '%s'\n", pBody->UserID);
 
 		//OnLoginSuccess(clientIndex_, pBody->UserID);
 		//UserManager에 사용자 추가
 		auto result = mUserManager->Adduser(pBody->UserID, clientIndex_);
 		if (result != ERROR_CODE::NONE) {
-			printf("[ERROR] Failed to add user to UserManager\n");
+			LOG_ERROR("Failed to add user to UserManager\n");
 			pBody->Result = (UINT16)ERROR_CODE::LOGIN_USER_USED_ALL_OBJ;
 		}
 		else {
 			auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
-			printf("[DEBUG] User added successfully. UserID: '%s'\n", pUser->GetUserID().c_str());
+			LOG_DEBUG("User added successfully. UserID: '%s'\n", pUser->GetUserID().c_str());
 			mUserManager->IncreaseUserCnt();
 
 			// MySQL: 로그인 기록
@@ -645,7 +668,7 @@ void PacketManager::ClearConnectionInfo(INT32 clientIndex_)
 			if (it->clientIndex == clientIndex_)
 			{
 				it = mWriteBuffer.erase(it);
-				printf("remove enqueue packetdata for disconnected used : %d\n", clientIndex_);
+				LOG_DEBUG("remove enqueue packetdata for disconnected used : %d\n", clientIndex_);
 			}
 			else
 				++it;
@@ -691,7 +714,7 @@ void PacketManager::ProcessEnterRoom(UINT32 clientIndex_, UINT16 packetSize_, ch
 	auto pReqUser = mUserManager->GetUserByConnIdx(clientIndex_);
 	if (!pReqUser || pReqUser == nullptr)
 	{
-		printf("유효하지 않은 유저 !. ClientIndex : %d\n", clientIndex_);
+		LOG_ERROR("유효하지 않은 유저 !. ClientIndex : %d\n", clientIndex_);
 		return;
 	}
 
@@ -751,7 +774,7 @@ void PacketManager::ProcessEnterRoom(UINT32 clientIndex_, UINT16 packetSize_, ch
 	
 	//	해당 값의 결과를 응답 패킷의 데이터에 넣어서 전송한다.
 	SendPacketFunc(clientIndex_, sizeof(ROOM_ENTER_RESPONSE_PACKET), (char*)&roomEnterResPacket);
-	printf("Enter Room Res Packet Send ! \n");
+	LOG_DEBUG("Enter Room Res Packet Send ! \n");
 
 }
 

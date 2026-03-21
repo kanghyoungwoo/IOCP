@@ -1,4 +1,4 @@
-ï»¿#pragma once
+#pragma once
 
 #include "Packet.h"
 //#include "RedisManager.h"
@@ -19,7 +19,7 @@ class MySQLManager;
 struct PacketTask
 {
 	UINT32 clientIndex;
-	UINT32 generation;	// enqueue ì‹œì ì˜ generation
+	UINT32 generation;	// enqueue ½ÃÁ¡ÀÇ genteration
 };
 
 class PacketManager {
@@ -38,8 +38,8 @@ public:
 
 private:
 	using PacketHandler = std::function<void(UINT32 clientIndex, UINT16 packetSize, char* pPacket)>;
-	void RegisterHandlers(); // í•¸ë“¤ëŸ¬ í•¨ìˆ˜ ë“±ë¡
-	// std::function ê¸°ë°˜ ë””ìŠ¤íŒ¨ì¹˜
+	void RegisterHandlers(); // ÇÚµé·¯ ÇÔ¼ö Ãß°¡
+	// std::function ±â¹İ µğ½ºÆĞÄ¡
 	std::unordered_map<UINT16, PacketHandler>mPacketHandlers;
 	void CreateComponent(const UINT32 maxClient_);
 	void ClearConnectionInfo(INT32 clientIndex_);
@@ -51,7 +51,7 @@ private:
 	void ProcessRecvPacket(const UINT32 clientIndex_, const UINT16 packetId_, const UINT16 packetSize_, char* pPacket_);
 	void ProcessUserConnect(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket);
 	void ProcessUserDisconnect(UINT32 clientIndex_m, UINT16 packetSize_, char* pPacket);
-	void ProcessLogin(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_); // ìµœëŒ€ ì ‘ì†ì ìˆ˜, ì¤‘ë³µ ë¡œê·¸ì¸ í™•ì¸
+	void ProcessLogin(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_); // ÃÖ´ë Á¢¼ÓÀÚ ¼ö, Áßº¹ Á¤µµ¸¸ È®ÀÎ
 	void ProcessLoginDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 
 
@@ -77,18 +77,18 @@ private:
 	std::mutex mLock;
 	std::condition_variable mPacketEventCV;
 
-	// queueë¥¼ 2ê°œ ë‘ì–´ì„œ ê²½í•© ê°ì†Œ
-	// IOCPì—ì„œ íŒ¨í‚·ì„ ì²˜ë¦¬í•˜ë©´ ìˆ˜ì‹ ê°ì²´ì— ë½ì„ ê±¸ì–´ì•¼ í•˜ê¸° ë•Œë¬¸ì— ë½ì„ ì•ˆê±¸ê¸° ìœ„í•´
-	// packetì²˜ë¦¬ ì“°ë ˆë“œì—ì„œëŠ” ì—¬ê¸°ì„œë§Œ ì‚¬ìš©í•˜ê³  iocpëŠ” ë„¤íŠ¸ì›Œí¬ ì²˜ë¦¬
-	//std::deque<INT32> mInComingPacketUserIndex;		// ìˆ˜ì‹  ë°ì´í„°ê°€ ìˆëŠ” ìœ ì € ì¸ë±ìŠ¤ ì €ì¥í•˜ëŠ” queue
+	// queue¸¦ 2°³ °¡Áö°í ÀÖÀ½ 
+	// IOCP¿¡¼­ ÆĞÅ¶À» Ã³¸®ÇÏ¸é °ø¿ë°´Ã¼¿¡ ¶ôÀ» °É¾î¾ß ÇÏ±â ‹š¹®¿¡ ¶ôÀ» ¾È°É±â À§ÇØ
+	// packetÃ³¸® ¾²·¹µå´Â ¿©±â¼­¸¸ »ç¿ëÇÏ°í iocp´Â ³×Æ®¿öÅ© Ã³¸®
+	//std::deque<INT32> mInComingPacketUserIndex;		// ½ÇÁ¦ µ¥ÀÌÅÍ°¡ ¿ÔÀ» ¶§ »ç¿ëÇÏ´Â queue
 	//std::deque<PacketTask>mInComingPacketUserIndex;
-	//std::deque<PacketInfo> mSystemPacketQueue;		// ë„¤íŠ¸ì›Œí¬ ì´ë²¤íŠ¸ ì²˜ë¦¬í•˜ëŠ” queue.. ì™œ ë‘ ê°œì˜ queueë¡œ ë‚˜ëˆ„ëŠ”ê±´ ì¢‹ì€ ê±´ì§€ ì •ë¦¬
+	//std::deque<PacketInfo> mSystemPacketQueue;		// ³×Æ®¿öÅ© ¿¬°á Ã³¸®ÇÏ´Â queue.. ÀÌ µÎ °¡Áö queue¸¦ ÇÕÄ¡´Â°Ô Á¦ÀÏ ÁÁ±ä ÇÔ
 
-	// ë”ë¸” ë²„í¼ë§
+	// ´õºí ¹öÆÛ¸µ
 	std::deque<PacketInfo>mSystemWriteBuffer;
 	std::deque<PacketInfo>mSystemReadBuffer;
 
-	std::deque<PacketTask> mWriteBuffer;	// IOCP Worker Threadê°€ push
-	std::deque<PacketTask> mReadBuffer;		// ProcessThreadê°€ ì†Œë¹„
+	std::deque<PacketTask> mWriteBuffer;	// IOCP Worker Thread°¡ push
+	std::deque<PacketTask> mReadBuffer;		// ProcessThread°¡ ¼Òºñ
 
 };

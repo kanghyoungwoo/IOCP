@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "IOCP.h"
 #include "Packet.h"
@@ -41,7 +41,7 @@ public:
 
 		m_pPacketManager->ReceivePacketData(clientIndex_, size_, pData_);
 	}
-
+	 
 	void Run(const UINT32 maxClient)
 	{
 		auto sendPacketFunc = [&](UINT32 clientIndex_, UINT16 packetSize_, char* pSendPacket)
@@ -59,18 +59,14 @@ public:
 
 	void End()
 	{
-		DestroyThread();			// step1~5, 네트워크 레이어 종료
-		m_pPacketManager->End();	// step6: 패킷매니저 + DB매니저
+		DestroyThread();			// step1~5, ��Ʈ��ũ ���̾� ����
+		m_pPacketManager->End();	// step6: ��Ŷ������ + DB������
 
-		// 역순 종료 방식
+		// ���� ���� ���
 		//m_pPacketManager->End();
 		//DestroyThread();
 
-		// 벤치마크 (콘솔 + 파일)
-		printf("\n=== Benchmark Result ===\n");
-		printf("SendPool Alloc Fail: %llu\n", GetSendPoolAllocFailCount());
-		printf("========================\n\n");
-
+		// ������
 		FILE* fp = nullptr;
 		fopen_s(&fp, "benchmark_result.txt", "a");
 		if (fp) {

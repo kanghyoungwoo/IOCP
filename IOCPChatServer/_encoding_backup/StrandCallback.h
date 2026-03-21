@@ -1,11 +1,11 @@
-ï»¿#pragma once
+#pragma once
 #include<atomic>
 
 enum class StrandCallbackType
 {
-	FREE_USER,			//	DISCONNECT -> UserManagerì—ì„œ ì œê±°
-	USER_LEFT_ROOM,		//	ROOM_LEAVE -> DomainStateë¥¼ Loginìœ¼ë¡œ ë³µì›
-	// ì¶”í›„ í™•ì¥
+	FREE_USER,			//	DISCONNECT -> usermanager¿¡¼­ »èÁ¦
+	USER_LEFT_ROOM,		//	ROOM_LEAVE -> DomainState¸¦ LoginÀ¸·Î º¸±Í
+	// ÃßÈÄ È®Àå
 };
 
 struct StrandCallback
@@ -13,9 +13,9 @@ struct StrandCallback
 	StrandCallbackType type;
 	uint32_t clientIndex;
 
-	// MPSC Queue ë§í¬ìš©
+	// MPSC Queue 
 	std::atomic<StrandCallback*> mpscNext{ nullptr };
 
-	// ObjectPool ë§í¬ìš©
+	//ObjectPool 
 	uint32_t poolNext = UINT32_MAX;
 };

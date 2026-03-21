@@ -1,4 +1,4 @@
-ï»¿#pragma once
+#pragma once
 #include <atomic>
 #include <cstdint>
 
@@ -6,19 +6,19 @@ static constexpr uint16_t MAX_PACKET_BODY_SIZE = 512;
 
 struct PacketJob
 {
-	// ë¼ìš°íŒ… ì •ë³´
+	// ¶ó¿ìÆÃ Á¤º¸
 	uint32_t clientIndex = 0;
 	uint32_t roomIndex = 0;
-	uint32_t targetGeneration = 0;	// ëª©í‘œ ì„¸ëŒ€ê°’(room generation)
+	uint32_t targetGeneration = 0;	// Ãâ±¸ °ËÁõ¿ë(room generation)
 
-	// íŒ¨í‚· ë°ì´í„°
+	// ÆĞÅ¶ µ¥ÀÌÅÍ
 	uint16_t packetId = 0;
 	uint16_t dataSize = 0;
 	char body[MAX_PACKET_BODY_SIZE] = {};
 
-	// MPSC Queue ë§í¬ìš©
+	// MPSC Queue ¿¬°á¿ë
 	std::atomic<PacketJob*> mpscNext{ nullptr };
 
-	// Object Pool ë§í¬ìš©
+	// Object Pool ¿¬°á¿ë
 	uint32_t poolNext = UINT32_MAX;
 };

@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "User.h"
 #include "ErrorCode.h"
@@ -9,7 +9,7 @@
 //#include <string>
 
 
-class UserManager
+class UserManager 
 {
 public:
 	UserManager() = default;
@@ -34,7 +34,7 @@ public:
 	{
 		return mCurrentUserCnt;
 	}
-
+	
 	INT32 GetMaxUserCnt()
 	{
 		return mMaxUserCnt;
@@ -43,7 +43,7 @@ public:
 	void IncreaseUserCnt()
 	{
 		mCurrentUserCnt++;
-
+		
 	}
 
 	void DecreaseUserCnt()
@@ -60,31 +60,31 @@ public:
 		std::string userIDStr = userID_;
 		//std::lock_guard<std::mutex> lock(mUserDictMutex);
 
-		// 중복 검사 후 삽입
+		// �ߺ� �˻� �� ����
 		auto result = mUserIDDictionary.insert(std::pair<std::string, int>(userIDStr, clientIndex_));
 
-		if (!result.second) // 이미 존재하면 삽입 실패
+		if (!result.second) // �̹� �����ϸ� ���� ����
 		{
 			LOG_DEBUG("Duplicate login attempt! :%s\n",userID_);
 			return ERROR_CODE::LOGIN_USER_ALREADY;
 		}
 
-		// 삽입 성공 시 user 객체 설정
+		// ���� ���� �� user ��ü ����
 		mUserObjPool[clientIndex_]->SetLogin(userID_);
 		LOG_DEBUG("User registered : %s (ClientIndex : %d)\n", userID_, clientIndex_);
 
 		//UINT32 user_index = clientIndex_;
-		//// 새로운 접속 발생할때 usermanager가 갖고있는 user객체 할당해줌
+		//// ���ο� ���� �߻��Ҷ� usermanager�� �����ִ� user��ü �Ҵ�����
 		//auto userIndex = clientIndex_;
 		//mUserObjPool[userIndex]->SetLogin(userID_);
 
-		//// string으로 변환해서 저장
+		//// string���� ��ȯ�ؼ� ����
 		//std::string userIDStr = userID_;
 		//mUserIDDictionary.insert(std::pair<std::string, int>(userIDStr, clientIndex_));
 
 
 		////mUserIDDictionary.insert(std::pair<char*, int>(userID_, clientIndex_));
-
+		
 		return ERROR_CODE::NONE;
 	}
 
@@ -112,7 +112,7 @@ public:
 
 	INT32 FindUserIndexByID(char* userID_)
 	{
-		std::string userIDStr = userID_; // char*를 string으로 변환
+		std::string userIDStr = userID_; // char*�� string���� ��ȯ
 
 		//std::lock_guard<std::mutex>lock(mUserDictMutex);
 

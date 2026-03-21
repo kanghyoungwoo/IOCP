@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #pragma comment(lib, "mswsock.lib")
 
 #include <MSWSock.h>
@@ -40,8 +40,8 @@ public:
 		return m_socketClient;
 	}
 
-	UINT32 GetGeneration() const
-	{
+	UINT32 GetGeneration() const 
+	{ 
 		return mGeneration;
 	}
 
@@ -68,7 +68,7 @@ public:
 		mIsConnected = true;
 		++mGeneration;
 
-		// 접속 직후 타임아웃 판정을 위한 시간 기록
+		// ���� ���� Ÿ�Ӿƿ� ������ ���� �ð� ����
 		UpdateActivity();
 
 		//Clear();
@@ -81,26 +81,26 @@ public:
 
 	void Closed(bool bIsForced = false)
 	{
-		// SO_LINGER를 사용하면 소켓의 close 이전에 전송되지 않은 데이터를 모두 처리할 시간을 제공
-		struct linger stLinger = { 0,0 };	// SO_DONTLINGER로 설정
+		// SO_LINGER�� ����ϸ� ������ close ���� �� ���۵��� ���� �����͸� ��� ó���� ������ ������
+		struct linger stLinger = { 0,0 };	//SO_DONTLINGER�� ����
 
-		// bIsForce가 true면 SO_LINGER, timeout = 0으로 설정하여 즉시 닫히게 함
+		// bIsForce�� true�� SO_LINGER, timeout = 0���� �����Ͽ� ���� �����Ŵ
 		if (bIsForced == true)
 		{
 			stLinger.l_onoff = 1;
 		}
 
-		// socketClose 이전에 송수신이 모두 중단
+		// socketClose������ ������ �ۼ����� ��� �ߴ�
 		shutdown(m_socketClient, SD_BOTH);
 
-		// 소켓 옵션을 설정
+		// ���� �ɼ��� ����
 		setsockopt(m_socketClient, SOL_SOCKET, SO_LINGER, (char*)&stLinger, sizeof(stLinger));
 
 		mIsConnected = false;
 
 		mLatestClosedTimeSec = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
 
-		// 소켓 연결을 닫기
+		// ���� ������ ����
 		closesocket(m_socketClient);
 
 		m_socketClient = INVALID_SOCKET;
@@ -108,7 +108,7 @@ public:
 
 	void Clear()
 	{
-		// 송신 큐 정리
+		// �۽� ť ����
 		std::lock_guard<std::mutex> gurad(mSendLock);
 
 		while (!mSendDataqueue.empty())
@@ -116,34 +116,34 @@ public:
 			//delete[] mSendDataqueue.front()->m_wsaBuf.buf;
 			//delete mSendDataqueue.front();
 			//mSendDataqueue.pop();
-			mSendPool->Free(mSendDataqueue.front());	// 풀에 반납
+			mSendPool->Free(mSendDataqueue.front());	// Ǯ�� �ݳ�
 			mSendDataqueue.pop();
 		}
-
+		
 		mSendPos = 0;
 		mIsSending = false;
 
-		// 버퍼 초기화
+		// ���� �ʱ�ȭ 
 		ZeroMemory(mRecvBuf, sizeof(mRecvBuf));
 		ZeroMemory(mSendBuf, sizeof(mSendBuf));
 
 	}
 
-	// WSASend Overlapped I/O 작업을 수행
+	// WSASend Overlapped I/O �۾��� ����
 	bool SendMsg(const UINT32 dataSize, char* pMsg)
 	{
-		// 풀에서 SendOverlappedEx 하나를 가져옴 (힙 할당 제거)
+		// Ǯ���� SendOverlappedEx �ϳ��� ������ (�� �Ҵ� ����)
 		auto pSendOvl = mSendPool->Alloc();
 		if (pSendOvl == nullptr)
 		{
-			// 풀 소진
+			// ������
 			mSendPool->IncrementAllocFail();
 			LOG_ERROR_ONCE("SendPool 소진! dataSize=%d\n", dataSize);
 			return false;
 		}
 		ZeroMemory(&pSendOvl->wsaOverlapped, sizeof(WSAOVERLAPPED));
 		pSendOvl->wsaBuf.len = dataSize;
-		pSendOvl->wsaBuf.buf = pSendOvl->buffer;	// 내부 버퍼를 가리킴
+		pSendOvl->wsaBuf.buf = pSendOvl->buffer;	// ���� ���۸� ����Ŵ
 		CopyMemory(pSendOvl->buffer, pMsg, dataSize);
 		pSendOvl->operation = IOOperation::SEND;
 		pSendOvl->generation = mGeneration;
@@ -151,7 +151,7 @@ public:
 		std::lock_guard<std::mutex> guard(mSendLock);
 		mSendDataqueue.push(pSendOvl);
 
-		//// overlapped 구조체 세팅
+		//// overlapped ����ü ����
 		//auto sendOverlappedEx = new stOverlappedEx;
 		//ZeroMemory(sendOverlappedEx, sizeof(stOverlappedEx));
 		//sendOverlappedEx->m_wsaBuf.len = dataSize;
@@ -161,14 +161,14 @@ public:
 
 		//std::lock_guard<std::mutex> guard(mSendLock);
 		//mSendDataqueue.push(sendOverlappedEx);
-
-		// 데이터가 1개이면 앞에 보내는 데이터가 없으니 바로 wsasend
+		
+		// �����Ͱ� 1����� �տ� �����Ͱ� ������ �ٷ� wsasend
 		if (mSendDataqueue.size() == 1)
 		{
 			SendIO();
 		}
 
-		// buffer를 이용한 1-send
+		// buffer�� �̿��� 1-send
 		/*
 		std::lock_guard<std::mutex>guard(mSendLock);
 		if ((mSendPos + dataSize) > MAX_SOCK_SENDBUF)
@@ -177,7 +177,7 @@ public:
 		}
 		auto pSendBuf = &mSendBuf[mSendPos];
 
-		// 보낼 메시지 복사
+		// ���� �޼��� ����
 		CopyMemory(pSendBuf, pMsg, dataSize);
 		mSendPos += dataSize;
 		*/
@@ -191,7 +191,7 @@ public:
 		DWORD dwFlag = 0;
 		DWORD dwRecvNumBytes = 0;
 
-		// Overlapped I/O를 위한 각 정보를 세팅
+		// Overlapped I/O�� ���� �� ������ ����
 		m_stRecvOverlappedEx.m_wsaBuf.len = MAX_SOCKBUF;
 		m_stRecvOverlappedEx.m_wsaBuf.buf = mRecvBuf;
 		m_stRecvOverlappedEx.m_eOperation = IOOperation::RECV;
@@ -205,21 +205,21 @@ public:
 			(LPWSAOVERLAPPED) & (m_stRecvOverlappedEx),
 			NULL);
 
-		// socket_error 시 client socket이 끊어졌으므로 처리
+		// socket_error �� client socket�� ������������ ó��
 		if (nRet == SOCKET_ERROR && (WSAGetLastError() != ERROR_IO_PENDING))
 		{
 			LOG_ERROR("WSARecv() 실패 : %d\n", WSAGetLastError());
-			Closed(true); // 강제 종료 처리
+			Closed(true); // ���� ���� ����
 			return false;
 		}
 		LOG_DEBUG("bind recv 성공\n");
 		return true;
 	}
 
-	// CompletionPort 객체와 소켓과 CompletionKey를 연결시키는 연결용 함수
+	// CompletionPort��ü�� ���ϰ� CompletionKey�� �����Ű�� ������ ��
 	bool BindIOCompletionPort(HANDLE iocpHandle)
 	{
-		// socket과 pClientInfo를 CompletionPort 객체에 연결시킴
+		// socket�� pClientInfo�� CompletionPort��ü�� �����Ŵ
 		auto hIOCP = CreateIoCompletionPort((HANDLE)GetSocket()
 			, iocpHandle
 			, (ULONG_PTR)(this), 0);
@@ -255,7 +255,7 @@ public:
 			return false;
 		}
 
-		// buffer 방식의 1-send
+		// buffer����� 1-send
 		/*
 		if (mSendPos <= 0 || mIsSending)
 		{
@@ -280,7 +280,7 @@ public:
 			(LPWSAOVERLAPPED)&(m_stSendOverlappedEx),
 			NULL);
 
-		// socket_error시 client socket이 끊어진 경우의 처리
+		// socket_error�� client socket�� ������ ������ ó��
 		if (nRet == SOCKET_ERROR && (WSAGetLastError() != ERROR_IO_PENDING))
 		{
 			LOG_ERROR_ONCE("WSASend() 실패 : %d\n", WSAGetLastError());
@@ -294,7 +294,7 @@ public:
 
 	void SendComplete(const UINT32 dataSize_)
 	{
-		// buffer 방식을 이용한 1-send
+		// buffer����� �̿��� 1-send
 		/*
 		mIsSending = false;
 		*/
@@ -430,12 +430,12 @@ public:
 
 		return true;
 	}
-
+	
 	void UpdateActivity()
 	{
 		ULONGLONG now = GetTickCount64();
 		mLastActivityTime.store(GetTickCount64(), std::memory_order_relaxed);
-		// 클라이언트가 방금 활동했으므로 ping 기록도 리셋
+		// Ŭ���̾�Ʈ�� ���� Ȱ�� ���̹Ƿ� ping ���� ��ϵ� ����
 		mLastPingTime.store(0, std::memory_order_relaxed);
 	}
 
@@ -448,7 +448,7 @@ public:
 	{
 		mLastPingTime.store(time, std::memory_order_relaxed);
 	}
-
+	
 	ULONGLONG GetLastPingTime() const
 	{
 		return mLastPingTime.load(std::memory_order_relaxed);
@@ -464,28 +464,28 @@ public:
 
 	//bool mAcceptPendingg = false;
 private:
-	UINT32			mIndex = 0;				// Client의 index
-	SOCKET			m_socketClient;			// Client와 연결되는 소켓
-	stOverlappedEx	m_stRecvOverlappedEx;	// RECV Overlapped I/O 작업을 위한 변수
-	stOverlappedEx	m_stSendOverlappedEx;	// SEND Overlapped I/O 작업을 위한 변수
-	stOverlappedEx	m_stAcceptOverlappedEx;	// Accept를 요청하고 IOCP 컴플리션에서 완료를 확인하기 위한 구조체
+	UINT32			mIndex = 0;				// Client�� index
+	SOCKET			m_socketClient;			// Client�� ����Ǵ� ����
+	stOverlappedEx	m_stRecvOverlappedEx;	// RECV Overlapped I/O �۾��� ���� ����
+	stOverlappedEx	m_stSendOverlappedEx;	// SEND Overlapped I/O �۾��� ���� ����
+	stOverlappedEx	m_stAcceptOverlappedEx;	// Accept�� ��û�ϰ� IOCP ������Ʈ���� �ϷḦ Ȯ���ϱ� ���� ����ü
 	stOverlappedEx mAcceptContext;
 	std::mutex mSendLock;
 	bool mIsSending = false;
-	UINT64 mSendPos = 0; // SendBuffer의 쓰기위치 관리 변수
+	UINT64 mSendPos = 0; // SendBuffer�� ������ġ ���� ����
 	HANDLE mIOCPHandle = INVALID_HANDLE_VALUE;
 	ObjectPool<SendOverlappedEx>* mSendPool = nullptr;
 	//bool mAcceptPending = false;
-
-	char mRecvBuf[MAX_SOCKBUF];	// 수신용 버퍼
-	char mSendBuf[MAX_SOCKBUF]; // 송신용 버퍼
+	
+	char mRecvBuf[MAX_SOCKBUF];	// ������ ����
+	char mSendBuf[MAX_SOCKBUF]; // ������ ����
 	char mSendingBuf[MAX_SOCK_SENDBUF];
 	//std::queue<stOverlappedEx*> mSendDataqueue;
 	std::queue<SendOverlappedEx*> mSendDataqueue;
-	bool mIsConnected = false;			// Client의 접속 요청을 했는지 확인하는 변수
-	char mAcceptbuf[128];				// AcceptEx의 3번째 인자로 넘겨줄 버퍼
-	UINT64 mLatestClosedTimeSec = 0;		// 마지막으로 소켓이 닫혔던 시간
-
+	bool mIsConnected = false;			// Client�� ���� ��û�� �ߴ��� Ȯ���ϴ� ����
+	char mAcceptbuf[128];				// AcceptEx�� 3��° ���ڷ� �Ѱ��� ����
+	UINT64 mLatestClosedTimeSec = 0;		// ���������� ������ ����� �ð�
+	
 	UINT32 mGeneration = 0;
 
 	std::atomic<ULONGLONG> mLastActivityTime{ 0 };

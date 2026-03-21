@@ -1,4 +1,4 @@
-ï»¿#pragma once
+#pragma once
 #include "Room.h"
 #include <atomic>
 #include <emmintrin.h>
@@ -15,10 +15,10 @@ private:
 		Room* data;
 	};
 
-	Cell* m_buffer = nullptr;	// ë§ë²„í¼ ë°°ì—´
-	uint32_t m_bufferMask = 0;	// ë¹„íŠ¸ë§ˆìŠ¤í¬ë¡œ ëª¨ë“ˆëŸ¬ ì—°ì‚°
-	alignas(64) std::atomic<uint32_t> m_enqueuePos;	// Producer ìœ„ì¹˜
-	alignas(64) std::atomic<uint32_t> m_dequeuePos;	// Consumer ìœ„ì¹˜
+	Cell* m_buffer = nullptr;	//	°íÁ¤¹è¿­
+	uint32_t m_bufferMask = 0;	//	ºñÆ®¸¶½ºÅ©·Î ¸ğµâ·¯ ¿¬»ê
+	alignas(64) std::atomic<uint32_t> m_enqueuePos;	// Producer À§Ä¡
+	alignas(64) std::atomic<uint32_t> m_dequeuePos;	// Consumer À§Ä¡
 	std::atomic<bool> m_shutdown;
 
 public:
@@ -39,13 +39,13 @@ public:
 
 	void Init(uint32_t bufferSize)
 	{
-		// 2ì˜ ê±°ë“­ì œê³±ì¸ì§€ ê²€ì‚¬ (ë¹„íŠ¸ë§ˆìŠ¤í¬ ì‚¬ìš© ìœ„í•´ í•„ìˆ˜ì¡°ê±´)
+		// 2ÀÇ Á¦°ö¼öÀÎÁö °Ë»ç(ºñÆ®¸¶½ºÅ© ¾²±â À§ÇÑ ÇÊ¼öÁ¶°Ç)
 		if (bufferSize < 2 || (bufferSize & (bufferSize - 1)) != 0)
 			throw std::invalid_argument("bufferSize must be power of 2");
 
 		m_bufferMask = bufferSize - 1;
 		m_buffer = new Cell[bufferSize];
-		// ê° ìŠ¬ë¡¯ì˜ sequenceë¥¼ indexë¡œ ì´ˆê¸°í™”
+		// °¢ ½½·ÔÀÇ sequence¸¦ index·Î ÃÊ±âÈ­
 		for (uint32_t i = 0;i < bufferSize;++i)
 		{
 			m_buffer[i].sequence.store(i, std::memory_order_relaxed);
@@ -67,32 +67,32 @@ public:
 			cell = &m_buffer[pos & m_bufferMask];
 			uint32_t seq = cell->sequence.load(std::memory_order_acquire);
 
-			// ì˜¤ë²„í”Œë¡œìš° ì•ˆì „í•œ ë¶€í˜¸ìˆëŠ” ì •ìˆ˜ë¹„êµ
+			// ¿À¹öÇÃ·Î¿ì ¹æ¾îÇÏ´Â ºÎÈ£ÀÖ´Â Á¤¼ö¿¬»ê
 			int32_t diff = static_cast<int32_t>(seq - pos);
 
 			if (diff == 0)
 			{
-				// CAS ì‹œë„
+				// CAS½Ãµµ
 				if (m_enqueuePos.compare_exchange_weak(pos, pos + 1, std::memory_order_relaxed))
 					break;
 			}
 			else if (diff < 0)
 			{
-				// íê°€ ê°€ë“ ì°¸
-				// ë‹¤ë¥¸ ìŠ¤ë ˆë“œê°€ ë¨¼ì € ë„£ì–´ì„œ ë°€ë¦° ê²½ìš°ì´ë¯€ë¡œ pos ìµœì‹ í™”
+				// Å¥°¡ ²ËÂü
+				//´Ù¸¥ ½º·¹µå°¡ ¸ÕÀú ³Ö¾úÀ» ¼öµµ ÀÖÀ¸´Ï pos ÃÖ½ÅÈ­
 				pos = m_enqueuePos.load(std::memory_order_relaxed);
 			}
 			else
 			{
-				// ë‹¤ë¥¸ ìŠ¤ë ˆë“œê°€ ë¨¼ì € CASì— ì„±ê³µí•´ì„œ posê°€ ì˜¬ë¼ê°
+				// ´Ù¸¥ ¾²·¹µå°¡ ¸ÕÀú CAS¿¡ ¼º°øÇØ¼­ pos°¡ ¿Ã¶ó°¨
 				pos = m_enqueuePos.load(std::memory_order_relaxed);
 			}
 		}
 
-		// ì„±ê³µì ìœ¼ë¡œ ìë¦¬ë¥¼ í™•ë³´í–ˆìœ¼ë‹ˆ ë°ì´í„° ì €ì¥
+		// ¼º°øÀûÀ¸·Î ÀÚ¸®¸¦ È®º¸ÇßÀ¸´Ï µ¥ÀÌÅÍ ¾²±â
 		cell->data = pRoom;
 
-		// Consumerì—ê²Œ ì½ê¸° ì¤€ë¹„ì™„ë£Œ ì‹ í˜¸ ì „ë‹¬ (release)
+		// Consumer¿¡°Ô ½½·Ô ÁØºñ¿Ï·á ½ÅÈ£ º¸³¿ release
 		cell->sequence.store(pos + 1, std::memory_order_release);
 	}
 
@@ -107,44 +107,44 @@ public:
 			cell = &m_buffer[pos & m_bufferMask];
 			uint32_t seq = cell->sequence.load(std::memory_order_acquire);
 
-			// Popì—ì„œëŠ” seqê°€ pos + 1 ì´ì–´ì•¼ ë°ì´í„°ê°€ ìˆëŠ” ê²ƒ
+			// Pop¿¡¼± seq°¡ pos + 1 ÀÌ¾î¾ß µ¥ÀÌÅÍ°¡ ÀÖ´Â°Í
 			int32_t diff = static_cast<int32_t>(seq - (pos + 1));
 
 			if (diff == 0)
 			{
-				// CAS ì‹œë„
+				// CAS ½Ãµµ
 				if (m_dequeuePos.compare_exchange_weak(pos, pos + 1, std::memory_order_relaxed))
 					break;
 			}
 			else if (diff < 0)
 			{
-				// íê°€ ë¹„ì–´ìˆìŒ -> shutdown ì²´í¬ë¥¼ í•´ì•¼ ì”ì—¬ íŒ¨í‚· ì²˜ë¦¬ê°€ëŠ¥
+				// Å¥°¡ ºñ¾îÀÖÀ½ -> shutdown Ã¼Å©¸¦ ÇØ¾ß ÀÜ¿© ÆĞÅ¶ ¼ÒÁø°¡´É
 				if (m_shutdown.load(std::memory_order_acquire))
 					return nullptr;
 
-				// ìì—°ìŠ¤ëŸ° backoff
+				// ÀÚ¿øÀı¾à backoff
 				if (spinCount < 1024)
 				{
-					_mm_pause(); // ì§§ì€ spin
+					_mm_pause(); // ÂªÀº spin
 				}
 				else
 				{
-					Sleep(0);	// OS ìŠ¤ì¼€ì¤„ëŸ¬ì— ì–‘ë³´
+					Sleep(0);	// OS½ºÄÉÁÙ·¯¿¡ ¾çº¸
 				}
 				spinCount++;
 				pos = m_dequeuePos.load(std::memory_order_relaxed);
 			}
 			else
 			{
-				// ë‹¤ë¥¸ Consumerê°€ ë¨¼ì € ê°€ì ¸ê°
+				// ´Ù¸¥ Consumer°¡ ¸ÕÀú °¡Á®°¨
 				pos = m_dequeuePos.load(std::memory_order_relaxed);
 			}
 		}
 
-		// ë°ì´í„° ì½ê¸°
+		// µ¥ÀÌÅÍ ÀĞ±â
 		Room* data = cell->data;
 
-		// ìŠ¬ë¡¯ ì¬í™œìš©ì„ ìœ„í•´ Producerì—ê²Œ ë¹ˆìë¦¬ ì‹ í˜¸
+		// ½½·Ô ÀçÈ°¿ëÀ» À§ÇØ Producer¿¡°Ô ºóÀÚ¸® ½ÅÈ£
 		cell->sequence.store(pos + m_bufferMask + 1, std::memory_order_release);
 
 		return data;
@@ -153,7 +153,7 @@ public:
 
 	void Shutdown()
 	{
-		// íë¥¼ ë‹«ëŠ” ì‹ í˜¸, ë”ì´ìƒ ë¹ˆ í ëŒ€ê¸° X
+		// Å¥ÀÇ ¹®À» ´İÀ½, ´õÀÌ»ó ºó Å¥ ´ë±â X
 		m_shutdown.store(true, std::memory_order_release);
 	}
 };

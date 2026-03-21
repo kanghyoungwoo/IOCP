@@ -1,15 +1,15 @@
-﻿//#include "IOCP.h"
+//#include "IOCP.h"
 #include "ChatServer.h"
 #include "CrashDump.h"
 #include "ObjectPool.h"
 #include <string>
 #include <iostream>
 const UINT16 SERVER_PORT = 11021;
-const UINT16 MAX_CLIENT = 2000;	// 한 번에 접속할 클라이언트 수
+const UINT16 MAX_CLIENT = 2000;	// �� ���� ������ Ŭ���̾�Ʈ ��
 const UINT32 MAX_IO_WORKER_THREAD =8;
 
 
-// Ctrl+c, 콘솔 닫기 버튼에서 graceful shutdown을 호출하기 위한 전역변수
+// Ctrl+c, �ܼ� ���� ��ư���� gracefunshutdown�� ȣ���ϱ� ���� ������
 ChatServer* g_pServer = nullptr;
 
 BOOL WINAPI ConsoleCtrlHandler(DWORD ctrlType)
@@ -45,21 +45,21 @@ int main()
 	ChatServer Server;
 	g_pServer = &Server;
 
-	// 서버 초기화
+	// ������ �ʱ�ȭ
 	Server.Init(MAX_IO_WORKER_THREAD);
 
-	// 소켓과 서버 주소를 바인딩하고 리슨
+	// ���ϰ� ���� �ּҸ� �����ϰ� ���
 	Server.BindandListen(SERVER_PORT);
 
 	Server.Run(MAX_CLIENT);
 
 	printf("Type 'quit' to stop the server.\n");
-
+	
 	while (true)
 	{
 		std::string input;
 		std::getline(std::cin, input);
-
+		
 		if (input == "quit")
 		{
 			break;
@@ -67,7 +67,7 @@ int main()
 	}
 
 	Server.End();
-	g_pServer = nullptr; // 핸들러에서 이중 호출 방지
+	g_pServer = nullptr; // �ڵ鷯���� ���� ȣ�� ����
 
 	return 0;
 }

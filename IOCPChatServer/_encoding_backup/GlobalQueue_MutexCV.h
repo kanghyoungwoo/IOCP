@@ -1,4 +1,4 @@
-ï»¿#pragma once
+#pragma once
 #include <queue>
 #include <mutex>
 #include <condition_variable>
@@ -47,8 +47,8 @@ public:
 
 
 private:
-	std::queue<Room*>		mQueue;		// ë°© ë°°ë¶„ í
-	std::mutex				mLock;		// ë™ê¸°í™”
+	std::queue<Room*>		mQueue;		// ½ÇÁ¦ µ¥ÀÌÅÍ
+	std::mutex				mLock;		// µ¿±âÈ­
 	std::condition_variable	mCV;		// Logic thread blocking
-	std::atomic<bool>		mShutdown;	// ì¢…ë£Œ ì‹ í˜¸
+	std::atomic<bool>		mShutdown;	// Á¾·á ½ÅÈ£
 };

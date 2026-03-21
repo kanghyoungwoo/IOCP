@@ -52,6 +52,18 @@
     <ClInclude Include="PacketJob.h">
       <Filter>ServerNetwork</Filter>
     </ClInclude>
+    <ClInclude Include="GlobalQueue_MutexCV.h">
+      <Filter>ServerNetwork</Filter>
+    </ClInclude>
+    <ClInclude Include="StrandCallback.h">
+      <Filter>ServerNetwork</Filter>
+    </ClInclude>
+    <ClInclude Include="StrandProcessor.h">
+      <Filter>ServerNetwork</Filter>
+    </ClInclude>
+    <ClInclude Include="GlobalQueue_LockFree.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />

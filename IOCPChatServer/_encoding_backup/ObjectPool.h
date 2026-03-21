@@ -1,13 +1,13 @@
-ï»¿#pragma once
+#pragma once
 #include "LockFreeStack.h"
 #include <cstdint>
 #include <cassert>
 #include <vector>
-// ê³ ì • í¬ê¸° ê°ì²´ í’€ (ë½í”„ë¦¬ ìŠ¤íƒ ê¸°ë°˜)
-// - ì„œë²„ ì‹œì‘ ì‹œ Nê°œë¥¼ ë¯¸ë¦¬ í• ë‹¹í•˜ê³ , Alloc/Freeë¡œ ìš´ìš©
-// - ë‚´ë¶€ì ìœ¼ë¡œ Free List(ìŠ¤íƒ)ë¥¼ ì‚¬ìš©í•˜ì—¬ O(1) í• ë‹¹/ë°˜ë‚©ì´ ê°€ëŠ¥
-// - IOCP ì›Œì»¤ ìŠ¤ë ˆë“œ(SendComplete)ì™€ ë©”ì¸ ìŠ¤ë ˆë“œ(SendMsg)ê°€
-//   ë™ì‹œì— ì ‘ê·¼í•˜ë¯€ë¡œ ë½í”„ë¦¬ë¡œ ë³´í˜¸
+// °íÁ¤ Å©±â °´Ã¼ Ç® (½º·¹µå ¼¼ÀÌÇÁ)
+// - ¼­¹ö ½ÃÀÛ ½Ã N°³¸¦ ¹Ì¸® ÇÒ´çÇÏ°í, Alloc/Free·Î Àç»ç¿ë
+// - ³»ºÎÀûÀ¸·Î Free List(½ºÅÃ)¸¦ »ç¿ëÇÏ¿© O(1) ÇÒ´ç/¹İ³³À» º¸Àå
+// - IOCP ¿öÄ¿ ½º·¹µå(SendComplete)¿Í ·ÎÁ÷ ½º·¹µå(SendMsg)°¡
+//   µ¿½Ã¿¡ Á¢±ÙÇÏ¹Ç·Î mutex·Î º¸È£
 template<typename T>
 class ObjectPool
 {
@@ -15,7 +15,7 @@ public:
 	ObjectPool() = default;
 	~ObjectPool()
 	{
-		// í’€ì— í• ë‹¹ëœ ë©”ëª¨ë¦¬ í•´ì œ
+		// Ç®ÀÌ ¼ÒÀ¯ÇÑ ¸Ş¸ğ¸® ÇØÁ¦
 		if (m_poolBlock != nullptr)
 		{
 			delete[] m_poolBlock;
@@ -24,20 +24,20 @@ public:
 
 	}
 
-	// ë³µì‚¬/ì´ë™ ê¸ˆì§€
+	// º¹»ç/ÀÌµ¿ ±İÁö
 	ObjectPool(const ObjectPool&) = delete;
 	ObjectPool& operator=(const ObjectPool&) = delete;
 
-	// poolSizeë§Œí¼ ê°ì²´ë¥¼ ë¯¸ë¦¬ í• ë‹¹
+	// poolSize°³ÀÇ °´Ã¼¸¦ ¹Ì¸® ÇÒ´ç
 	void Init(const uint32_t poolSize)
 	{
 		//mFreeList.reserve(poolSize);
 
-		// ì—°ì†ëœ ë°°ì—´ë¡œ í• ë‹¹
+		// ¿¬¼ÓµÈ ¹è¿­·Î ÇÒ´ç
 		m_poolBlock = new T[poolSize];
 
-		// ìŠ¤íƒì— ë°°ì—´ ì‹œì‘ì£¼ì†Œ ì•Œë ¤ì¤Œ
-		mFreeStack.Init(m_poolBlock);	// ë² ì´ìŠ¤ ì£¼ì†Œ ì„¤ì •
+		// ½ºÅÃ¿¡ ¹è¿­ ½ÃÀÛÁÖ¼Ò ¾Ë·ÁÁÜ
+		mFreeStack.Init(m_poolBlock);	// ½ÃÀÛ ÁÖ¼Ò Àü´Ş
 		for (uint32_t i = 0; i < poolSize; ++i)
 		{
 			mFreeStack.Push(&m_poolBlock[i]);
@@ -45,22 +45,22 @@ public:
 
 		mPoolSize = poolSize;
 
-		// ë””ë²„ê¹…
+		// µğ¹ö±ë¿ë
 		mFreeCount.store(poolSize, std::memory_order_relaxed);
 	}
 
-	// í’€ì—ì„œ ê°ì²´ í•˜ë‚˜ë¥¼ êº¼ë‚¸ë‹¤.
-	// í’€ì´ ë¹„ì—ˆìœ¼ë©´ nullptr ë°˜í™˜ (í˜¸ì¶œ ì¸¡ì—ì„œ ì²˜ë¦¬)
+	// Ç®¿¡¼­ °´Ã¼ ÇÏ³ª¸¦ ²¨³½´Ù.
+	// Ç®ÀÌ ºñ¾úÀ¸¸é nullptr ¹İÈ¯ (È£Ãâ Ãø¿¡¼­ Ã³¸®)
 	T* Alloc()
 	{
 		T* p = mFreeStack.Pop();
 		if (p) mFreeCount.fetch_sub(1, std::memory_order_relaxed);
 		return p;
 
-		//return mFreeStack.Pop(); // nullptrì´ë©´ í’€ ì†Œì§„
+		//return mFreeStack.Pop(); // nullptrÀÌ¸é Ç® ¼ÒÁø 
 	}
 
-	// ì‚¬ìš©ì´ ëë‚œ ê°ì²´ë¥¼ í’€ì— ë°˜ë‚©í•œë‹¤.
+	// »ç¿ëÀÌ ³¡³­ °´Ã¼¸¦ Ç®¿¡ ¹İ³³ÇÑ´Ù.
 	void Free(T* obj)
 	{
 		if (obj == nullptr)
@@ -70,8 +70,8 @@ public:
 		mFreeStack.Push(obj);
 		mFreeCount.fetch_add(1, std::memory_order_relaxed);
 	}
-
-	// í…ŒìŠ¤íŠ¸ ìš©ë„
+	
+	// Å×½ºÆ® ¿ëµµ
 	 bool IsLockFree() const
 	{
 		 return mFreeStack.IsLockFree();
@@ -85,13 +85,13 @@ public:
 
 
 private:
-	//std::vector<T*> mAllBlocks;		// ë©”ëª¨ë¦¬ ê´€ë¦¬ìš© (ì†Œë©¸ì)
+	//std::vector<T*> mAllBlocks;		// ¸Ş¸ğ¸® ÇØÁ¦¿ë (¼ÒÀ¯±Ç)
 	T* m_poolBlock = nullptr;
 	uint32_t mPoolSize = 0;
 	LockFreeStack<T> mFreeStack;
 	std::atomic<uint64_t> mAllocFailCount{ 0 };
 
 
-	// ë””ë²„ê¹…
+	// µğ¹ö±ë¿ë
 	std::atomic<uint32_t> mFreeCount{ 0 };
 };

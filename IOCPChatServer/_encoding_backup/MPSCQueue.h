@@ -1,4 +1,4 @@
-ï»¿#pragma once
+#pragma once
 #include<atomic>
 
 template<typename T>
@@ -16,7 +16,7 @@ public:
 	{
 		node->mpscNext.store(nullptr, std::memory_order_relaxed);
 		T* prev = m_tail.exchange(node, std::memory_order_acq_rel);
-		prev->mpscNext.store(node, std::memory_order_release);	// Hole êµ¬ê°„
+		prev->mpscNext.store(node, std::memory_order_release);	// HoleÁöÁ¡ 
 	}
 
 	T* Pop()
@@ -24,7 +24,7 @@ public:
 		T* head = m_head;
 		T* next = head->mpscNext.load(std::memory_order_acquire);
 
-		// ìƒí™©1: headê°€ stubì´ê³  nextê°€ ìˆìŒ -> stub ê±´ë„ˆë›°ê¸°
+		// »óÈ²1 head°¡ stubÀÌ°í next°¡ ÀÖÀ½ -> stub °Ç³Ê¶Ù±â
 		if (head == &m_stub)
 		{
 			if (next == nullptr)
@@ -33,14 +33,14 @@ public:
 			head = next;
 			next = head->mpscNext.load(std::memory_order_acquire);
 		}
-		// ìƒí™©2: headê°€ ì‹¤ì œë¡œ ë…¸ë“œì´ê³  nextê°€ ìˆìŒ -> ì •ìƒ pop
+		// »óÈ²2 head°¡ µ¥ÀÌÅÍ ³ëµåÀÌ°í next°¡ ÀÖÀ½ -> Á¤»ó pop
 		if (next != nullptr)
 		{
 			m_head = next;
 			return head;
 		}
-		// ìƒí™©3: headê°€ ì‹¤ì œë¡œ ë…¸ë“œì´ê³  nextê°€ nullptr -> holeì´ê±°ë‚˜ ì§„ì§œ ë§ˆì§€ë§‰ì„
-		// stubì„ tailì— ë‹¤ì‹œ ë„£ì–´ì•¼ í•¨
+		// »óÈ²3 head°¡ ¸¶Áö¸· ³ëµåÀÌ°í next°¡ nullptr -> holeÀÌ°Å³ª ÁøÂ¥ ºñ¾îÀÖÀ½
+		// stubÀ» tail¿¡ Àç»ğÀÔ ÇØ¾ßÇÔ
 		T* tail = m_tail.load(std::memory_order_acquire);
 		if (head != tail)
 		{
@@ -57,9 +57,9 @@ public:
 	}
 
 private:
-	T m_stub;					// íŒŒìˆ˜ê¾¼ ì—­í• , ë¹ˆ í ìƒíƒœë¥¼ ëª…í™•íˆ êµ¬ë¶„í•˜ê¸° ìœ„í•œ ì„¼í‹°ë„¬
-
-	// alignas(64) ë¡œ ê±°ì§“ ìºì‹œ ë¬´íš¨í™” ë°©ì§€
-	alignas(64) std::atomic<T*> m_tail;		// Producerë“¤ì´ exchange
-	alignas(64) T* m_head;					// Consumerë§Œ ì ‘ê·¼(atomic ë¶ˆí•„ìš”)
+	T m_stub;					// ÆÄ¼ö²Û ³ëµå, ºó Å¥ »óÅÂ °ü¸®¸¦ À§ÇÑ ´õ¹Ì ³ëµå
+	
+	// alignas(64) À» ÅëÇØ Ä³½Ã ¹«È¿È­ ¹æÁö
+	alignas(64) std::atomic<T*> m_tail;		// ProducerµéÀÌ exchange
+	alignas(64) T* m_head;					// Consumer¸¸ Á¢±Ù(atomic ºÒÇÊ¿ä)
 };

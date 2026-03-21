@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "Room.h"
 #include <vector>
 #include <functional>
@@ -60,7 +60,7 @@ public:
 		{
 			return (INT16)ERROR_CODE::ROOM_INVALID_INDEX;
 		}
-		// 다시 로비로 상태 변경
+		// �ٽ� �� �� Ȯ��
 		user_->SetDomainState(User::DOMAIN_STATE::LOGIN);
 		room->LeaveUser(user_);
 

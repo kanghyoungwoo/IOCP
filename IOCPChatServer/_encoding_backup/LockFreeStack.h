@@ -1,4 +1,4 @@
-ï»¿#pragma once
+#pragma once
 
 #include <cstdint>
 #include <atomic>
@@ -8,21 +8,21 @@ static constexpr uint32_t NULL_INDEX = UINT32_MAX;
 template<typename T>
 class LockFreeStack
 {
-	// êµ¬ì¡°ì²´ (16ë°”ì´íŠ¸, Lock-Freeìš© ì¸ë±ìŠ¤)
-	//// 16ë°”ì´íŠ¸ ì •ë ¬ ì„ ì–¸í•˜ì—¬ í•˜ë“œì›¨ì–´ 128ë¹„íŠ¸ CASì—ì„œ í™•ì‹¤í•˜ê²Œ í•˜ë„ë¡
+	// ±âÁ¸ (16¹ÙÀÌÆ®, Lock-Free°¡ ¾ÈµÊ)
+	//// 16¹ÙÀÌÆ® Á¤·Ä °­Á¦ÇÏ¿© ÇÏµå¿ş¾î 128ºñÆ® CASÁö¿ø È®½ÇÇÏ°Ô ÇÏµµ·Ï
 	//struct alignas(16) TaggedPointer {
-	//	// ABA ë¬¸ì œë¥¼ ìœ„í•œ ê²ƒì€ Node<T>* í¬ì¸í„° í•˜ë‚˜ì™€ uint32_të‚˜ uintptr_t íƒ€ì…ì˜ ì„¸ëŒ€(Generation) ì¹´ìš´í„°ë¥¼ í•˜ë‚˜ë” ê°€ì§„ ë…€ì„
+	//	// ABA ¹®Á¦¸¦ ¸·±â À§ÇØ Node<T>* Æ÷ÀÎÅÍ ÇÏ³ª¿Í uint32_t³ª uintptr_t °°Àº ¼¼´ë(Generation) Ä«¿îÅÍ¸¦ ÇÏ³ª·Î ¹­Àº ³à¼®
 	//	T* ptr;
-	//	uintptr_t generation;	// ë²ˆí˜¸ ìˆœì„œ ê´€ë¦¬ë¥¼ ìœ„í•œ ì„¸ëŒ€
+	//	uintptr_t generation;	// ºÎÈ£ ¾ø´Â Á¤¼ö·Î ¼¼´ë °ü¸®
 	//};
 	struct TaggedIndex
 	{
-		uint32_t index;			// 4ë°”ì´íŠ¸, í’€ ì¸ë±ìŠ¤ (UINT_MAX = ë¹„ì–´ìˆìŒ)
-		uint32_t generation;	// 4ë°”ì´íŠ¸, ABA ë°©ì§€ count
+		uint32_t index;			// 4¹ÙÀÌÆ®, Ç®ÀÎµ¦½º (UINT_MAX = ºñ¾îÀÖÀ½)
+		uint32_t generation;	// 4¹ÙÀÌÆ®, ABA ¹æ¾î count
 	};
 
-	std::atomic<uint64_t> m_head; // ê¸°ì¡´ TaggedPointer -> uint64_të¡œ pack/unpack
-	T* m_pool = nullptr;	// í’€ ë°°ì—´ ì‹œì‘ ì£¼ì†Œ (ì¸ë±ìŠ¤ â†” í¬ì¸í„° ë³€í™˜ìš©)
+	std::atomic<uint64_t> m_head; // ±âÁ¸ TaggedPointer -> uint64_t·Î pack/unpack
+	T* m_pool = nullptr;	// Ç® ¹è¿­ ½ÃÀÛ ÁÖ¼Ò (ÀÎµ¦½º Æ÷ÀÎÅÍ º¯È¯¿ë)
 
 	static uint64_t Pack(uint32_t index, uint32_t gen)
 	{
@@ -36,31 +36,31 @@ class LockFreeStack
 
 public:
 	//LockFreeStack() : m_head(TaggedPointer{ nullptr, 0 }) {}
-	// í’€ì´ ë¹ˆ ì±„ ê°ì²´ ë°˜ë‚©
+	// Ç®¿¡ ´Ù ¾´ °´Ã¼ ¹İ³³
 	LockFreeStack() : m_head(Pack(NULL_INDEX, 0)) {}
 
 	void Init(T* poolBase) { m_pool = poolBase; }
-
+	
 	//void Push(T* obj)
 	//{
-	//	// ìš°ì„ ì€ m_head ê°’ì„ ì½ì–´ì™€ì„œ oldHeadë¼ëŠ” ë³€ìˆ˜ì— ì„ì‹œë¡œ ì €ì¥
-	//	// ì²˜ìŒ ì½ì–´ì˜¬ë•Œ ë‹¤ë¥¸ ìŠ¤ë ˆë“œì—ì„œ ë©”ëª¨ë¦¬ ë™ê¸°í™” ë¶ˆí•„ìš”, ê·¸ë˜ì„œ relaxed ì‚¬ìš©
+	//	//ÇöÀçÀÇ m_head °ªÀ» ÀĞ¾î¿Í¼­ oldHead¶ó´Â Áö¿ª º¯¼ö¿¡ ÀúÀå
+	//	// Ã³À½ ÀĞ¾î¿Ã¶© ´Ù¸¥ ½º·¹µå¿ÍÀÇ ¸Ş¸ğ¸® µ¿±âÈ­ ÇÊ¿äX, °¡º­¿î relaxed »ç¿ë
 	//	TaggedPointer oldHead = m_head.load(std::memory_order_relaxed);
-	//
+	//	
 	//	while (true)
 	//	{
 	//		obj->poolNext = oldHead.ptr;
-	//
+	//		
 	//		TaggedPointer newHead;
 	//		newHead.ptr = obj;
 	//		newHead.generation = oldHead.generation + 1;
-	//
-	//
+	//		
+	//		
 	//		if (m_head.compare_exchange_weak(
 	//			oldHead,
 	//			newHead,
-	//			std::memory_order_release,	// ì„±ê³µì‹œ ì´ì „ ì“°ê¸°ë“¤ì´ ë‹¤ë¥¸ ìŠ¤ë ˆë“œì—ì„œ ë³´ì´ê²Œ
-	//			std::memory_order_relaxed	// ì‹¤íŒ¨ì‹œ ì£¼ì†Œë§Œ í•„ìš”í•˜ë‹ˆ ë‹¤ì‹œ ì½ê¸°
+	//			std::memory_order_release,	// ¼º°ø½Ã ³» µ¥ÀÌÅÍ ³²µé¿¡°Ô º¸¿©ÁÜ 
+	//			std::memory_order_relaxed	// ½ÇÆĞ½Ã ÁÖ¼Ò¸¸ ÇÊ¿äÇÏ´Ï ´Ù½Ã ÀĞ±â
 	//		))
 	//			break;
 	//	}
@@ -69,13 +69,13 @@ public:
 
 	void Push(T* obj)
 	{
-		uint32_t objIndex = static_cast<uint32_t>(obj - m_pool); // í¬ì¸í„° â†’ ì¸ë±ìŠ¤
+		uint32_t objIndex = static_cast<uint32_t>(obj - m_pool); // Æ÷ÀÎÅÍ ¡æ ÀÎµ¦½º
 		uint64_t oldHead = m_head.load(std::memory_order_relaxed);
 
 		while (true)
 		{
 			TaggedIndex old = Unpack(oldHead);
-			obj->poolNext = old.index;	// T*ê°€ ì•„ë‹Œ uint32_t ì¸ë±ìŠ¤ ì €ì¥
+			obj->poolNext = old.index;	// T*°¡ ¾Æ´Ñ uint32_t ÀÎµ¦½º ÀúÀå
 
 			uint64_t newHead = Pack(objIndex, old.generation + 1);
 
@@ -86,17 +86,17 @@ public:
 		}
 	}
 
-	// í’€ì—ì„œ ë¹ˆ ê°ì²´ë¥¼ êº¼ë‚¸ë‹¤, ì—†ìœ¼ë©´ nullptr
+	// Ç®¿¡¼­ ºó °´Ã¼¸¦ ²¨³»¿È, ¾øÀ¸¸é nullptr
 	//T* Pop()
 	//{
-	//	// ìš°ì„ ì€ ë¨¸ë¦¬ í¬ì¸í„°
+	//	// ½ºÅÃÀÇ ¸Ó¸® °¡Á®¿È
 	//	TaggedPointer oldHead = m_head.load(std::memory_order_relaxed);
 	//	while (true)
 	//	{
-	//		//  ë¹„ì–´ìˆëŠ”ì§€ í™•ì¸
+	//		//  ºñ¾îÀÖ´ÂÁö È®ÀÎ 
 	//		if (oldHead.ptr == nullptr)
 	//			return nullptr;
-	//		//  ì¤€ë¹„ (newHead ë§Œë“¤ê¸°, ë‹¤ìŒ ë…¸ë“œ)
+	//		//  ÁØºñ (newHead ¸¸µé±â, ¼¼´ë Áõ°¡)
 	//		TaggedPointer newHead;
 	//		newHead.ptr = oldHead.ptr->poolNext;
 	//		newHead.generation = oldHead.generation + 1;
@@ -104,8 +104,8 @@ public:
 	//		if (m_head.compare_exchange_weak(
 	//			oldHead,
 	//			newHead,
-	//			std::memory_order_acquire,	// ì„±ê³µ, oldHead.ptrì˜ ë°ì´í„°ë¥¼ ì•ˆì „í•˜ê²Œ ì½ê¸° ìœ„í•´ acquire
-	//			std::memory_order_relaxed	// ì‹¤íŒ¨, ë‹¤ìŒ ë£¨í”„ë¥¼ ìœ„í•œ ìµœì†Œí•œì˜ ìƒíƒœë¥¼ ì½ìŒ
+	//			std::memory_order_acquire,	//¼º°ø, oldHead.ptrÀÇ µ¥ÀÌÅÍ¸¦ ¾ÈÀüÇÏ°Ô ÀĞ±â À§ÇØ acquire
+	//			std::memory_order_relaxed	//½ÇÆĞ, ´ÙÀ½ ·çÇÁ¸¦ À§ÇØ °¡º±°Ô »óÅÂ¸¸ °»½Å
 	//		))
 	//		{
 	//			return oldHead.ptr;
@@ -123,7 +123,7 @@ public:
 			if (old.index == NULL_INDEX)
 				return nullptr;
 
-			uint32_t nextIndex = m_pool[old.index].poolNext;	// ì¸ë±ìŠ¤ë¡œ ì ‘ê·¼
+			uint32_t nextIndex = m_pool[old.index].poolNext;	// ÀÎµ¦½º·Î Á¢±Ù
 			uint64_t newHead = Pack(nextIndex, old.generation + 1);
 
 			if (m_head.compare_exchange_weak(
@@ -131,12 +131,12 @@ public:
 				std::memory_order_acquire,
 				std::memory_order_relaxed))
 			{
-				return &m_pool[old.index];	// ì¸ë±ìŠ¤ -> í¬ì¸í„° ë³€í™˜
+				return &m_pool[old.index];	// ÀÎµ¦½º -> Æ÷ÀÎÅÍ ÀüÈ¯
 			}
 		}
 	}
 
-	// ì‹¤ì œ lock-freeë¡œ ë™ì‘í•˜ëŠ”ì§€ í…ŒìŠ¤íŠ¸ ìš©ë„
+	// ½ÇÁ¦ lock-free·Î ÀÛµ¿ÇÏ´ÂÁö Å×½ºÆ® ¿ëµµ
 	bool IsLockFree() const
 	{
 		return m_head.is_lock_free();

@@ -1,4 +1,4 @@
-ï»¿#pragma once
+#pragma once
 
 
 template<size_t BufferSize>
@@ -21,9 +21,9 @@ public:
 		INVALID_DATA
 	};
 
-	bool IsEmpty() const
+	bool IsEmpty() const 
 	{
-		// ë²„í¼ê°€ ë¹„ì–´ìžˆëŠ”ì§€ í™•ì¸
+		// ¹öÆÛ°¡ ºñ¾îÀÖ´ÂÁö È®ÀÎ
 		if ((head == tail) && !full)
 			return true;
 		else
@@ -32,13 +32,13 @@ public:
 
 	bool IsFull() const
 	{
-		// ë²„í¼ê°€ ì™„ì „ížˆ ì°¼ëŠ”ì§€ í™•ì¸
+		// ¹öÆÛ°¡ °¡µæ Ã¡´ÂÁö È®ÀÎ
 		return full;
 	}
 
 	size_t Size() const
 	{
-		// í˜„ìž¬ ì €ìž¥ëœ ë°ì´í„° í¬ê¸° ë°˜í™˜
+		// ÇöÀç ÀúÀåµÈ µ¥ÀÌÅÍ Å©±â ¹ÝÈ¯
 		if (full)
 			return BufferSize;
 		if (head >= tail)
@@ -49,7 +49,7 @@ public:
 
 	bool WriteByte(char byte)
 	{
-		// ì„±ê³µ true, ì‹¤íŒ¨ false
+		// ¼º°ø true, ½ÇÆÐ false
 		if (full)
 			return false;
 		buffer[head] = byte;
@@ -62,7 +62,7 @@ public:
 
 	bool ReadByte(char& byte)
 	{
-		// ì„±ê³µ true, ì‹¤íŒ¨ false
+		// ¼º°ø true, ½ÇÆÐ false
 		if (IsEmpty())
 			return false;
 		byte = buffer[tail];
@@ -74,7 +74,7 @@ public:
 
 	size_t Write(const char* data, size_t length)
 	{
-		// ì“°ì—¬ì§„ ì´ ë°”ì´íŠ¸ ìˆ˜ ë°˜í™˜
+		// ½ÇÁ¦·Î ¾´ ¹ÙÀÌÆ® ¼ö ¹ÝÈ¯
 		if (data == nullptr || length == 0)
 			return 0;
 		size_t written_count = 0;
@@ -95,7 +95,7 @@ public:
 
 	size_t Read(char* output, size_t max_length)
 	{
-		// ì½ì–´ì˜¨ ì´ ë°”ì´íŠ¸ ìˆ˜ ë°˜í™˜
+		// ½ÇÁ¦·Î ÀÐÀº ¹ÙÀÌÆ® ¼ö ¹ÝÈ¯
 		if (output == nullptr || max_length == 0)
 			return 0;
 		size_t read_count = 0;
@@ -111,8 +111,8 @@ public:
 
 	bool Peek(char& byte, size_t offset = 0) const
 	{
-		// offset: tailë¡œë¶€í„° ëª‡ ë²ˆì§¸ ë°ì´í„°ë¥¼ ë³¼ì§€ (ê¸°ë³¸ê°’ 0 = ì²« ë²ˆì§¸)
-		// ì„±ê³µ true, ì‹¤íŒ¨ false
+		// offset: tail·Î ºÎÅÍ ¸î ¹ø¤Š µ¥ÀÌÅÍ¸¦ º¼Áö (±âº»°ª 0 = Ã¹ ¹øÂ°)
+		// ¼º°ø true, ½ÇÆÐ false
 		if (IsEmpty() || offset >= Size())
 			return false;
 		size_t peek_pos = (tail + offset) % BufferSize;

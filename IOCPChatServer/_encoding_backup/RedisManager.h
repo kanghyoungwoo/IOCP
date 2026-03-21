@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "RedisTaskDefine.h"
 #include "ErrorCode.h"
@@ -31,7 +31,7 @@ public:
 		//	return false;
 		//}
 		mIsTaskRun = true;
-		// 스레드를 벡터에 추가 후
+		// �����带 ����� ��� �� 
 		for (UINT32 i = 0; i < threadCount_; ++i)
 		{
 			mTaskThreads.emplace_back([this]() { TaskProcessThread();});
@@ -106,12 +106,12 @@ private:
 	//	return true;
 	//}
 
-	// Redis 요청을 처리함
+	// Redis ��û�� ó����
 	void TaskProcessThread()
 	{
-		RedisCpp::CRedisConn Conn; // 생성
-		Conn.init(mIP,mPort); // 초기화
-		Conn.connect();// 연결
+		RedisCpp::CRedisConn Conn; // ����
+		Conn.init(mIP,mPort); // �ʱ�ȭ
+		Conn.connect();// ���� 
 
 		LOG_DEBUG("Redis thread connected\n");
 		while (true) // mIsTaskRun -> true
@@ -120,7 +120,7 @@ private:
 			{
 				std::unique_lock<std::mutex>lock(mReqLock);
 				mReqCV.wait(lock, [this]() {return !mRequestTask.empty() || !mIsTaskRun;});
-				// 종료신호 + 큐 비어있으면 탈출
+				// �����ȣ + ť ��������� Ż��
 				if (!mIsTaskRun && mRequestTask.empty())
 					break;
 				task = mRequestTask.front();
@@ -143,7 +143,7 @@ private:
 
 				std::string value;
 				bool got = Conn.get(pRequest->UserID, value);
-
+				
 				if (got)
 				{
 					LOG_DEBUG("UserID : %s\n", pRequest->UserID);
@@ -168,11 +168,11 @@ private:
 			task.release();
 
 			//bool isIdle = true;
-			//// 요청용 queue를 통해서 작업을 넣고빼기 mRequestTask
+			//// ��û�� queue�� ���ؼ� ���� �ְ����� mRequestTask
 			//if (auto task = TakeRequestTask(); task.TaskID != RedisTaskID::INVALID)
 			//{
 			//	isIdle = false;
-			//
+			//	
 			//	if (task.TaskID == RedisTaskID::REQUEST_LOGIN)
 			//	{
 			//		auto pRequest = (RedisLoginReq*)task.pData;
@@ -208,12 +208,12 @@ private:
 
 			//	task.release();
 
-			//	// 이런식의 if/switch문으로 코드하여 task를 처리할 코드가 너무 커지면 나중에 각각 처리를 위한 별도 dictionary나 array를 사용하여 처리하는 것이 좋다
+			//	// �̷����� if/switch���� ����Ͽ� task�� ó���� �ڵ尡 �ʹ� Ŀ���� ������ ���� ó���� ���� ���� dictionary�� array�� ����Ͽ� ó���ϴ� ���� ����
 			//	//switch (task.TaskID)
 			//	//{
 			//	//	case RedisTaskID::REQUEST_LOGIN:
 			//	//		{
-			//	//			// 로그인 요청 처리
+			//	//			// �α��� ��û ó��
 			//	//			if (mConn.login(task.UserIndex, task.LoginReq) == true)
 			//	//			{
 			//	//				task.ResultCode = ERROR_CODE::SUCCESS;
@@ -226,7 +226,7 @@ private:
 			//	//		break;
 			//	//	case RedisTaskID::REQUEST_LOGOUT:
 			//	//		{
-			//	//			// 로그아웃 요청 처리
+			//	//			// �α׾ƿ� ��û ó��
 			//	//			if (mConn.logout(task.UserIndex) == true)
 			//	//			{
 			//	//				task.ResultCode = ERROR_CODE::SUCCESS;
@@ -245,11 +245,11 @@ private:
 
 			//if (isIdle)
 			//{
-			//	std::this_thread::sleep_for(std::chrono::milliseconds(1));
+			//	std::this_thread::sleep_for(std::chrono::milliseconds(1)); 
 			//}
-
+			
 		}
-		Conn.disConnect(); // 종료
+		Conn.disConnect(); // ����
 	}
 
 	void PushResponse(RedisTask task_)
@@ -259,7 +259,7 @@ private:
 			mResponseTask.push_back(task_);
 		}
 
-		// 메인 쪽의 패킷 처리 스레드에 알려줌
+		// ���� ���� ��Ŷ ó�� �����忡 �˷���
 		if (OnResponsePushed)
 		{
 			OnResponsePushed();

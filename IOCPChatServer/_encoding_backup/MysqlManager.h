@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "MySQLTaskDefine.h"
 #include "Define.h"
 
@@ -22,7 +22,7 @@ public:
 		End();
 	}
 
-	// 접속 정보 등록 설정을 세팅
+	// ���� ���� ��� ������ ����
 	void configure(const char* host_, const char* user_, const char* pass_, const char* db_, unsigned int port_)
 	{
 		mHost = host_ ? host_ : "chatserver-database.cts4w8y0e8qh.ap-northeast-2.rds.amazonaws.com";
@@ -32,7 +32,7 @@ public:
 		mPort = port_ ? port_ : 3306;
 	}
 
-	// 연결 -> 준비 -> 스레드 시작 순서
+	// ���� -> �غ� -> ������ ���� ���� 
 	bool Run(UINT32 threadCount_)
 	{
 		mIsTaskRun = true;
@@ -42,23 +42,23 @@ public:
 			mTaskThreads.emplace_back([this]() {TaskProcessThread();});
 		}
 
-		// 기존 방식
-		//// 1. MySQL 서버에 연결
+		// ���� ����
+		//// 1. MySQL ������ ����
 		//if (!InitandConnect())
 		//{
 		//	printf("MySQL connection failed !\n");
 		//	return false;
 		//}
-		//// 2. Prepared Statement 준비(테이블생성 + 쿼리 미리 파싱)
+		//// 2. Prepared Statement �غ�(���̺����� + ���� �̸� �Ľ�)
 		//if (!PrepareStatements())
 		//{
 		//	printf("MySQL statement prepare fail\n");
 		//	return false;
 		//}
 		//
-		//// 3. 작업 스레드 시작
+		//// 3. �۾� ������ ����
 		//mIsTaskRun = true;
-		//// 스레드를 벡터에 추가 후
+		//// �����带 ����� ��� �� 
 		//for (UINT32 i = 0; i < threadCount_; ++i)
 		//{
 		//	mTaskThreads.emplace_back([this]() { TaskProcessThread();});
@@ -69,15 +69,15 @@ public:
 
 	void End()
 	{
-		// 종료 신호
+		// ���� ����
 		{
 			std::lock_guard<std::mutex> guard(mReqLock);
 			mIsTaskRun = false;
 		}
-		// 자고있는 스레드 깨우기
-		mReqCV.notify_all();	// cv 통지 추가
+		// �ڰ��ִ� ������ �����
+		mReqCV.notify_all();	// cv ���� �߰�
 
-		// 모든 스레드 join(큐 소진때까지 기다림)
+		// ��� ������ join(ť ��ﶧ���� ��ٸ�)
 		for (auto& thread : mTaskThreads)
 		{
 			if (thread.joinable())
@@ -85,13 +85,13 @@ public:
 				thread.join();
 			}
 		}
-		// 정리
+		// ����
 		mTaskThreads.clear();
-		//CleanupStatements();	// state정리
-		//CloseConnection();		// 연결 종료
+		//CleanupStatements();	// state����
+		//CloseConnection();		// ���� ����
 
 
-		// 기존 종료 방식
+		//���� ���� ���
 		//mIsTaskRun = false;
 		//for (auto& thread : mTaskThreads)
 		//{
@@ -101,12 +101,12 @@ public:
 		//	}
 		//}
 	}
-	// 작업 넣기
+	// �۾� �ֱ� 
 	void PushTask(MySQLTask task_)	// producer
 	{
-		std::lock_guard<std::mutex> guard(mReqLock); // 큐 잠금
-		mRequestTask.push_back(task_); // 큐에 추가
-		mReqCV.notify_one(); // 대기중인 스레드 깨우기
+		std::lock_guard<std::mutex> guard(mReqLock); // ť ���
+		mRequestTask.push_back(task_); // ť�� �߰�
+		mReqCV.notify_one(); // ������� ������ �����
 	}
 
 
@@ -158,27 +158,27 @@ private:
 			conn.connection = nullptr;
 		}
 	}
-
+	
 	bool EnsureConnection(MySQLConnection& conn)
 	{
-		// 커넥션이 살아있으면 ok
+		// Ŀ�ؼ��� ��������� ok
 		if (conn.connection && mysql_ping(conn.connection) == 0)
 		{
 			return true;
 		}
-		// 죽은 것들은 정리해야 함
+		// ���� �͵��� ���� �ؾ���
 		CleanupStatements(conn);
 
-		// 죽었다면 닫고 재연결.. (mysql 서버가 죽지 않았다는 가정에 의존)
+		// �׾��ٸ� �ݰ� �翬��.. (mysql ������ ���� �Ⱦ��� ������ ����)
 		CloseConnection(conn);
 
-		// 재연결 시도
+		// ���� ����
 		if (!InitandConnect(conn))
 			return false;
 		return PrepareStatements(conn);
 	}
 
-	// 테이블 생성 + 쿼리 준비
+	// ���̺� ���� + ���� �غ�
 	bool PrepareStatements(MySQLConnection& conn)
 	{
 		const char* createLogin =
@@ -203,7 +203,7 @@ private:
 			"msg VARCHAR(256) NOT NULL,"
 			"timestamp BIGINT NOT NULL"
 			")";
-		// 1. 테이블 존재여부 확인
+		// 1. ���̺� ������ ����
 		if (mysql_query(conn.connection, createLogin) != 0)
 		{
 			LOG_ERROR("MySQL create login_events fail: %s\n", mysql_error(conn.connection));
@@ -219,7 +219,7 @@ private:
 			LOG_ERROR("MySQL create chat_messages fail: %s\n", mysql_error(conn.connection));
 			return false;
 		}
-		// prepared statement 초기화
+		// prepared statement �ʱ�ȭ
 		conn.stmtLogin = mysql_stmt_init(conn.connection);
 		conn.stmtRoom = mysql_stmt_init(conn.connection);
 		conn.stmtChat = mysql_stmt_init(conn.connection);
@@ -232,7 +232,7 @@ private:
 		const char* insLogin = "INSERT INTO login_events(user_id, timestamp) VALUES(?, ?)";
 		const char* insRoom = "INSERT INTO room_events(user_id, room_number, event, timestamp) VALUES(?, ?, ?, ?)";
 		const char* insChat = "INSERT INTO chat_messages(user_id, room_number, msg, timestamp) VALUES(?, ?, ?, ?)";
-		// 3. SQL 미리 파싱
+		// 3. SQL �̸� �Ľ�
 		if (mysql_stmt_prepare(conn.stmtLogin, insLogin, (unsigned long)strlen(insLogin)) != 0)
 		{
 			LOG_ERROR("MySQL prepare login_events failed: %s\n", mysql_stmt_error(conn.stmtLogin));
@@ -281,24 +281,24 @@ private:
 		{
 			MySQLTask task;
 			{
-				// 큐에서 작업 꺼내기 (없으면 대기)
+				// ť���� �۾� ������ (������ ���)
 				std::unique_lock<std::mutex> lock(mReqLock);
-				mReqCV.wait(lock, [this]() { return !mRequestTask.empty() || !mIsTaskRun; }); // 큐에 작업이 생기거나 종료 신호가 올 때 까지 대기
-				// 종료신호 + 큐 비어있으면 -> 루프탈출
+				mReqCV.wait(lock, [this]() { return !mRequestTask.empty() || !mIsTaskRun; }); // ť�� ���� �����ų� ��ȣ ���� ��ȣ�� �� �� ���� ���
+				//�����ȣ + ť ��������� -> ����Ż��
 				if (!mIsTaskRun && mRequestTask.empty())
 					break;
-				// 작업 꺼내기
+				// �۾� ������
 				task = mRequestTask.front();
 				mRequestTask.pop_front();
 			}
-			// lock 해제
+			// lock ����
 			if (task.TaskID == MySQLTaskID::INVALID)
 			{
 				task.release();
 				continue;
 			}
 
-			// 커넥션 살아있는지 확인하고 끊겼으면 재연결
+			// Ŀ�ؼ� ����ִ��� Ȯ���ϰ� �������� �翬��
 			if (!EnsureConnection(myConn))
 			{
 				LOG_ERROR("MySQL ensure connection failed: %s\n", mysql_error(myConn.connection));
@@ -324,33 +324,33 @@ private:
 		}
 		CleanupStatements(myConn);
 		CloseConnection(myConn);
-		mysql_thread_end();	// 리소스 메모리 해제
+		mysql_thread_end();	// ���ҽ� �޸� ����
 	}
-	// 실제 insert 수행
+	// ���� insert ����
 	void HandleInsertLogin(MySQLConnection& conn, const MySQLTask& task)
 	{
 		auto pLoginReqPacket = reinterpret_cast<const MySQLLoginEventReq*>(task.pData);
 
-		// mysql_bind: mysql_stmt_prepare의 ? 자리에 값을 채움 바인딩
+		// mysql_bind: mysql_stmt_prepare�� ? �ڸ��� ���� �� ����
 		MYSQL_BIND bind[2] = {};
 
-		// bind[0] = user_id(문자열)
+		// bind[0] = user_id(���ڿ�)
 		unsigned long useridLen = (unsigned long)strnlen(pLoginReqPacket->UserID, sizeof(pLoginReqPacket->UserID));
 		bind[0].buffer_type = MYSQL_TYPE_STRING;
 		bind[0].buffer = (void*)pLoginReqPacket->UserID;
 		bind[0].buffer_length = useridLen;
 		bind[0].length = &useridLen;
 
-		// bind[1] = timestamp(정수)
+		// bind[1] = timestamp(����)
 		unsigned long long timestamp = (unsigned long long)pLoginReqPacket->TimestampSec;
 		bind[1].buffer_type = MYSQL_TYPE_LONGLONG;
 		bind[1].buffer = (void*)&timestamp;
 
-		// ? 자리에 값 바인딩 + 실행
+		// ? �ڸ��� �� ���ε� + ����
 		if (mysql_stmt_bind_param(conn.stmtLogin, bind) != 0 || mysql_stmt_execute(conn.stmtLogin) != 0)
 		{
 			LOG_ERROR("MySQL insert login failed: %s\n", mysql_stmt_error(conn.stmtLogin));
-			mysql_stmt_reset(conn.stmtLogin); // 다음 실행을 위해 초기화
+			mysql_stmt_reset(conn.stmtLogin); // ���� ������ ���� �ʱ�ȭ
 			return;
 		}
 		mysql_stmt_reset(conn.stmtLogin);
@@ -443,8 +443,8 @@ private:
 	//std::deque<MySQLTask> mResponseTask;
 
 	bool mIsTaskRun = false;
-
-	//// 기존
+	
+	//// ����
 	//MYSQL* conn.connection;
 	//MYSQL_STMT* conn.stmtLogin;
 	//MYSQL_STMT* conn.stmtRoom;
