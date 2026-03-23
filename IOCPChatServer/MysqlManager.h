@@ -1,4 +1,5 @@
-#pragma once
+ï»¿#pragma once
+#include "Define.h"
 #include "MySQLTaskDefine.h"
 
 
@@ -22,7 +23,7 @@ public:
 		End();
 	}
 
-	// Á¢¼Ó Á¤º¸ ¸â¹ö º¯¼ö¿¡ ÀúÀå
+	// ì ‘ì† ì •ë³´ ë©¤ë²„ ë³€ìˆ˜ì— ì €ì¥
 	void configure(const char* host_, const char* user_, const char* pass_, const char* db_, unsigned int port_)
 	{
 		mHost = host_ ? host_ : "chatserver-database.cts4w8y0e8qh.ap-northeast-2.rds.amazonaws.com";
@@ -32,7 +33,7 @@ public:
 		mPort = port_ ? port_ : 3306;
 	}
 
-	// ¿¬°á -> ÁØºñ -> ½º·¹µå ½ÃÀÛ ·ÎÁ÷ 
+	// ì—°ê²° -> ì¤€ë¹„ -> ìŠ¤ë ˆë“œ ì‹œì‘ ë¡œì§ 
 	bool Run(UINT32 threadCount_)
 	{
 		mIsTaskRun = true;
@@ -42,42 +43,42 @@ public:
 			mTaskThreads.emplace_back([this]() {TaskProcessThread();});
 		}
 
-		// ±âÁ¸ ·ÎÁ÷
-		//// 1. MySQL ¼­¹ö¿¡ ¿¬°á
+		// ê¸°ì¡´ ë¡œì§
+		//// 1. MySQL ì„œë²„ì— ì—°ê²°
 		//if (!InitandConnect())
 		//{
 		//	printf("MySQL connection failed !\n");
 		//	return false;
 		//}
-		//// 2. Prepared Statement ÁØºñ(Å×ÀÌºí»ı¼º + Äõ¸® ¹Ì¸® ÆÄ½Ì)
+		//// 2. Prepared Statement ì¤€ë¹„(í…Œì´ë¸”ìƒì„± + ì¿¼ë¦¬ ë¯¸ë¦¬ íŒŒì‹±)
 		//if (!PrepareStatements())
 		//{
 		//	printf("MySQL statement prepare fail\n");
 		//	return false;
 		//}
 		//
-		//// 3. ÀÛ¾÷ ½º·¹µå ½ÃÀÛ
+		//// 3. ì‘ì—… ìŠ¤ë ˆë“œ ì‹œì‘
 		//mIsTaskRun = true;
-		//// ¾²·¹µå¸¦ ¸¸µé¾î Áà¾ß ÇÔ 
+		//// ì“°ë ˆë“œë¥¼ ë§Œë“¤ì–´ ì¤˜ì•¼ í•¨ 
 		//for (UINT32 i = 0; i < threadCount_; ++i)
 		//{
 		//	mTaskThreads.emplace_back([this]() { TaskProcessThread();});
 		//}
-		printf("MySQL task worker started\n");
+		LOG_DEBUG("MySQL task worker started\n");
 		return true;
 	}
 
 	void End()
 	{
-		// Á¾·á ¼¼ÆÃ
+		// ì¢…ë£Œ ì„¸íŒ…
 		{
 			std::lock_guard<std::mutex> guard(mReqLock);
 			mIsTaskRun = false;
 		}
-		// ÀÚ°íÀÖ´Â ½º·¹µå ±ú¿ì±â
-		mReqCV.notify_all();	// cv ÅëÁö Ãß°¡
+		// ìê³ ìˆëŠ” ìŠ¤ë ˆë“œ ê¹¨ìš°ê¸°
+		mReqCV.notify_all();	// cv í†µì§€ ì¶”ê°€
 
-		// ¸ğµç ½º·¹µå join(Å¥ ºñ¿ï¶§±îÁö ±â´Ù¸²)
+		// ëª¨ë“  ìŠ¤ë ˆë“œ join(í ë¹„ìš¸ë•Œê¹Œì§€ ê¸°ë‹¤ë¦¼)
 		for (auto& thread : mTaskThreads)
 		{
 			if (thread.joinable())
@@ -85,13 +86,13 @@ public:
 				thread.join();
 			}
 		}
-		// Á¤¸®
+		// ì •ë¦¬
 		mTaskThreads.clear();
-		//CleanupStatements();	// stateÁ¤¸®
-		//CloseConnection();		// ¿¬°á Á¤¸®
+		//CleanupStatements();	// stateì •ë¦¬
+		//CloseConnection();		// ì—°ê²° ì •ë¦¬
 
 
-		//±âÁ¸ Á¾·á ¹æ½Ä
+		//ê¸°ì¡´ ì¢…ë£Œ ë°©ì‹
 		//mIsTaskRun = false;
 		//for (auto& thread : mTaskThreads)
 		//{
@@ -101,12 +102,12 @@ public:
 		//	}
 		//}
 	}
-	// ÀÛ¾÷ ³Ö±â 
+	// ì‘ì—… ë„£ê¸° 
 	void PushTask(MySQLTask task_)	// producer
 	{
-		std::lock_guard<std::mutex> guard(mReqLock); // Å¥ Àá±İ
-		mRequestTask.push_back(task_); // Å¥¿¡ Ãß°¡
-		mReqCV.notify_one(); // ´ë±âÁßÀÎ ½º·¹µå ±ú¿ì±â
+		std::lock_guard<std::mutex> guard(mReqLock); // í ì ê¸ˆ
+		mRequestTask.push_back(task_); // íì— ì¶”ê°€
+		mReqCV.notify_one(); // ëŒ€ê¸°ì¤‘ì¸ ìŠ¤ë ˆë“œ ê¹¨ìš°ê¸°
 	}
 
 
@@ -135,18 +136,18 @@ private:
 
 		if (!conn.connection)
 		{
-			printf("MySQL init fail! \n");
+			LOG_ERROR("MySQL init fail! \n");
 			return false;
 		}
 
 		mysql_options(conn.connection, MYSQL_SET_CHARSET_NAME, "utf8mb4");
 		mysql_options(conn.connection, MYSQL_OPT_CONNECT_TIMEOUT, &mConnectTimeoutSec);
 
-		if (!mysql_real_connect(conn.connection, mHost.c_str(), mUser.c_str(), mPass.c_str(), mDB.c_str(), mPort, nullptr, 0))
-		{
-			printf("MySQL connection error :%s ! \n", mysql_error(conn.connection));
-			return false;
-		}
+		//if (!mysql_real_connect(conn.connection, mHost.c_str(), mUser.c_str(), mPass.c_str(), mDB.c_str(), mPort, nullptr, 0))
+		//{
+		//	LOG_ERROR("MySQL connection error :%s ! \n", mysql_error(conn.connection));
+		//	return false;
+		//}
 		return true;
 	}
 
@@ -161,24 +162,24 @@ private:
 	
 	bool EnsureConnection(MySQLConnection& conn)
 	{
-		// Ä¿³Ø¼ÇÀÌ »ì¾ÆÀÖÀ¸¸é ok
+		// ì»¤ë„¥ì…˜ì´ ì‚´ì•„ìˆìœ¼ë©´ ok
 		if (conn.connection && mysql_ping(conn.connection) == 0)
 		{
 			return true;
 		}
-		// ±âÁ¸ °ÍµéÀ» Á¤¸® ÇØ¾ßÇÔ
+		// ê¸°ì¡´ ê²ƒë“¤ì„ ì •ë¦¬ í•´ì•¼í•¨
 		CleanupStatements(conn);
 
-		// Á×¾ú´Ù¸é ´İ°í Àç¿¬°á.. (mysql ¼­¹ö°¡ ¿À·¡ ¾È¾²¸é ¿¬°áÀ» ²÷À½)
+		// ì£½ì—ˆë‹¤ë©´ ë‹«ê³  ì¬ì—°ê²°.. (mysql ì„œë²„ê°€ ì˜¤ë˜ ì•ˆì“°ë©´ ì—°ê²°ì„ ëŠìŒ)
 		CloseConnection(conn);
 
-		// »õ·Î ¿¬°á
+		// ìƒˆë¡œ ì—°ê²°
 		if (!InitandConnect(conn))
 			return false;
 		return PrepareStatements(conn);
 	}
 
-	// Å×ÀÌºí »ı¼º + Äõ¸® ÁØºñ
+	// í…Œì´ë¸” ìƒì„± + ì¿¼ë¦¬ ì¤€ë¹„
 	bool PrepareStatements(MySQLConnection& conn)
 	{
 		const char* createLogin =
@@ -203,49 +204,49 @@ private:
 			"msg VARCHAR(256) NOT NULL,"
 			"timestamp BIGINT NOT NULL"
 			")";
-		// 1. Å×ÀÌºí ¾øÀ¸¸é »ı¼º
+		// 1. í…Œì´ë¸” ì—†ìœ¼ë©´ ìƒì„±
 		if (mysql_query(conn.connection, createLogin) != 0)
 		{
-			printf("MySQL create login_events fail ! : %s \n", mysql_error(conn.connection));
+			LOG_ERROR("MySQL create login_events fail ! : %s \n", mysql_error(conn.connection));
 			return false;
 		}
 		if (mysql_query(conn.connection, createRoom) != 0)
 		{
-			printf("MySQL create room_events fail ! : %s \n", mysql_error(conn.connection));
+			LOG_ERROR("MySQL create room_events fail ! : %s \n", mysql_error(conn.connection));
 			return false;
 		}
 		if (mysql_query(conn.connection, createChat) != 0)
 		{
-			printf("MySQL create chat_messages fail ! : %s \n", mysql_error(conn.connection));
+			LOG_ERROR("MySQL create chat_messages fail ! : %s \n", mysql_error(conn.connection));
 			return false;
 		}
-		// prepared statement ÃÊ±âÈ­
+		// prepared statement ì´ˆê¸°í™”
 		conn.stmtLogin = mysql_stmt_init(conn.connection);
 		conn.stmtRoom = mysql_stmt_init(conn.connection);
 		conn.stmtChat = mysql_stmt_init(conn.connection);
 		if (!conn.stmtLogin || !conn.stmtRoom || !conn.stmtChat)
 		{
-			printf("MySQL stmt init faile !! \n");
+			LOG_ERROR("MySQL stmt init faile !! \n");
 			return false;
 		}
 
 		const char* insLogin = "INSERT INTO login_events(user_id, timestamp) VALUES(?, ?)";
 		const char* insRoom = "INSERT INTO room_events(user_id, room_number, event, timestamp) VALUES(?, ?, ?, ?)";
 		const char* insChat = "INSERT INTO chat_messages(user_id, room_number, msg, timestamp) VALUES(?, ?, ?, ?)";
-		// 3. SQL ¹Ì¸® ÆÄ½Ì
+		// 3. SQL ë¯¸ë¦¬ íŒŒì‹±
 		if (mysql_stmt_prepare(conn.stmtLogin, insLogin, (unsigned long)strlen(insLogin)) != 0)
 		{
-			printf("MySQL prepare login_events failed ! :%s \n", mysql_stmt_error(conn.stmtLogin));
+			LOG_ERROR("MySQL prepare login_events failed ! :%s \n", mysql_stmt_error(conn.stmtLogin));
 			return false;
 		}
 		if (mysql_stmt_prepare(conn.stmtRoom, insRoom, (unsigned long)strlen(insRoom)) != 0)
 		{
-			printf("MySQL prepare room_events failed ! :%s \n", mysql_stmt_error(conn.stmtRoom));
+			LOG_ERROR("MySQL prepare room_events failed ! :%s \n", mysql_stmt_error(conn.stmtRoom));
 			return false;
 		}
 		if (mysql_stmt_prepare(conn.stmtChat, insChat, (unsigned long)strlen(insChat)) != 0)
 		{
-			printf("MySQL prepare Chat_message failed ! :%s \n", mysql_stmt_error(conn.stmtChat));
+			LOG_ERROR("MySQL prepare Chat_message failed ! :%s \n", mysql_stmt_error(conn.stmtChat));
 			return false;
 		}
 		return true;
@@ -281,27 +282,27 @@ private:
 		{
 			MySQLTask task;
 			{
-				// Å¥¿¡¼­ ÀÛ¾÷ ²¨³»±â (¾øÀ¸¸é ´ë±â)
+				// íì—ì„œ ì‘ì—… êº¼ë‚´ê¸° (ì—†ìœ¼ë©´ ëŒ€ê¸°)
 				std::unique_lock<std::mutex> lock(mReqLock);
-				mReqCV.wait(lock, [this]() { return !mRequestTask.empty() || !mIsTaskRun; }); // Å¥¿¡ ¹º°¡ µé¾î¿À°Å³ª ½ÅÈ£ Á¾·á ½ÅÈ£°¡ ¿Ã ¶§ ±îÁö Àáµê
-				//Á¾·á½ÅÈ£ + Å¥ ºñ¾îÀÖÀ¸¸é -> ·çÇÁÅ»Ãâ
+				mReqCV.wait(lock, [this]() { return !mRequestTask.empty() || !mIsTaskRun; }); // íì— ë­”ê°€ ë“¤ì–´ì˜¤ê±°ë‚˜ ì‹ í˜¸ ì¢…ë£Œ ì‹ í˜¸ê°€ ì˜¬ ë•Œ ê¹Œì§€ ì ë“¦
+				//ì¢…ë£Œì‹ í˜¸ + í ë¹„ì–´ìˆìœ¼ë©´ -> ë£¨í”„íƒˆì¶œ
 				if (!mIsTaskRun && mRequestTask.empty())
 					break;
-				// ÀÛ¾÷ ²¨³»±â
+				// ì‘ì—… êº¼ë‚´ê¸°
 				task = mRequestTask.front();
 				mRequestTask.pop_front();
 			}
-			// lock ÇØÁ¦
+			// lock í•´ì œ
 			if (task.TaskID == MySQLTaskID::INVALID)
 			{
 				task.release();
 				continue;
 			}
 
-			// Ä¿³Ø¼Ç »ì¾ÆÀÖ´ÂÁö È®ÀÎÇÏ°í ²÷°åÀ¸¸é Àç¿¬°á
+			// ì»¤ë„¥ì…˜ ì‚´ì•„ìˆëŠ”ì§€ í™•ì¸í•˜ê³  ëŠê²¼ìœ¼ë©´ ì¬ì—°ê²°
 			if (!EnsureConnection(myConn))
 			{
-				printf("mysql ensuer connection failed! : %s\n", mysql_error(myConn.connection));
+				LOG_ERROR("mysql ensuer connection failed! : %s\n", mysql_error(myConn.connection));
 				task.release();
 				continue;
 			}
@@ -324,33 +325,33 @@ private:
 		}
 		CleanupStatements(myConn);
 		CloseConnection(myConn);
-		mysql_thread_end();	// ¾ÈÇÒ½Ã ¸Ş¸ğ¸® ´©¼ö
+		mysql_thread_end();	// ì•ˆí• ì‹œ ë©”ëª¨ë¦¬ ëˆ„ìˆ˜
 	}
-	// ½ÇÁ¦ insert ½ÇÇà
+	// ì‹¤ì œ insert ì‹¤í–‰
 	void HandleInsertLogin(MySQLConnection& conn, const MySQLTask& task)
 	{
 		auto pLoginReqPacket = reinterpret_cast<const MySQLLoginEventReq*>(task.pData);
 
-		// mysql_bind: mysql_stmt_prepare¿¡ ? ÀÚ¸®¿¡ ³ÖÀ» °ª ¼³Á¤
+		// mysql_bind: mysql_stmt_prepareì— ? ìë¦¬ì— ë„£ì„ ê°’ ì„¤ì •
 		MYSQL_BIND bind[2] = {};
 
-		// bind[0] = user_id(¹®ÀÚ¿­)
+		// bind[0] = user_id(ë¬¸ìì—´)
 		unsigned long useridLen = (unsigned long)strnlen(pLoginReqPacket->UserID, sizeof(pLoginReqPacket->UserID));
 		bind[0].buffer_type = MYSQL_TYPE_STRING;
 		bind[0].buffer = (void*)pLoginReqPacket->UserID;
 		bind[0].buffer_length = useridLen;
 		bind[0].length = &useridLen;
 
-		// bind[1] = timestamp(Á¤¼ö)
+		// bind[1] = timestamp(ì •ìˆ˜)
 		unsigned long long timestamp = (unsigned long long)pLoginReqPacket->TimestampSec;
 		bind[1].buffer_type = MYSQL_TYPE_LONGLONG;
 		bind[1].buffer = (void*)&timestamp;
 
-		// ? ÀÚ¸®¿¡ °ª ¹ÙÀÎµù + ½ÇÇà
+		// ? ìë¦¬ì— ê°’ ë°”ì¸ë”© + ì‹¤í–‰
 		if (mysql_stmt_bind_param(conn.stmtLogin, bind) != 0 || mysql_stmt_execute(conn.stmtLogin) != 0)
 		{
-			printf("mysql insert login failed !: %s \n", mysql_stmt_error(conn.stmtLogin));
-			mysql_stmt_reset(conn.stmtLogin); // ´ÙÀ½ ½ÇÇàÀ» À§ÇÑ ÃÊ±âÈ­
+			LOG_ERROR("mysql insert login failed !: %s \n", mysql_stmt_error(conn.stmtLogin));
+			mysql_stmt_reset(conn.stmtLogin); // ë‹¤ìŒ ì‹¤í–‰ì„ ìœ„í•œ ì´ˆê¸°í™”
 			return;
 		}
 		mysql_stmt_reset(conn.stmtLogin);
@@ -381,7 +382,7 @@ private:
 
 		if (mysql_stmt_bind_param(conn.stmtRoom, bind) != 0 || mysql_stmt_execute(conn.stmtRoom) != 0)
 		{
-			printf("mysql insert room fail ! : %s\n", mysql_stmt_error(conn.stmtRoom));
+			LOG_ERROR("mysql insert room fail ! : %s\n", mysql_stmt_error(conn.stmtRoom));
 			mysql_stmt_reset(conn.stmtRoom);
 			return;
 		}
@@ -416,7 +417,7 @@ private:
 
 		if (mysql_stmt_bind_param(conn.stmtChat, bind) != 0 || mysql_stmt_execute(conn.stmtChat) != 0)
 		{
-			printf("MySQL insert chat failed ! : %s\n", mysql_stmt_error(conn.stmtChat));
+			LOG_ERROR("MySQL insert chat failed ! : %s\n", mysql_stmt_error(conn.stmtChat));
 			mysql_stmt_reset(conn.stmtChat);
 			return;
 		}
@@ -444,7 +445,7 @@ private:
 
 	bool mIsTaskRun = false;
 	
-	//// ¿¬°á
+	//// ì—°ê²°
 	//MYSQL* conn.connection;
 	//MYSQL_STMT* conn.stmtLogin;
 	//MYSQL_STMT* conn.stmtRoom;

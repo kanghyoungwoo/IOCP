@@ -1,14 +1,14 @@
-//#include "IOCP.h"
+ï»¿//#include "IOCP.h"
 #include "ChatServer.h"
 #include "CrashDump.h"
 #include <string>
 #include <iostream>
 const UINT16 SERVER_PORT = 11021;
-const UINT16 MAX_CLIENT = 2000;	// ÃÑ Á¢¼Ó °¡´ÉÇÑ Å¬¶óÀÌ¾ğÆ® ¼ö
+const UINT16 MAX_CLIENT = 2000;	// ì´ ì ‘ì† ê°€ëŠ¥í•œ í´ë¼ì´ì–¸íŠ¸ ìˆ˜
 const UINT32 MAX_IO_WORKER_THREAD =8;
 
 
-// Ctrl+c, ÄÜ¼Ö Á¾·á ¹öÆ°¿¡¼­ gracefunshutdownÀ» È£ÃâÇÏ±â À§ÇÑ Æ÷ÀÎÅÍ
+// Ctrl+c, ì½˜ì†” ë‹«ê¸° ë²„íŠ¼ì—ì„œ gracefulshutdownì„ í˜¸ì¶œí•˜ê¸° ìœ„í•œ ì „ì—­ë³€ìˆ˜
 ChatServer* g_pServer = nullptr;
 
 BOOL WINAPI ConsoleCtrlHandler(DWORD ctrlType)
@@ -16,11 +16,11 @@ BOOL WINAPI ConsoleCtrlHandler(DWORD ctrlType)
 	switch (ctrlType)
 	{
 		case CTRL_C_EVENT:			// Ctrl+c
-			printf("Ctrl+c Á¾·á ½ÅÈ£ ¼ö½Å\n");
-		case CTRL_CLOSE_EVENT:		// ÄÜ¼Ö x¹öÆ°
-			printf("ÄÜ¼Öx Á¾·á ½ÅÈ£ ¼ö½Å\n");
-		case CTRL_SHUTDOWN_EVENT:	// ½Ã½ºÅÛ Á¾·á
-			printf("½Ã½ºÅÛ Á¾·á ½ÅÈ£ ¼ö½Å\n");
+			printf("Ctrl+c ì¢…ë£Œ ì‹ í˜¸ ìˆ˜ì‹ \n");
+		case CTRL_CLOSE_EVENT:		// ì½˜ì†” xë²„íŠ¼
+			printf("ì½˜ì†”x ì¢…ë£Œ ì‹ í˜¸ ìˆ˜ì‹ \n");
+		case CTRL_SHUTDOWN_EVENT:	// ì‹œìŠ¤í…œ ì¢…ë£Œ
+			printf("ì‹œìŠ¤í…œ ì¢…ë£Œ ì‹ í˜¸ ìˆ˜ì‹ \n");
 			if (g_pServer)
 				g_pServer->End();
 			return TRUE;
@@ -36,15 +36,15 @@ int main()
 	ChatServer Server;
 	g_pServer = &Server;
 
-	// ¼ÒÄÏÀ» ÃÊ±âÈ­
+	// ì†Œì¼“ì„ ì´ˆê¸°í™”
 	Server.Init(MAX_IO_WORKER_THREAD);
 
-	// ¼ÒÄÏ°ú ¼­¹ö ÁÖ¼Ò¸¦ ¿¬°áÇÏ°í µî·Ï
+	// ì†Œì¼“ê³¼ ì„œë²„ ì£¼ì†Œë¥¼ ì—°ê²°í•˜ê³  ë“±ë¡
 	Server.BindandListen(SERVER_PORT);
 
 	Server.Run(MAX_CLIENT);
 
-	printf("¾Æ¹«Å°³ª ´©¸¦ ¶§±îÁö ´ë±â \n");
+	printf("ì•„ë¬´í‚¤ë‚˜ ëˆ„ë¥´ë©´ ì„œë²„ë¥¼ ì¢…ë£Œ \n");
 	
 	while (true)
 	{
@@ -58,7 +58,7 @@ int main()
 	}
 
 	Server.End();
-	g_pServer = nullptr; // ÇÚµé·¯¿¡¼­ ÀÌÁß È£Ãâ ¹æÁö
+	g_pServer = nullptr; // í•¸ë“¤ëŸ¬ì—ì„œ ì¤‘ë³µ í˜¸ì¶œ ë°©ì§€
 
 	return 0;
 }

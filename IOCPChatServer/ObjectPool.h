@@ -1,15 +1,15 @@
-#pragma once
+ï»¿#pragma once
 
 #include <cstdint>
 #include <vector>
 #include <mutex>
 #include <cassert>
 
-// °íÁ¤ Å©±â °´Ã¼ Ç® (½º·¹µå ¼¼ÀÌÇÁ)
-// - ¼­¹ö ½ÃÀÛ ½Ã N°³¸¦ ¹Ì¸® ÇÒ´çÇÏ°í, Alloc/Free·Î Àç»ç¿ë
-// - ³»ºÎÀûÀ¸·Î Free List(½ºÅÃ)¸¦ »ç¿ëÇÏ¿© O(1) ÇÒ´ç/¹İ³³À» º¸Àå
-// - IOCP ¿öÄ¿ ½º·¹µå(SendComplete)¿Í ·ÎÁ÷ ½º·¹µå(SendMsg)°¡
-//   µ¿½Ã¿¡ Á¢±ÙÇÏ¹Ç·Î mutex·Î º¸È£
+// ê³ ì • í¬ê¸° ê°ì²´ í’€ (ë®¤í…ìŠ¤ ê¸°ë°˜)
+// - ì„œë²„ ì‹œì‘ ì‹œ Nê°œë¥¼ ë¯¸ë¦¬ í• ë‹¹í•˜ê³ , Alloc/Freeë¡œ ìš´ìš©
+// - ë‚´ë¶€ì ìœ¼ë¡œ Free List(ë²¡í„°)ë¥¼ ì‚¬ìš©í•˜ì—¬ O(1) í• ë‹¹/ë°˜ë‚©ì´ ê°€ëŠ¥
+// - IOCP ì›Œì»¤ ìŠ¤ë ˆë“œ(SendComplete)ì™€ ë©”ì¸ ìŠ¤ë ˆë“œ(SendMsg)ê°€
+//   ë™ì‹œì— ì ‘ê·¼í•˜ë¯€ë¡œ mutexë¡œ ë³´í˜¸
 template<typename T>
 class ObjectPool
 {
@@ -17,7 +17,7 @@ public:
 	ObjectPool() = default;
 	~ObjectPool()
 	{
-		// Ç®ÀÌ ¼ÒÀ¯ÇÑ ¸Ş¸ğ¸® ÇØÁ¦
+		// í’€ì— í• ë‹¹ëœ ë©”ëª¨ë¦¬ í•´ì œ
 		for (auto* block : mAllBlocks)
 		{
 			delete block;
@@ -26,11 +26,11 @@ public:
 		mFreeList.clear();
 	}
 
-	// º¹»ç/ÀÌµ¿ ±İÁö
+	// ë³µì‚¬/ì´ë™ ê¸ˆì§€
 	ObjectPool(const ObjectPool&) = delete;
 	ObjectPool& operator=(const ObjectPool&) = delete;
 
-	// poolSize°³ÀÇ °´Ã¼¸¦ ¹Ì¸® ÇÒ´ç
+	// poolSizeë§Œí¼ ê°ì²´ë¥¼ ë¯¸ë¦¬ í• ë‹¹
 	void Init(const uint32_t poolSize)
 	{
 		mAllBlocks.reserve(poolSize);
@@ -46,8 +46,8 @@ public:
 		mPoolSize = poolSize;
 	}
 
-	// Ç®¿¡¼­ °´Ã¼ ÇÏ³ª¸¦ ²¨³½´Ù.
-	// Ç®ÀÌ ºñ¾úÀ¸¸é nullptr ¹İÈ¯ (È£Ãâ Ãø¿¡¼­ Ã³¸®)
+	// í’€ì—ì„œ ê°ì²´ í•˜ë‚˜ë¥¼ êº¼ë‚¸ë‹¤.
+	// í’€ì´ ë¹„ì—ˆìœ¼ë©´ nullptr ë°˜í™˜ (í˜¸ì¶œ ì¸¡ì—ì„œ ì²˜ë¦¬)
 	T* Alloc()
 	{
 		std::lock_guard<std::mutex> guard(mLock);
@@ -60,7 +60,7 @@ public:
 		return obj;
 	}
 
-	// »ç¿ëÀÌ ³¡³­ °´Ã¼¸¦ Ç®¿¡ ¹İ³³ÇÑ´Ù.
+	// ì‚¬ìš©ì´ ëë‚œ ê°ì²´ë¥¼ í’€ì— ë°˜ë‚©í•œë‹¤.
 	void Free(T* obj)
 	{
 		if (obj == nullptr)
@@ -71,7 +71,7 @@ public:
 		mFreeList.push_back(obj);
 	}
 
-	// ÇöÀç »ç¿ë °¡´ÉÇÑ °´Ã¼ ¼ö
+	// í˜„ì¬ ì‚¬ìš© ê°€ëŠ¥í•œ ê°ì²´ ìˆ˜
 	uint32_t GetAvailableCount()
 	{
 		std::lock_guard<std::mutex> guard(mLock);
@@ -79,10 +79,13 @@ public:
 	}
 
 	uint32_t GetPoolSize() const { return mPoolSize; }
+	void IncrementAllocFail() { mAllocFailCount++; }
+	uint64_t GetAllocFailCount() const { return mAllocFailCount; }
 
 private:
-	std::vector<T*> mAllBlocks;		// ¸Ş¸ğ¸® ÇØÁ¦¿ë (¼ÒÀ¯±Ç)
-	std::vector<T*> mFreeList;		// »ç¿ë °¡´ÉÇÑ °´Ã¼ ½ºÅÃ
+	std::vector<T*> mAllBlocks;		// ë©”ëª¨ë¦¬ ê´€ë¦¬ìš© (ì†Œë©¸ì)
+	std::vector<T*> mFreeList;		// ì‚¬ìš© ê°€ëŠ¥í•œ ê°ì²´ ëª©ë¡
 	std::mutex mLock;
 	uint32_t mPoolSize = 0;
+	uint64_t mAllocFailCount = 0;
 };

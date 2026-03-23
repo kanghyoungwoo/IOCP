@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <winsock2.h>
 #include <Ws2tcpip.h>
 #include <mswsock.h>
@@ -9,6 +9,26 @@ const UINT32 MAX_SOCK_SENDBUF = 4096;
 const UINT64 RE_USE_SESSION_WAIT_TIMESEC = 3; 
 #define MAX_WORKERTHREAD 4
 //#define USE_AMAZON_AWS_DB // 주석처리 로컬모드
+
+// Release 빌드 시 디버그 출력 제거
+#ifdef _DEBUG
+#define LOG_DEBUG(fmt, ...) printf(fmt, ##__VA_ARGS__)
+#else
+#define LOG_DEBUG(fmt, ...)
+#endif
+
+// 에러 메시지는 항상 출력
+#define LOG_ERROR(fmt, ...) printf("[ERROR] " fmt, ##__VA_ARGS__)
+
+// 반복 에러는 최초 1회만 출력
+#define LOG_ERROR_ONCE(fmt, ...) \
+    do { \
+        static bool _once = false; \
+        if (!_once) { \
+            _once = true; \
+            printf("[ERROR] " fmt, ##__VA_ARGS__); \
+        } \
+    } while(0)
 
 enum class IOOperation
 {

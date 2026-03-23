@@ -1,7 +1,8 @@
-#pragma once
+ï»¿#pragma once
 
 #include "User.h"
 #include "ErrorCode.h"
+#include "Define.h"
 #include <mutex>
 #include <unordered_map>
 #include <vector>
@@ -60,25 +61,25 @@ public:
 		std::string userIDStr = userID_;
 		//std::lock_guard<std::mutex> lock(mUserDictMutex);
 
-		// Áßº¹ °Ë»ç ÈÄ »ðÀÔ
+		// ì¤‘ë³µ ê²€ì‚¬ í›„ ì‚½ìž…
 		auto result = mUserIDDictionary.insert(std::pair<std::string, int>(userIDStr, clientIndex_));
 
-		if (!result.second) // ÀÌ¹Ì Á¸ÀçÇÏ¸é »ðÀÔ ½ÇÆÐ
+		if (!result.second) // ì´ë¯¸ ì¡´ìž¬í•˜ë©´ ì‚½ìž… ì‹¤íŒ¨
 		{
-			printf("Áßº¹ ·Î±×ÀÎ ½Ãµµ ! :%s\n",userID_);
+			LOG_ERROR("ì¤‘ë³µ ë¡œê·¸ì¸ ì‹œë„ ! :%s\n",userID_);
 			return ERROR_CODE::LOGIN_USER_ALREADY;
 		}
 
-		// »ðÀÔ ¼º°ø ½Ã user °´Ã¼ ¼³Á¤
+		// ì‚½ìž… ì„±ê³µ ì‹œ user ê°ì²´ ì„¤ì •
 		mUserObjPool[clientIndex_]->SetLogin(userID_);
-		printf("»ç¿ëÀÚ µî·Ï ¼º°ø : %s (ClientIndex : %d)\n", userID_, clientIndex_);
+		LOG_DEBUG("ì‚¬ìš©ìž ë“±ë¡ ì„±ê³µ : %s (ClientIndex : %d)\n", userID_, clientIndex_);
 
 		//UINT32 user_index = clientIndex_;
-		//// »õ·Î¿î ¿¬°á ¹ß»ýÇÒ¶§ usermanager°¡ °®°íÀÖ´Â user°´Ã¼ ÇÒ´çÇØÁÜ
+		//// ìƒˆë¡œìš´ ì—°ê²° ë°œìƒí• ë•Œ usermanagerê°€ ê°–ê³ ìžˆëŠ” userê°ì²´ í• ë‹¹í•´ì¤Œ
 		//auto userIndex = clientIndex_;
 		//mUserObjPool[userIndex]->SetLogin(userID_);
 
-		//// stringÀ¸·Î º¯È¯ÇØ¼­ ÀúÀå
+		//// stringìœ¼ë¡œ ë³€í™˜í•´ì„œ ì €ìž¥
 		//std::string userIDStr = userID_;
 		//mUserIDDictionary.insert(std::pair<std::string, int>(userIDStr, clientIndex_));
 
@@ -102,7 +103,7 @@ public:
 
 	void DeleteUserInfo(User* user_)
 	{
-		printf("»ç¿ëÀÚ Á¤º¸ »èÁ¦ : %s\n", user_->GetUserID().c_str());
+		LOG_DEBUG("ì‚¬ìš©ìž ì •ë³´ ì‚­ì œ : %s\n", user_->GetUserID().c_str());
 		mUserIDDictionary.erase(user_->GetUserID());
 		user_->Clear();
 		user_->IncrementGeneration();
@@ -112,7 +113,7 @@ public:
 
 	INT32 FindUserIndexByID(char* userID_)
 	{
-		std::string userIDStr = userID_; // char*¸¦ stringÀ¸·Î º¯È¯
+		std::string userIDStr = userID_; // char*ë¥¼ stringìœ¼ë¡œ ë³€í™˜
 
 		//std::lock_guard<std::mutex>lock(mUserDictMutex);
 

@@ -1,10 +1,10 @@
-#pragma once
+ï»¿#pragma once
 
 #define WIN32_LEAN_AND_MEAN
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <windows.h>
-// ÆĞÅ¶ÀÇ ID·Î Å¬¶óÀÌ¾ğÆ®°¡ ¾î¶² ¿äÃ»À» Çß´ÂÁö ¾Ë¾Æ³¿
+// íŒ¨í‚·ì˜ IDë¡œ í´ë¼ì´ì–¸íŠ¸ê°€ ì–´ë–¤ ìš”ì²­ì„ í–ˆëŠ”ì§€ ì•Œì•„ëƒ„
 typedef struct _RawPacketData
 {
 	UINT32 ClientSessionIndex = 0;
@@ -62,8 +62,8 @@ enum class PACKET_ID : UINT16
 	SYS_USER_CONNECT = 11,
 	SYS_USER_DISCONNECT = 12,
 
-	SYS_PING = 21,	// ¼­¹ö -> Å¬¶ó
-	SYS_PONG = 22,	// Å¬¶ó -> ¼­¹ö
+	SYS_PING = 21,	// ì„œë²„ -> í´ë¼
+	SYS_PONG = 22,	// í´ë¼ -> ì„œë²„
 
 	SYS_END = 30,
 
@@ -88,17 +88,17 @@ enum class PACKET_ID : UINT16
 	
 };
 
-#pragma pack(push,1)	// ¹ÙÀÌÆ® Á¤·Ä
+#pragma pack(push,1)	// ë°”ì´íŠ¸ ì •ë ¬
 struct PACKET_HEADER
 {
 	UINT16 PacketLength;
-	UINT16 PacketId;			// ÆĞÅ¶ ID Á¤º¸·Î Å¬¶óÀÌ¾ğÆ®°¡ ¾î¶² ¿äÃ»À» Çß´ÂÁö ¾Ë¾Æ³»°í ±×¿¡ µû¸¥ Ã³¸®
-	UINT8 PacketType;			// ¾ĞÃà ¿©ºÎ
+	UINT16 PacketId;			// íŒ¨í‚· ID ì •ë³´ë¡œ í´ë¼ì´ì–¸íŠ¸ê°€ ì–´ë–¤ ìš”ì²­ì„ í–ˆëŠ”ì§€ ì•Œì•„ë‚´ê³  ê·¸ì— ë”°ë¥¸ ì²˜ë¦¬
+	UINT8 PacketType;			// ì••ì¶• ì—¬ë¶€
 };
 
 const UINT32 PACKET_HEADER_LENGTH = sizeof(PACKET_HEADER);
 
-// ·Î±×ÀÎ
+// ë¡œê·¸ì¸
 const int MAX_USER_ID_LENGTH = 32;
 const int MAX_USER_PW_LENGTH = 32;
 
@@ -117,7 +117,7 @@ struct LOGIN_RESPONSE_PACKET : public PACKET_HEADER
 
 struct ROOM_ENTER_REQUEST_PACKET : public PACKET_HEADER
 {
-	INT32 RoomNumber;		// ¹æ ¹øÈ£
+	INT32 RoomNumber;		// ë°© ë²ˆí˜¸
 };
 
 struct ROOM_ENTER_RESPONSE_PACKET : public PACKET_HEADER
@@ -127,7 +127,7 @@ struct ROOM_ENTER_RESPONSE_PACKET : public PACKET_HEADER
 
 struct ROOM_LEAVE_REQUEST_PACKET : public PACKET_HEADER
 {
-	INT32 RoomNumber;		// ¹æ ¹øÈ£
+	INT32 RoomNumber;		// ë°© ë²ˆí˜¸
 };
 
 struct ROOM_LEAVE_RESPONSE_PACKET : public PACKET_HEADER
@@ -139,7 +139,7 @@ const int MAX_CHAT_MSG = 256;
 
 struct ROOM_CHAT_REQUEST_PACKET : public PACKET_HEADER
 {
-	char Message[MAX_CHAT_MSG + 1] = { 0, }; // Ã¤ÆÃ ¸Ş¼¼Áö
+	char Message[MAX_CHAT_MSG + 1] = { 0, }; // ì±„íŒ… ë©”ì„¸ì§€
 };
 
 struct ROOM_CHAT_RESPONSE_PACKET : public PACKET_HEADER
@@ -149,8 +149,8 @@ struct ROOM_CHAT_RESPONSE_PACKET : public PACKET_HEADER
 
 struct ROOM_CHAT_NOTIFY_PACKET : public PACKET_HEADER
 {
-	char UserID[MAX_USER_ID_LENGTH + 1] = { 0, }; // Ã¤ÆÃÀ» º¸³½ À¯ÀúÀÇ ID
-	char Message[MAX_CHAT_MSG + 1] = { 0, }; // Ã¤ÆÃ ¸Ş¼¼Áö
+	char UserID[MAX_USER_ID_LENGTH + 1] = { 0, }; // ì±„íŒ…ì„ ë³´ë‚¸ ìœ ì €ì˜ ID
+	char Message[MAX_CHAT_MSG + 1] = { 0, }; // ì±„íŒ… ë©”ì„¸ì§€
 };
 
 #pragma pack(pop)

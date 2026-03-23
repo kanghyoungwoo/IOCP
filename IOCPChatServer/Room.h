@@ -1,5 +1,6 @@
-#pragma once
+ï»¿#pragma once
 
+#include "Define.h"
 #include "UserManager.h"
 #include "Packet.h"
 
@@ -37,17 +38,17 @@ public:
 	{
 		//std::lock_guard<std::mutex> lock(mUserListMutex);
 		
-		// ÇöÀç À¯Àú°¡ maxº¸´Ù ¸¹À¸¸é 
+		// í˜„ì¬ ìœ ì €ê°€ maxë³´ë‹¤ ë§ìœ¼ë©´ 
 		if (mCurrentUserCount >= mMaxUserCount)
 		{
-			printf("Room is full. Cannot Enter the roomnum : %d\n", mRoomNumber);
+			LOG_ERROR("Room is full. Cannot Enter the roomnum : %d\n", mRoomNumber);
 			return (UINT16)ERROR_CODE::ENTER_ROOM_FULL_USER;
 		}
-		// À¯Àú ¸®½ºÆ® ¸ñ·Ï¿¡ Ãß°¡ ÇÏ°í count Áõ°¡
+		// ìœ ì € ë¦¬ìŠ¤íŠ¸ ëª©ë¡ì— ì¶”ê°€ í•˜ê³  count ì¦ê°€
 		mUserList.push_back(user_);
 		++mCurrentUserCount;
 
-		// À¯Àú °´Ã¼¿¡ ÀÔÀåÇÑ ¹æ ¼³Á¤
+		// ìœ ì € ê°ì²´ì— ì…ì¥í•œ ë°© ì„¤ì •
 		user_->EnterRoom(mRoomNumber);
 
 		return (UINT16)ERROR_CODE::NONE;
@@ -61,7 +62,7 @@ public:
 		mUserList.remove(leaveUser_);
 
 		//mUserList.remove_if([leaveUser_](std::shared_ptr<User> pUser) {
-		//	return leaveUser_.get() == pUser.get();  // Æ÷ÀÎÅÍ ÁÖ¼Ò ºñ±³
+		//	return leaveUser_.get() == pUser.get();  // í¬ì¸í„° ì£¼ì†Œ ë¹„êµ
 		//	});
 
 		--mCurrentUserCount;
@@ -73,7 +74,7 @@ public:
 		roomChatNotifyPacket.PacketId = (UINT16)PACKET_ID::ROOM_CHAT_NOTIFY;
 		roomChatNotifyPacket.PacketLength = sizeof(roomChatNotifyPacket);
 
-		// ¸Ş¸ğ¸®¸¦ ¸ÕÀú ÃÊ±âÈ­
+		// ë©”ëª¨ë¦¬ë¥¼ ë¨¼ì € ì´ˆê¸°í™”
 		memset(roomChatNotifyPacket.Message, 0, sizeof(roomChatNotifyPacket.Message));
 		memset(roomChatNotifyPacket.UserID, 0, sizeof(roomChatNotifyPacket.UserID));
 
@@ -82,15 +83,15 @@ public:
 
 		
 
-		// ¹®ÀÚ¿­ ¾ÈÀü º¹»ç (¹æ¹ı 1 - strcpy_s »ç¿ë)
+		// ë¬¸ìì—´ ì•ˆì „ ë³µì‚¬ (ë°©ë²• 1 - strcpy_s ì‚¬ìš©)
 		strcpy_s(roomChatNotifyPacket.UserID, sizeof(roomChatNotifyPacket.UserID), userID_);
 
-		// msg_´Â ROOM_CHAT_REQUEST_PACKET Æ÷ÀÎÅÍÀÌ¹Ç·Î Message ¸â¹ö¸¦ °¡Á®¿Í¾ß ÇÔ
+		// msg_ëŠ” ROOM_CHAT_REQUEST_PACKET í¬ì¸í„°ì´ë¯€ë¡œ Message ë©¤ë²„ë¥¼ ê°€ì ¸ì™€ì•¼ í•¨
 		auto pChatReqPacket = reinterpret_cast<const ROOM_CHAT_REQUEST_PACKET*>(msg_);
 		strcpy_s(roomChatNotifyPacket.Message, sizeof(roomChatNotifyPacket.Message), pChatReqPacket->Message);
 
-		// µğ¹ö±ë¿ë ·Î±×
-		printf("Ã¤ÆÃ ¾Ë¸²: UserID='%s', Message='%s'\n", roomChatNotifyPacket.UserID, roomChatNotifyPacket.Message);
+		// ë””ë²„ê¹…ìš© ë¡œê·¸
+		LOG_DEBUG("ì±„íŒ… ì•Œë¦¼: UserID='%s', Message='%s'\n", roomChatNotifyPacket.UserID, roomChatNotifyPacket.Message);
 
 		SendToAllUser(sizeof(roomChatNotifyPacket), (char*)&roomChatNotifyPacket, clientIndex_, false);
 		
@@ -98,8 +99,8 @@ public:
 		CopyMemory(roomChatNotifyPacket.UserID, userID_, sizeof(roomChatNotifyPacket.UserID));
 
 		SendToAllUser(sizeof(roomChatNotifyPacket), (char*)&roomChatNotifyPacket, clientIndex_, false);
-		printf("Ã¤ÆÃ ¾Ë¸²: UserID='%s', Message='%s'\n", roomChatNotifyPacket.UserID, roomChatNotifyPacket.Message);
-		printf("¸Ş¼¼Áö°¡ Àü¼ÛµÇ¾ú½À´Ï´Ù !\n");*/
+		printf("ì±„íŒ… ì•Œë¦¼: UserID='%s', Message='%s'\n", roomChatNotifyPacket.UserID, roomChatNotifyPacket.Message);
+		printf("ë©”ì„¸ì§€ê°€ ì „ì†¡ë˜ì—ˆìŠµë‹ˆë‹¤ !\n");*/
 	}
 
 
@@ -109,10 +110,10 @@ private:
 
 	void SendToAllUser(const UINT16 dataSize_, char* data_, const INT32 skipUserIndex_, bool skip_)
 	{
-		// 1. Room °´Ã¼´Â ¸ğµç À¯ÀúÀÇ Á¤º¸¸¦ ¸®½ºÆ®·Î °ü¸®ÇÏ°í ÀÖ´Ù.
-		// 2. ÇØ´ç ¸®½ºÆ®¸¦ ¹İº¹À» µ¹¸ç Send ¿äÃ»À» º¸³»¸é µÈ´Ù.
-		// 3. ¿©±â¼­ Æ¯ÀÌÇÑ Á¡Àº ÆĞÅ¶ ¸Å´ÏÀúÀÇ ÇÔ¼ö¸¦ ÇÔ¼ö Æ÷ÀÎÅÍ·Î ¹Ş¾Æ À¯Àú °´Ã¼¿¡ ÀúÀåÇÑ µÚ
-		// 4. ±× ÇÔ¼ö Æ÷ÀÎÅÍ¸¦ »ç¿ëÇÏ¿© ÆĞÅ¶ ¸Å´ÏÀúÀÇ ÇÔ¼ö¸¦ È£ÃâÇÏ¿© Àü¼ÛÀ» ¼öÇàÇÑ´Ù.
+		// 1. Room ê°ì²´ëŠ” ëª¨ë“  ìœ ì €ì˜ ì •ë³´ë¥¼ ë¦¬ìŠ¤íŠ¸ë¡œ ê´€ë¦¬í•˜ê³  ìˆë‹¤.
+		// 2. í•´ë‹¹ ë¦¬ìŠ¤íŠ¸ë¥¼ ë°˜ë³µì„ ëŒë©° Send ìš”ì²­ì„ ë³´ë‚´ë©´ ëœë‹¤.
+		// 3. ì—¬ê¸°ì„œ íŠ¹ì´í•œ ì ì€ íŒ¨í‚· ë§¤ë‹ˆì €ì˜ í•¨ìˆ˜ë¥¼ í•¨ìˆ˜ í¬ì¸í„°ë¡œ ë°›ì•„ ìœ ì € ê°ì²´ì— ì €ì¥í•œ ë’¤
+		// 4. ê·¸ í•¨ìˆ˜ í¬ì¸í„°ë¥¼ ì‚¬ìš©í•˜ì—¬ íŒ¨í‚· ë§¤ë‹ˆì €ì˜ í•¨ìˆ˜ë¥¼ í˜¸ì¶œí•˜ì—¬ ì „ì†¡ì„ ìˆ˜í–‰í•œë‹¤.
 
 		//std::lock_guard<std::mutex> lock(mUserListMutex);
 
@@ -127,7 +128,7 @@ private:
 
 	}
 
-	std::list<User*> mUserList;	// À¯Àú ¸®½ºÆ® -> ¸ÖÆ¼½º·¹µå Á¢±Ù À§Çè
+	std::list<User*> mUserList;	// ìœ ì € ë¦¬ìŠ¤íŠ¸ -> ë©€í‹°ìŠ¤ë ˆë“œ ì ‘ê·¼ ìœ„í—˜
 	//std::list<std::shared_ptr<User>>mUserList;
 	//std::mutex mUserListMutex;
 

@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #pragma comment(lib, "mswsock.lib")
 
 #include <MSWSock.h>
@@ -68,7 +68,7 @@ public:
 		mIsConnected = true;
 		++mGeneration;
 
-		// ¿¬°á Á÷ÈÄ Å¸ÀÓ¾Æ¿ô ¹æÁö¸¦ À§ÇØ ½Ã°£ °»½Å
+		// ì†Œì¼“ ì—°ê²° íƒ€ì„ì•„ì›ƒ íŒë‹¨ìš© ìµœê·¼ ì‹œê° ê°±ì‹ 
 		UpdateActivity();
 
 		//Clear();
@@ -81,26 +81,26 @@ public:
 
 	void Closed(bool bIsForced = false)
 	{
-		// SO_LINGER¸¦ »ç¿ëÇÏ¸é ¼ÒÄÏÀ» close ÇßÀ» ¶§ Àü¼ÛµÇÁö ¾ÊÀº µ¥ÀÌÅÍ¸¦ ¾î¶»°Ô Ã³¸®ÇÒ °ÍÀÎÁö Á¶Á¤ÇÔ
-		struct linger stLinger = { 0,0 };	//SO_DONTLINGER·Î ¼³Á¤
+		// SO_LINGERë¥¼ ì‚¬ìš©í•˜ë©´ ì •ìƒì  close ì‹œì— ì†¡ì‹ ë˜ì§€ ì•Šì€ ë°ì´í„°ë¥¼ ëª¨ë‘ ì²˜ë¦¬í•œ ë’¤ì— ì¢…ë£Œë¨
+		struct linger stLinger = { 0,0 };	//SO_DONTLINGERë¡œ ì„¤ì •
 
-		// bIsForce°¡ true¸é SO_LINGER, timeout = 0À¸·Î ¼³Á¤ÇÏ¿© °­Á¦ Á¾·á½ÃÅ´
+		// bIsForceê°€ trueì´ë©´ SO_LINGER, timeout = 0ìœ¼ë¡œ ì„¤ì •í•˜ì—¬ ê°•ì œ ì¢…ë£Œì‹œí‚´
 		if (bIsForced == true)
 		{
 			stLinger.l_onoff = 1;
 		}
 
-		// socketClose¼ÒÄÏÀÇ µ¥ÀÌÅÍ ¼Û¼ö½ÅÀ» ¸ğµÎ Áß´Ü
+		// socketClose ì „ì— ìƒëŒ€ë°©ì—ê²Œ ì „ì†¡ì„ ì¤‘ë‹¨í–ˆë‹¤
 		shutdown(m_socketClient, SD_BOTH);
 
-		// ¼ÒÄÏ ¿É¼ÇÀ» ¼³Á¤
+		// ì†Œì¼“ ì˜µì…˜ì„ ì„¤ì •
 		setsockopt(m_socketClient, SOL_SOCKET, SO_LINGER, (char*)&stLinger, sizeof(stLinger));
 
 		mIsConnected = false;
 
 		mLatestClosedTimeSec = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
 
-		// ¼ÒÄÏ ¿¬°áÀ» Á¾·á
+		// ì†Œì¼“ ë¦¬ì†ŒìŠ¤ í•´ì œ
 		closesocket(m_socketClient);
 
 		m_socketClient = INVALID_SOCKET;
@@ -108,7 +108,7 @@ public:
 
 	void Clear()
 	{
-		// ¼Û½Å Å¥ Á¤¸®
+		// ì†¡ì‹  í ì •ë¦¬
 		std::lock_guard<std::mutex> gurad(mSendLock);
 
 		while (!mSendDataqueue.empty())
@@ -116,32 +116,33 @@ public:
 			//delete[] mSendDataqueue.front()->m_wsaBuf.buf;
 			//delete mSendDataqueue.front();
 			//mSendDataqueue.pop();
-			mSendPool->Free(mSendDataqueue.front());	// Ç®¿¡ ¹İ³³
+			mSendPool->Free(mSendDataqueue.front());	// í’€ì— ë°˜ë‚©
 			mSendDataqueue.pop();
 		}
 		
 		mSendPos = 0;
 		mIsSending = false;
 
-		// ¹öÆÛ ÃÊ±âÈ­ 
+		// ë²„í¼ ì´ˆê¸°í™”
 		ZeroMemory(mRecvBuf, sizeof(mRecvBuf));
 		ZeroMemory(mSendBuf, sizeof(mSendBuf));
 
 	}
 
-	// WSASend Overlapped I/O ÀÛ¾÷À» ½ÃÀÛ
+	// WSASend Overlapped I/O ì‘ì—…ì„ ì‹œì‘
 	bool SendMsg(const UINT32 dataSize, char* pMsg)
 	{
-		// Ç®¿¡¼­ SendOverlappedEx ÇÏ³ª¸¦ ²¨³½´Ù (Èü ÇÒ´ç ¾øÀ½)
+		// í’€ì—ì„œ SendOverlappedEx í•˜ë‚˜ë¥¼ êº¼ë‚¸ë‹¤ (í™ í• ë‹¹ ì—†ìŒ)
 		auto pSendOvl = mSendPool->Alloc();
 		if (pSendOvl == nullptr)
 		{
-			printf("[ERROR] SendPool ¼ÒÁø! dataSize=%d\n", dataSize);
+			mSendPool->IncrementAllocFail();
+			LOG_ERROR_ONCE("SendPool ì†Œì§„! dataSize=%d\n", dataSize);
 			return false;
 		}
 		ZeroMemory(&pSendOvl->wsaOverlapped, sizeof(WSAOVERLAPPED));
 		pSendOvl->wsaBuf.len = dataSize;
-		pSendOvl->wsaBuf.buf = pSendOvl->buffer;	// ³»Àå ¹öÆÛ¸¦ °¡¸®Å´
+		pSendOvl->wsaBuf.buf = pSendOvl->buffer;	// ë‚´ì¥ ë²„í¼ë¥¼ ê°€ë¦¬í‚´
 		CopyMemory(pSendOvl->buffer, pMsg, dataSize);
 		pSendOvl->operation = IOOperation::SEND;
 		pSendOvl->generation = mGeneration;
@@ -149,7 +150,7 @@ public:
 		std::lock_guard<std::mutex> guard(mSendLock);
 		mSendDataqueue.push(pSendOvl);
 
-		//// overlapped ±¸Á¶Ã¼ »ı¼º
+		//// overlapped êµ¬ì¡°ì²´ ì„¤ì •
 		//auto sendOverlappedEx = new stOverlappedEx;
 		//ZeroMemory(sendOverlappedEx, sizeof(stOverlappedEx));
 		//sendOverlappedEx->m_wsaBuf.len = dataSize;
@@ -160,13 +161,13 @@ public:
 		//std::lock_guard<std::mutex> guard(mSendLock);
 		//mSendDataqueue.push(sendOverlappedEx);
 		
-		// µ¥ÀÌÅÍ°¡ 1°³¶ó¸é ¾Õ¿¡ µ¥ÀÌÅÍ°¡ ¾øÀ¸´Ï ¹Ù·Î wsasend
+		// ë°ì´í„°ê°€ 1ê°œì´ë©´ ì•ì— ë°ì´í„°ê°€ ì—†ìœ¼ë¯€ë¡œ ë°”ë¡œ wsasend
 		if (mSendDataqueue.size() == 1)
 		{
 			SendIO();
 		}
 
-		// buffer¸¦ ÀÌ¿ëÇÑ 1-send
+		// bufferë¥¼ ì´ìš©í•œ 1-send
 		/*
 		std::lock_guard<std::mutex>guard(mSendLock);
 		if ((mSendPos + dataSize) > MAX_SOCK_SENDBUF)
@@ -175,7 +176,7 @@ public:
 		}
 		auto pSendBuf = &mSendBuf[mSendPos];
 
-		// Àü¼Û ¸Ş¼¼Áö º¹»ç
+		// ë³´ë‚¼ ë©”ì„¸ì§€ ë³µì‚¬
 		CopyMemory(pSendBuf, pMsg, dataSize);
 		mSendPos += dataSize;
 		*/
@@ -189,7 +190,7 @@ public:
 		DWORD dwFlag = 0;
 		DWORD dwRecvNumBytes = 0;
 
-		// Overlapped I/O¸¦ À§ÇØ °¢ Á¤º¸¸¦ ¼¼ÆÃ
+		// Overlapped I/Oë¥¼ ìœ„í•œ ê° ì •ë³´ë¥¼ ì„¤ì •
 		m_stRecvOverlappedEx.m_wsaBuf.len = MAX_SOCKBUF;
 		m_stRecvOverlappedEx.m_wsaBuf.buf = mRecvBuf;
 		m_stRecvOverlappedEx.m_eOperation = IOOperation::RECV;
@@ -203,31 +204,31 @@ public:
 			(LPWSAOVERLAPPED) & (m_stRecvOverlappedEx),
 			NULL);
 
-		// socket_error ¸é client socketÀÌ ²÷¾îÁø°ÍÀ¸·Î Ã³¸®
+		// socket_error ì‹œ client socketì´ ëŠì–´ì¡Œìœ¼ë¯€ë¡œ ì²˜ë¦¬
 		if (nRet == SOCKET_ERROR && (WSAGetLastError() != ERROR_IO_PENDING))
 		{
-			printf("[ERROR] WSARecv() ½ÇÆĞ : %d\n", WSAGetLastError());
-			Closed(true); // ¿¬°á °­Á¦ ÇØÁ¦
+			LOG_ERROR("WSARecv() ì‹¤íŒ¨ : %d\n", WSAGetLastError());
+			Closed(true); // ê°•ì œ ì—°ê²° ì¢…ë£Œ
 			return false;
 		}
-		printf("bind recv ¼º°ø\n");
+		LOG_DEBUG("bind recv ì„±ê³µ\n");
 		return true;
 	}
 
-	// CompletionPort°´Ã¼¿Í ¼ÒÄÏ°ú CompletionKey¸¦ ¿¬°á½ÃÅ°´Â ¿ªÇÒÀ» ÇÔ
+	// CompletionPort ê°ì²´ì— ì†Œì¼“ê³¼ CompletionKeyë¥¼ ì—°ê²°ì‹œí‚¤ëŠ” í•¨ìˆ˜ ë“±
 	bool BindIOCompletionPort(HANDLE iocpHandle)
 	{
-		// socket°ú pClientInfo¸¦ CompletionPort°´Ã¼¿Í ¿¬°á½ÃÅ´
+		// socketê³¼ pClientInfoë¥¼ CompletionPort ê°ì²´ì— ì—°ê²°ì‹œí‚´
 		auto hIOCP = CreateIoCompletionPort((HANDLE)GetSocket()
 			, iocpHandle
 			, (ULONG_PTR)(this), 0);
 
 		if (hIOCP == INVALID_HANDLE_VALUE)
 		{
-			printf("[ERROR] CreateIoCompletionPort() ½ÇÆĞ : %d\n", GetLastError());
+			LOG_ERROR("CreateIoCompletionPort() ì‹¤íŒ¨ : %d\n", GetLastError());
 			return false;
 		}
-		printf("BindIOCompletionport ¼º°ø!\n");
+		LOG_DEBUG("BindIOCompletionport ì„±ê³µ!\n");
 
 		return true;
 	}
@@ -249,11 +250,11 @@ public:
 
 		if (nRet == SOCKET_ERROR && (WSAGetLastError() != ERROR_IO_PENDING))
 		{
-			printf("[ERROR] WSASend() ½ÇÆĞ : %d\n", WSAGetLastError());
+			LOG_ERROR_ONCE("WSASend() ì‹¤íŒ¨ : %d\n", WSAGetLastError());
 			return false;
 		}
 
-		// buffer¹æ½ÄÀÇ 1-send
+		// buffer ë°©ì‹ì˜ 1-send
 		/*
 		if (mSendPos <= 0 || mIsSending)
 		{
@@ -278,10 +279,10 @@ public:
 			(LPWSAOVERLAPPED)&(m_stSendOverlappedEx),
 			NULL);
 
-		// socket_error¸é client socketÀÌ ²÷¾îÁø °ÍÀ¸·Î Ã³¸®
+		// socket_errorì‹œ client socketì´ ëŠì–´ì§„ ê²½ìš°ì— ì²˜ë¦¬
 		if (nRet == SOCKET_ERROR && (WSAGetLastError() != ERROR_IO_PENDING))
 		{
-			printf("[ERROR] WSASend() ½ÇÆĞ : %d\n", WSAGetLastError());
+			LOG_ERROR_ONCE("WSASend() ì‹¤íŒ¨ : %d\n", WSAGetLastError());
 			return false;
 		}
 		mSendPos = 0;
@@ -292,11 +293,11 @@ public:
 
 	void SendComplete(const UINT32 dataSize_)
 	{
-		// buffer¹æ½ÄÀ» ÀÌ¿ëÇÑ 1-send
+		// buffer ë°©ì‹ì„ ì´ìš©í•œ 1-send
 		/*
 		mIsSending = false;
 		*/
-		printf("[¼Û½Å ¿Ï·á] bytes : %d\n", dataSize_);
+		LOG_DEBUG("[ì†¡ì‹  ì™„ë£Œ] bytes : %d\n", dataSize_);
 		std::lock_guard<std::mutex> guard(mSendLock);
 		//delete[] mSendDataqueue.front()->m_wsaBuf.buf;
 		//delete mSendDataqueue.front();
@@ -313,12 +314,12 @@ public:
 		if (setsockopt(m_socketClient, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT,
 			(char*)&listenSock_, sizeof(SOCKET)) == SOCKET_ERROR)
 		{
-			printf("[ERROR] SO_UPDATE_ACCEPT_CONTEXT ½ÇÆĞ : %d \n",WSAGetLastError());
+			LOG_ERROR("SO_UPDATE_ACCEPT_CONTEXT ì‹¤íŒ¨ : %d \n",WSAGetLastError());
 			return false;
 		}
 
 
-		printf("AcceptCompletion : SessionIndex(%d)\n", mIndex);
+		LOG_DEBUG("AcceptCompletion : SessionIndex(%d)\n", mIndex);
 
 		if (OnConnect(mIOCPHandle, m_socketClient) == false)
 		{
@@ -328,7 +329,7 @@ public:
 		int nAddrLen = sizeof(SOCKADDR_IN);
 		char clientIP[32] = { 0 };
 		inet_ntop(AF_INET, &(stClientAddr.sin_addr), clientIP, 32 - 1);
-		printf("Client IP : %s, SOCKET(%d)\n", clientIP, (int)m_socketClient);
+		LOG_DEBUG("Client IP : %s, SOCKET(%d)\n", clientIP, (int)m_socketClient);
 
 		//mAcceptPendingg = false;
 
@@ -337,13 +338,13 @@ public:
 
 	bool PostAccept(SOCKET listenSock, const UINT64 curTimeSec)
 	{
-		printf("PostAccept Client Index : %d\n", GetIndex());
+		LOG_DEBUG("PostAccept Client Index : %d\n", GetIndex());
 
 		mLatestClosedTimeSec = UINT32_MAX;
 		m_socketClient = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_IP, NULL, 0, WSA_FLAG_OVERLAPPED);
 		if (m_socketClient == INVALID_SOCKET)
 		{
-			printf("Client Socket Error : %d \n", GetLastError());
+			LOG_ERROR("Client Socket Error : %d \n", GetLastError());
 			return false;
 		}
 
@@ -361,7 +362,7 @@ public:
 		{
 			if(WSAGetLastError() != WSA_IO_PENDING)
 
-			{printf("[ERROR] AcceptEx ½ÇÆĞ! ¿¡·¯ ÄÚµå: %d\n", GetLastError());
+			{LOG_ERROR("AcceptEx ì‹¤íŒ¨! ì—ëŸ¬ ì½”ë“œ: %d\n", GetLastError());
 
 				return false;
 			}
@@ -377,7 +378,7 @@ public:
 		m_socketClient = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_IP, NULL, 0, WSA_FLAG_OVERLAPPED);
 		if (m_socketClient == INVALID_SOCKET)
 		{
-			printf("Client Socket Error : %d \n", GetLastError());
+			LOG_ERROR("Client Socket Error : %d \n", GetLastError());
 			return false;
 		}
 
@@ -396,7 +397,7 @@ public:
 			if (WSAGetLastError() != WSA_IO_PENDING)
 
 			{
-				printf("[ERROR] AcceptEx ½ÇÆĞ! ¿¡·¯ ÄÚµå: %d\n", GetLastError());
+				LOG_ERROR("AcceptEx ì‹¤íŒ¨! ì—ëŸ¬ ì½”ë“œ: %d\n", GetLastError());
 
 				return false;
 			}
@@ -415,14 +416,14 @@ public:
 		int opt = 1;
 		if (SOCKET_ERROR == setsockopt(m_socketClient, IPPROTO_TCP, TCP_NODELAY, (const char*)&opt, sizeof(int)))
 		{
-			printf_s("[DEBUG] TCP_NODELAY error: %d\n", GetLastError());
+			LOG_DEBUG("TCP_NODELAY error: %d\n", GetLastError());
 			return false;
 		}
 
 		opt = 0;
 		if (SOCKET_ERROR == setsockopt(m_socketClient, SOL_SOCKET, SO_RCVBUF, (const char*)&opt, sizeof(int)))
 		{
-			printf_s("[DEBUG] SO_RCVBUF change error: %d\n", GetLastError());
+			LOG_DEBUG("SO_RCVBUF change error: %d\n", GetLastError());
 			return false;
 		}
 
@@ -433,7 +434,7 @@ public:
 	{
 		ULONGLONG now = GetTickCount64();
 		mLastActivityTime.store(GetTickCount64(), std::memory_order_relaxed);
-		// Å¬¶óÀÌ¾ğÆ®°¡ Á¤»ó È°µ¿ ÁßÀÌ¹Ç·Î ping º¸³½ ±â·Ïµµ ¸®¼Â
+		// í´ë¼ì´ì–¸íŠ¸ê°€ í˜„ì¬ í™œë™ ì¤‘ì´ë¯€ë¡œ ping ì‘ë‹µ ê¸°ë¡ë„ ë¦¬ì…‹
 		mLastPingTime.store(0, std::memory_order_relaxed);
 	}
 
@@ -462,27 +463,27 @@ public:
 
 	//bool mAcceptPendingg = false;
 private:
-	UINT32			mIndex = 0;				// ClientÀÇ index
-	SOCKET			m_socketClient;			// Client¿Í ¿¬°áµÇ´Â ¼ÒÄÏ
-	stOverlappedEx	m_stRecvOverlappedEx;	// RECV Overlapped I/O ÀÛ¾÷À» À§ÇÑ º¯¼ö
-	stOverlappedEx	m_stSendOverlappedEx;	// SEND Overlapped I/O ÀÛ¾÷À» À§ÇÑ º¯¼ö
-	stOverlappedEx	m_stAcceptOverlappedEx;	// Accept¸¦ ¿äÃ»ÇÏ°í IOCP ¿ÀºêÁ§Æ®¿¡¼­ ¿Ï·á¸¦ È®ÀÎÇÏ±â À§ÇÑ ±¸Á¶Ã¼
+	UINT32			mIndex = 0;				// Clientì˜ index
+	SOCKET			m_socketClient;			// Clientì™€ ì—°ê²°ë˜ëŠ” ì†Œì¼“
+	stOverlappedEx	m_stRecvOverlappedEx;	// RECV Overlapped I/O ì‘ì—…ì„ ìœ„í•œ ë³€ìˆ˜
+	stOverlappedEx	m_stSendOverlappedEx;	// SEND Overlapped I/O ì‘ì—…ì„ ìœ„í•œ ë³€ìˆ˜
+	stOverlappedEx	m_stAcceptOverlappedEx;	// Acceptë¥¼ ìš”ì²­í•˜ê³  IOCP ì»´í”Œë¦¬ì…˜í¬íŠ¸ì—ì„œ ì™„ë£Œë¥¼ í™•ì¸í•˜ê¸° ìœ„í•œ êµ¬ì¡°ì²´
 	stOverlappedEx mAcceptContext;
 	std::mutex mSendLock;
 	bool mIsSending = false;
-	UINT64 mSendPos = 0; // SendBufferÀÇ ½ÃÀÛÀ§Ä¡ ÁöÁ¤ º¯¼ö
+	UINT64 mSendPos = 0; // SendBufferì˜ ë°ì´í„°ìœ„ì¹˜ ê´€ë¦¬ ë³€ìˆ˜
 	HANDLE mIOCPHandle = INVALID_HANDLE_VALUE;
 	ObjectPool<SendOverlappedEx>* mSendPool = nullptr;
 	//bool mAcceptPending = false;
 	
-	char mRecvBuf[MAX_SOCKBUF];	// µ¥ÀÌÅÍ ¹öÆÛ
-	char mSendBuf[MAX_SOCKBUF]; // µ¥ÀÌÅÍ ¹öÆÛ
+	char mRecvBuf[MAX_SOCKBUF];	// ìˆ˜ì‹ ìš© ë²„í¼
+	char mSendBuf[MAX_SOCKBUF]; // ì†¡ì‹ ìš© ë²„í¼
 	char mSendingBuf[MAX_SOCK_SENDBUF];
 	//std::queue<stOverlappedEx*> mSendDataqueue;
 	std::queue<SendOverlappedEx*> mSendDataqueue;
-	bool mIsConnected = false;			// Client°¡ Á¢¼Ó ¿äÃ»À» Çß´ÂÁö È®ÀÎÇÏ´Â º¯¼ö
-	char mAcceptbuf[128];				// AcceptExÀÇ 3¹øÂ° ÀÎÀÚ·Î ³Ñ°ÜÁÙ ¹öÆÛ
-	UINT64 mLatestClosedTimeSec = 0;		// ¸¶Áö¸·À¸·Î ¿¬°áÀÌ Á¾·áµÈ ½Ã°£
+	bool mIsConnected = false;			// Clientì˜ ì ‘ì† ìš”ì²­ì„ í–ˆëŠ”ì§€ í™•ì¸í•˜ëŠ” ë³€ìˆ˜
+	char mAcceptbuf[128];				// AcceptExì˜ 3ë²ˆì§¸ ì¸ìë¡œ ë„˜ê¸°ëŠ” ë²„í¼
+	UINT64 mLatestClosedTimeSec = 0;		// ë§ˆì§€ë§‰ìœ¼ë¡œ ì—°ê²°ì´ ëŠì–´ì§„ ì‹œê°
 	
 	UINT32 mGeneration = 0;
 

@@ -1,40 +1,40 @@
-#pragma once
+ï»¿#pragma once
 
 class ObjectMemoryPool
 {
 private:
-	// FreeList Node ¿ªÇÒÀ» ÇÒ ±¸Á¶Ã¼
-	// ¸Ş¸ğ¸® »ç¿ëÁß ¾Æ´Ò½Ã ´ÙÀ½ ºó ºí·Ï °¡¸®Å°´Â Æ÷ÀÎÅÍ·Î ¾²ÀÓ
+	// FreeList Node ì—­í• ì„ í•  êµ¬ì¡°ì²´
+	// ë©”ëª¨ë¦¬ ì‚¬ìš©ì¤‘ ì•„ë‹ì‹œ ë‹¤ìŒ ë¹ˆ ë¸”ë¡ ê°€ë¦¬í‚¤ëŠ” í¬ì¸í„°ë¡œ ì“°ì„
 	struct FreeNode {
 		FreeNode* next;
 	};
 
-	FreeNode* freeListHead;	// ºó ¸Ş¸ğ¸® ºí·Ï ¸®½ºÆ®ÀÇ ¸Ó¸®
-	char* memoryBlock;		// ÀüÃ¼ ¸Ş¸ğ¸® ºí·ÏÀÇ ½ÃÀÛ ÁÖ¼Ò
-	size_t chunkSize;		// °¢ ºí·ÏÀÇ Å©±â
-	size_t poolSize;		// ºí·ÏÀÇ ÃÑ °³¼ö
-	// ¸Ş¸ğ¸®, ¹®ÀÚ¿­ ±¸Á¶¿¡´Â size_t¸¦ »ç¿ë
+	FreeNode* freeListHead;	// ë¹ˆ ë©”ëª¨ë¦¬ ë¸”ë¡ ë¦¬ìŠ¤íŠ¸ì˜ ë¨¸ë¦¬
+	char* memoryBlock;		// ì „ì²´ ë©”ëª¨ë¦¬ ë¸”ë¡ì˜ ì‹œì‘ ì£¼ì†Œ
+	size_t chunkSize;		// ê° ë¸”ë¡ì˜ í¬ê¸°
+	size_t poolSize;		// ë¸”ë¡ì˜ ì´ ê°œìˆ˜
+	// ë©”ëª¨ë¦¬, ë¬¸ìì—´ êµ¬ì¡°ì—ëŠ” size_të¥¼ ì‚¬ìš©
 
 public:
 	ObjectMemoryPool(size_t chunkSize)
 		: poolSize(poolSize) {
 
-		// À¯Àú ¿äÃ» Å©±â´ë·Î ³Ö°í
+		// ìœ ì € ìš”ì²­ í¬ê¸°ëŒ€ë¡œ ë„£ê³ 
 		this->chunkSize = chunkSize;
 
-		// ±× Å©±â°¡ Æ÷ÀÎÅÍ ÇÏ³ª ´ãÀ» °ø°£º¸´Ù ÀÛ´Ù¸é
+		// ê·¸ í¬ê¸°ê°€ í¬ì¸í„° í•˜ë‚˜ ë‹´ì„ ê³µê°„ë³´ë‹¤ ì‘ë‹¤ë©´
 		if (this->chunkSize < sizeof(FreeNode*))
 		{
-			// Æ÷ÀÎÅÍ Å©±â¸¸Å­ °­Á¦·Î ´Ã·ÁÁÜ
+			// í¬ì¸í„° í¬ê¸°ë§Œí¼ ê°•ì œë¡œ ëŠ˜ë ¤ì¤Œ
 			this->chunkSize = sizeof(FreeNode*);
 		}
 
-		// Å« ¸Ş¸ğ¸® µ¢¾î¸® ÇÑ ¹ø¿¡ ÇÒ´ç
+		// í° ë©”ëª¨ë¦¬ ë©ì–´ë¦¬ í•œ ë²ˆì— í• ë‹¹
 		memoryBlock = new char[this->chunkSize * poolSize];
 		freeListHead = reinterpret_cast<FreeNode*>(memoryBlock);
 
 
-		// ÃÊ±â ¸Ş¸ğ¸® ºí·ÏµéÀ» ÂÉ°³¼­ FreeList·Î ¿¬°á
+		// ì´ˆê¸° ë©”ëª¨ë¦¬ ë¸”ë¡ë“¤ì„ ìª¼ê°œì„œ FreeListë¡œ ì—°ê²°
 		FreeNode* current = freeListHead;
 		for (size_t i = 1; i < poolSize;++i)
 		{
@@ -47,28 +47,28 @@ public:
 
 	~ObjectMemoryPool() { delete[] memoryBlock; }
 
-	// ¸Ş¸ğ¸® ÇÒ´ç
+	// ë©”ëª¨ë¦¬ í• ë‹¹
 	void* allocate()
 	{
-		// Ç®ÀÌ ²Ë Â÷¸é
+		// í’€ì´ ê½‰ ì°¨ë©´
 		if (freeListHead == nullptr)
 		{
 			//std::cout<<"MemoryPool is out of memory";
 			return nullptr;
 		}
-		// ¸Ç ¾Õ ºó ºí·Ï
+		// ë§¨ ì• ë¹ˆ ë¸”ë¡
 		FreeNode* chunk = freeListHead;
 		freeListHead = freeListHead->next;
 
 		return chunk;
 	}
 
-	//¸Ş¸ğ¸® ÇØÁ¦
+	//ë©”ëª¨ë¦¬ í•´ì œ
 	void deallocate(void* ptr)
 	{
 		if (ptr == nullptr)
 			return;
-		// ¹İ³³µÈ ¸Ş¸ğ¸®¸¦ FreeListÀÇ ¸Ç ¾Õ¿¡ ´Ù½Ã ³¢¿ö³ÖÀ½
+		// ë°˜ë‚©ëœ ë©”ëª¨ë¦¬ë¥¼ FreeListì˜ ë§¨ ì•ì— ë‹¤ì‹œ ë¼ì›Œë„£ìŒ
 		FreeNode* chunk = static_cast<FreeNode*>(ptr);
 		freeListHead = chunk;
 	}

@@ -1,5 +1,6 @@
-#pragma once
+ï»¿#pragma once
 
+#include "Define.h"
 #include "RedisTaskDefine.h"
 #include "ErrorCode.h"
 
@@ -30,13 +31,13 @@ public:
 		//	return false;
 		//}
 		mIsTaskRun = true;
-		// ¾²·¹µå¸¦ ¸¸µé¾î Áà¾ß ÇÔ 
+		// ì“°ë ˆë“œë¥¼ ë§Œë“¤ì–´ ì¤˜ì•¼ í•¨ 
 		for (UINT32 i = 0; i < threadCount_; ++i)
 		{
 			mTaskThreads.emplace_back([this]() { TaskProcessThread();});
 		}
 
-		printf("Redis thread Working... \n");
+		LOG_DEBUG("Redis thread Working... \n");
 		return true;
 	}
 
@@ -105,21 +106,21 @@ private:
 	//	return true;
 	//}
 
-	// Redis ¿äÃ»À» Ã³¸®ÇÔ
+	// Redis ìš”ì²­ì„ ì²˜ë¦¬í•¨
 	void TaskProcessThread()
 	{
-		RedisCpp::CRedisConn Conn; // »ı¼º
-		Conn.init(mIP,mPort); // ÃÊ±âÈ­
-		Conn.connect();// ¿¬°á 
+		RedisCpp::CRedisConn Conn; // ìƒì„±
+		Conn.init(mIP,mPort); // ì´ˆê¸°í™”
+		Conn.connect();// ì—°ê²° 
 
-		printf("Redis ¾²·¹µå ½ÃÀÛ\n");
+		LOG_DEBUG("Redis ì“°ë ˆë“œ ì‹œì‘\n");
 		while (true) // mIsTaskRun -> true
 		{
 			RedisTask task;
 			{
 				std::unique_lock<std::mutex>lock(mReqLock);
 				mReqCV.wait(lock, [this]() {return !mRequestTask.empty() || !mIsTaskRun;});
-				// Á¾·á½ÅÈ£ + Å¥ ºñ¾úÀ»¶§¸¸ Å»Ãâ
+				// ì¢…ë£Œì‹ í˜¸ + í ë¹„ì—ˆì„ë•Œë§Œ íƒˆì¶œ
 				if (!mIsTaskRun && mRequestTask.empty())
 					break;
 				task = mRequestTask.front();
@@ -145,9 +146,9 @@ private:
 				
 				if (got)
 				{
-					printf("UserID : %s\n", pRequest->UserID);
-					printf("Input Pw : %s\n", pRequest->UserPW);
-					printf("Redis PW: %s\n", value.c_str());
+					LOG_DEBUG("UserID : %s\n", pRequest->UserID);
+					LOG_DEBUG("Input Pw : %s\n", pRequest->UserPW);
+					LOG_DEBUG("Redis PW: %s\n", value.c_str());
 					if (value.compare(pRequest->UserPW) == 0)
 					{
 						bodyData.Result = (UINT16)ERROR_CODE::NONE;
@@ -167,7 +168,7 @@ private:
 			task.release();
 
 			//bool isIdle = true;
-			//// ¿äÃ»À» queue¸¦ ÅëÇØ¼­ ¼­·Î ÁÖ°í¹ŞÀ½ mRequestTask
+			//// ìš”ì²­ì„ queueë¥¼ í†µí•´ì„œ ì„œë¡œ ì£¼ê³ ë°›ìŒ mRequestTask
 			//if (auto task = TakeRequestTask(); task.TaskID != RedisTaskID::INVALID)
 			//{
 			//	isIdle = false;
@@ -207,12 +208,12 @@ private:
 
 			//	task.release();
 
-			//	// ÀÌ·±½ÄÀÇ if/switch¹®À» »ç¿ëÇÏ¿© task¸¦ Ã³¸®´Â ÄÚµå°¡ ³Ê¹« Ä¿Áö±â ¶§¹®¿¡ ¼ÒÄÏ Ã³¸®ÇÒ ¶§¿Í °°ÀÌ dictionary³ª array¸¦ »ç¿ëÇÏ¿© Ã³¸®ÇÏ´Â °ÍÀÌ ÁÁÀ½
+			//	// ì´ëŸ°ì‹ì˜ if/switchë¬¸ì„ ì‚¬ìš©í•˜ì—¬ taskë¥¼ ì²˜ë¦¬ëŠ” ì½”ë“œê°€ ë„ˆë¬´ ì»¤ì§€ê¸° ë•Œë¬¸ì— ì†Œì¼“ ì²˜ë¦¬í•  ë•Œì™€ ê°™ì´ dictionaryë‚˜ arrayë¥¼ ì‚¬ìš©í•˜ì—¬ ì²˜ë¦¬í•˜ëŠ” ê²ƒì´ ì¢‹ìŒ
 			//	//switch (task.TaskID)
 			//	//{
 			//	//	case RedisTaskID::REQUEST_LOGIN:
 			//	//		{
-			//	//			// ·Î±×ÀÎ ¿äÃ» Ã³¸®
+			//	//			// ë¡œê·¸ì¸ ìš”ì²­ ì²˜ë¦¬
 			//	//			if (mConn.login(task.UserIndex, task.LoginReq) == true)
 			//	//			{
 			//	//				task.ResultCode = ERROR_CODE::SUCCESS;
@@ -225,7 +226,7 @@ private:
 			//	//		break;
 			//	//	case RedisTaskID::REQUEST_LOGOUT:
 			//	//		{
-			//	//			// ·Î±×¾Æ¿ô ¿äÃ» Ã³¸®
+			//	//			// ë¡œê·¸ì•„ì›ƒ ìš”ì²­ ì²˜ë¦¬
 			//	//			if (mConn.logout(task.UserIndex) == true)
 			//	//			{
 			//	//				task.ResultCode = ERROR_CODE::SUCCESS;
@@ -248,7 +249,7 @@ private:
 			//}
 			
 		}
-		Conn.disConnect(); // Á¤¸®
+		Conn.disConnect(); // ì •ë¦¬
 	}
 
 	void PushResponse(RedisTask task_)
@@ -258,7 +259,7 @@ private:
 			mResponseTask.push_back(task_);
 		}
 
-		// ÀÀ´ä ¿À¸é ÆĞÅ¶ Ã³¸® ¾²·¹µå¿¡ ¾Ë·ÁÁÜ
+		// ì‘ë‹µ ì˜¤ë©´ íŒ¨í‚· ì²˜ë¦¬ ì“°ë ˆë“œì— ì•Œë ¤ì¤Œ
 		if (OnResponsePushed)
 		{
 			OnResponsePushed();

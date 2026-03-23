@@ -1,5 +1,5 @@
-#pragma once
-
+ï»¿#pragma once
+#include "Define.h"
 #include "Packet.h"
 #include "RingBuffer.h"
 #include <string>
@@ -9,7 +9,7 @@
 class User
 {
 	//const UINT32 PACKET_DATA_BUFFER_SIZE = 8096;
-	static constexpr size_t MAX_PACKET_DATA_BUFFER_SIZE = 8096;
+	static constexpr size_t MAX_PACKET_DATA_BUFFER_SIZE = 65536;
 public:
 	enum class DOMAIN_STATE
 	{
@@ -37,7 +37,7 @@ public:
 		mAuthToken = "";
 		mCurDomainState = DOMAIN_STATE::NONE;
 		mPacketDataBuffer.Clear();
-		//mGeneration++;	// ¼¼¼Ç Á¾·á¸¶´Ù Áõ°¡
+		//mGeneration++;	// ì„¸ì…˜ ì¢…ë£Œë§ˆë‹¤ ì¦ê°€
 	}
 
 	std::string GetUserID() const
@@ -49,7 +49,7 @@ public:
 	{
 		mCurDomainState = DOMAIN_STATE::LOGIN;
 		mUserID = userID_;
-		printf("[SetLogin] UserID set to: '%s' for index: %d\n", userID_, mIndex);
+		LOG_DEBUG("[SetLogin] UserID set to: '%s' for index: %d\n", userID_, mIndex);
 
 		return 0;
 	}
@@ -74,8 +74,8 @@ public:
 		return mCurDomainState;
 	}
 
-	// ¸µ¹öÆÛ Ã³·³ È°¿ë
-	// TODO: ¿ÏÀüÇÑ ¸µ¹öÆÛ ÇüÅÂ·Î ¹Ù²Ù±â
+	// ë§ë²„í¼ ì²˜ëŸ¼ í™œìš©
+	// TODO: ì™„ì „í•œ ë§ë²„í¼ í˜•íƒœë¡œ ë°”ê¾¸ê¸°
 	void SetPacketData(const UINT32 dataSize_, char* pData_)
 	{
 		if (pData_ == nullptr || dataSize_ == 0)
@@ -85,10 +85,10 @@ public:
 
 		size_t written = mPacketDataBuffer.Write(pData_, dataSize_);
 
-		// µ¥ÀÌÅÍ ´Ù ¸ø ¾µ °æ¿ì °æ°í
+		// ë°ì´í„° ë‹¤ ëª» ì“¸ ê²½ìš° ê²½ê³ 
 		if (written < dataSize_)
 		{
-			printf("%zu bytes out of %u bytes to packet buffer\n", written, dataSize_);
+			LOG_ERROR("%zu bytes out of %u bytes to packet buffer\n", written, dataSize_);
 			return;
 		}
 	}
@@ -121,14 +121,14 @@ public:
 
 		auto pHeader = (PACKET_HEADER*)headerBuffer;
 
-		// ÀüÃ¼ ÆĞÅ¶ Å©±â¸¸Å­ µ¥ÀÌÅÍ°¡ ÀÖ´ÂÁö È®ÀÎ
+		// ì „ì²´ íŒ¨í‚· í¬ê¸°ë§Œí¼ ë°ì´í„°ê°€ ìˆëŠ”ì§€ í™•ì¸
 		if (pHeader->PacketLength > mPacketDataBuffer.Size())
 		{
-			printf("ÆĞÅ¶ µ¥ÀÌÅÍ ºÎÁ· - ÇÊ¿ä(%d) : ÇöÀç(%zu\n)", pHeader->PacketLength, mPacketDataBuffer.Size());
+			LOG_ERROR("íŒ¨í‚· ë°ì´í„° ë¶€ì¡± - í•„ìš”(%d) : í˜„ì¬(%zu\n)", pHeader->PacketLength, mPacketDataBuffer.Size());
 			return PacketInfo();
 		}
 		
-		// ÆĞÅ¶ µ¥ÀÌÅÍ ÀÓ½Ã ¹öÆÛ¿¡ ÀĞ¾î¿À±â
+		// íŒ¨í‚· ë°ì´í„° ì„ì‹œ ë²„í¼ì— ì½ì–´ì˜¤ê¸°
 		//static char tempPacketBuffer[MAX_PACKET_DATA_BUFFER_SIZE];
 		
 		
@@ -136,7 +136,7 @@ public:
 
 		if (readBytes != pHeader->PacketLength)
 		{
-			printf("ÆĞÅ¶ ÀĞ±â ½ÇÆĞ - ¿¹»ó(%d) vs ½ÇÁ¦(%zu)\n", pHeader->PacketLength, readBytes);
+			LOG_ERROR("íŒ¨í‚· ì½ê¸° ì‹¤íŒ¨ - ì˜ˆìƒ(%d) vs ì‹¤ì œ(%zu)\n", pHeader->PacketLength, readBytes);
 			return PacketInfo();
 		}
 
@@ -152,8 +152,8 @@ public:
 	void EnterRoom(INT32 roomIndex_)
 	{
 		roomIndex = roomIndex_;
-		mCurDomainState = DOMAIN_STATE::ROOM;  // ¿©±â¼­ »óÅÂ º¯°æ
-		printf("[%d]¹ø ¹æ¿¡ ÀÔÀåÇÏ¿´½À´Ï´Ù. ! \n", roomIndex);
+		mCurDomainState = DOMAIN_STATE::ROOM;  // ì—¬ê¸°ì„œ ìƒíƒœ ë³€ê²½
+		LOG_DEBUG("[%d]ë²ˆ ë°©ì— ì…ì¥í•˜ì˜€ìŠµë‹ˆë‹¤. ! \n", roomIndex);
 		
 	}
 
@@ -192,19 +192,19 @@ private:
 	std::atomic<UINT32> mGeneration{ 0 };
 	std::string mAuthToken = "";
 
-	UINT32 mPacketDataBufferWritePos = 0; // ¸µ¹öÆÛ
+	UINT32 mPacketDataBufferWritePos = 0; // ë§ë²„í¼
 	UINT32 mPacketDataBufferReadPos = 0; //
 
 	//char* mPacketDataBuffer = nullptr;
 	
-	// ringbuffer·Î ÆĞÅ¶ µ¥ÀÌÅÍ ±³Ã¼
+	// ringbufferë¡œ íŒ¨í‚· ë°ì´í„° êµì²´
 	RingBuffer<MAX_PACKET_DATA_BUFFER_SIZE> mPacketDataBuffer;
 	
 	DOMAIN_STATE mCurDomainState = DOMAIN_STATE::NONE;
 
 	std::mutex mPacketRingBuffMutex;
 	
-	// ÀÌ À¯Àú¸¸ÀÇ Àü¿ë ÆĞÅ¶ Á¶¸³ ¹öÆÛ
+	// ì´ ìœ ì €ë§Œì˜ ì „ìš© íŒ¨í‚· ì¡°ë¦½ ë²„í¼
 	char m_tempPacketBuffer[MAX_PACKET_DATA_BUFFER_SIZE];
 
 	

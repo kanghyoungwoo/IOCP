@@ -1,7 +1,8 @@
-#pragma once
+ï»¿#pragma once
 #include <Windows.h>
 #include <DbgHelp.h>
 #include <cstdio>
+#include "Define.h"
 
 #pragma comment(lib, "Dbghelp.lib")
 
@@ -15,21 +16,21 @@ namespace CrashDump
 		char dumpFileName[MAX_PATH];
 		sprintf_s(dumpFileName, "CrashDump_%04d%02d%02d_%02d%02d%02d.dmp", st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
 
-		// µ¶Á¡¸ğµå·Î ÆÄÀÏ »ı¼º
+		// ë…ì ëª¨ë“œë¡œ íŒŒì¼ ìƒì„±
 		HANDLE hFile = CreateFileA(dumpFileName, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 
 		if (hFile != INVALID_HANDLE_VALUE)
 		{
 			MINIDUMP_EXCEPTION_INFORMATION dumpInfo;
 			dumpInfo.ThreadId = GetCurrentThreadId();
-			dumpInfo.ExceptionPointers = pExceptionInfo; // Å©·¡½Ã ³­ ½ÃÁ¡ÀÇ ¸Ş¸ğ¸®/·¹Áö½ºÅÍ Á¤º¸
+			dumpInfo.ExceptionPointers = pExceptionInfo; // í¬ë˜ì‹œ ë‚œ ì‹œì ì˜ ë©”ëª¨ë¦¬/ë ˆì§€ìŠ¤í„° ì •ë³´
 			dumpInfo.ClientPointers = FALSE;
 
 			MiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(),
 				hFile, MiniDumpNormal, &dumpInfo, NULL, NULL);
 
 			CloseHandle(hFile);
-			printf("[CRASH] ´ıÇÁ ÀúÀå ¿Ï·á: %s\n", dumpFileName);
+			LOG_ERROR("[CRASH] ë¤í”„ ì €ì¥ ì™„ë£Œ: %s\n", dumpFileName);
 		}
 
 		return EXCEPTION_EXECUTE_HANDLER;

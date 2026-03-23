@@ -1,5 +1,6 @@
-#pragma once
+ï»¿#pragma once
 #include "Room.h"
+#include "Define.h"
 #include <vector>
 #include <functional>
 class RoomManager
@@ -47,7 +48,7 @@ public:
 		{
 			return (INT16)ERROR_CODE::ROOM_INVALID_INDEX;
 		}
-		// ´Ù½Ã ÇÑ ¹ø È®ÀÎ
+		// ë‹¤ì‹œ í•œ ë²ˆ í™•ì¸
 		user_->SetDomainState(User::DOMAIN_STATE::LOGIN);
 		room->LeaveUser(user_);
 
@@ -58,7 +59,7 @@ public:
 	{
 		if (number_ < mBeginRoomNumber || number_ >= mEndRoomNumber)
 		{
-			printf("À¯È¿ÇÏÁö ¾ÊÀº ¹æ ¹øÈ£ !\n");
+			LOG_ERROR("ìœ íš¨í•˜ì§€ ì•Šì€ ë°© ë²ˆí˜¸ !\n");
 			return nullptr;
 		}
 		INT32 index = number_ - mBeginRoomNumber;

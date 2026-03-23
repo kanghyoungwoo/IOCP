@@ -1,4 +1,4 @@
-#pragma once
+Ôªø#pragma once
 
 #include "IOCP.h"
 #include "Packet.h"
@@ -21,14 +21,14 @@ public:
 
 	virtual void OnConnect(const int clientIndex_) override
 	{
-		printf("[OnConnect] Client Index : %d\n", clientIndex_);
+		LOG_DEBUG("[OnConnect] Client Index : %d\n", clientIndex_);
 		PacketInfo packet{ clientIndex_, (UINT16)PACKET_ID::SYS_USER_CONNECT,0};
 		m_pPacketManager->PushSystemPacket(packet);
 	}
 
 	virtual void OnClose(const int clientIndex_) override
 	{
-		printf("[OnClosed] Client Index : %d\n", clientIndex_);
+		LOG_DEBUG("[OnClosed] Client Index : %d\n", clientIndex_);
 		PacketInfo packet{ clientIndex_, (UINT16)PACKET_ID::SYS_USER_DISCONNECT, 0 };
 		m_pPacketManager->PushSystemPacket(packet);
 
@@ -36,7 +36,7 @@ public:
 
 	virtual void OnReceive(const UINT32 clientIndex_, const UINT32 size_, char* pData_) override
 	{
-		printf("[OnReceive] Ciient Index : %d , DataSize : %d\n", clientIndex_, size_);
+		LOG_DEBUG("[OnReceive] Client Index : %d , DataSize : %d\n", clientIndex_, size_);
 
 
 		m_pPacketManager->ReceivePacketData(clientIndex_, size_, pData_);
@@ -59,12 +59,28 @@ public:
 
 	void End()
 	{
-		DestroyThread();			// step1~5, ≥◊∆Æøˆ≈© ∑π¿ÃæÓ ¡§∏Æ
-		m_pPacketManager->End();	// step6: ∆–≈∂Ω∫∑πµÂ + DB§∏§∑∏Æ
+		DestroyThread();			// step1~5, ÎÑ§Ìä∏ÏõåÌÅ¨ Î†àÏù¥Ïñ¥ Ï¢ÖÎ£å
+		m_pPacketManager->End();	// step6: Ìå®ÌÇ∑Îß§ÎãàÏ†Ä + DBÎß§ÎãàÏ†Ä
 
-		// ±‚¡∏ ¡æ∑· πÊΩƒ
+		// Ïó≠Ïàú Ï¢ÖÎ£å Î∞©Ïãù
 		//m_pPacketManager->End();
 		//DestroyThread();
+
+		// Î≤§ÏπòÎßàÌÅ¨ (ÏΩòÏÜî + ÌååÏùº)
+		printf("\n=== Benchmark Result ===\n");
+		printf("IOCP Workers: %d\n", MAX_WORKERTHREAD);
+		printf("SendPool Alloc Fail: %llu\n", GetSendPoolAllocFailCount());
+		printf("========================\n\n");
+
+		FILE* fp = nullptr;
+		fopen_s(&fp, "benchmark_result.txt", "a");
+		if (fp) {
+			fprintf(fp, "=== Benchmark Result ===\n");
+			fprintf(fp, "IOCP Workers: %d\n", MAX_WORKERTHREAD);
+			fprintf(fp, "SendPool Alloc Fail: %llu\n", GetSendPoolAllocFailCount());
+			fprintf(fp, "========================\n\n");
+			fclose(fp);
+		}
 	}
 
 
