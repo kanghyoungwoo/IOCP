@@ -88,7 +88,7 @@ void PacketManager::CreateComponent(const UINT32 maxClient_)
 
 	UINT32 startRoomNumber = 0;
 	UINT32 maxRoomUserCount = 8;
-	UINT32 maxRoomCount = 250;
+	UINT32 maxRoomCount = 1250;
 	mRoomManager = new RoomManager;
 	mRoomManager->SendPacketFunc = SendPacketFunc;
 	mRoomManager->Init(startRoomNumber, maxRoomCount, maxRoomUserCount);
