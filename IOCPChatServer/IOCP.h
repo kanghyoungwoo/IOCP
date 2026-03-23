@@ -259,7 +259,7 @@ public:
 private:
 	void CreateClient(const int maxClientCount)
 	{
-		mSendBufferPool.Init(maxClientCount * 2000);
+		mSendBufferPool.Init(maxClientCount * 400); // maxclient 2000일때 2000, 10000이면 400
 
 		for (int i = 0;i < maxClientCount;++i)
 		{
