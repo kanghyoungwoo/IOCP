@@ -71,7 +71,7 @@ public:
 		// 접속 직후 타임아웃 판정을 위한 시간 기록
 		UpdateActivity();
 
-		//Clear();
+		Clear();
 		if (BindIOCompletionPort(iocpHandle) == false)
 		{
 			return false;
@@ -104,6 +104,8 @@ public:
 		closesocket(m_socketClient);
 
 		m_socketClient = INVALID_SOCKET;
+
+		Clear();
 	}
 
 	void Clear()

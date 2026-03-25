@@ -93,16 +93,16 @@ void PacketManager::CreateComponent(const UINT32 maxClient_)
 	mRoomManager->SendPacketFunc = SendPacketFunc;
 	mRoomManager->Init(startRoomNumber, maxRoomCount, maxRoomUserCount);
 
-	m_strandProcessor.Init(4000000, 4000, maxRoomCount);
+	m_strandProcessor.Init(100000, 4000, maxRoomCount);
 }
 
 
 bool PacketManager::Run()
 {
-	if (mRedisManager->Run("127.0.0.1", 6379, 1) == false)
-	{
-		return false;
-	}
+	//if (mRedisManager->Run("127.0.0.1", 6379, 1) == false)
+	//{
+	//	return false;
+	//}
 #ifdef  USE_AMAZON_AWS_DB
 	// AWS_연동
 	LOG_DEBUG("AMAZON AWS MySQL 모드로 실행.\n");
@@ -129,10 +129,10 @@ bool PacketManager::Run()
 
 
 
-	if (mMySQLManager->Run(1) == false)
-	{
-		return false;
-	}
+	//if (mMySQLManager->Run(1) == false)
+	//{
+	//	return false;
+	//}
 
 	mIsRunProcessThread = true;
 	mProcessThead = std::thread([this]() { ProcessPacket();});
@@ -596,9 +596,10 @@ void PacketManager::ProcessLogin(UINT32 clientIndex_, UINT16 packetSize_, char* 
 		redistask.UserIndex = clientIndex_;
 		redistask.TaskID = RedisTaskID::REQUEST_LOGIN;
 		redistask.DataSize = sizeof(RedisLoginReq);
-		redistask.pData = new char[redistask.DataSize];
-		CopyMemory(redistask.pData, (char*)&redisReq, redistask.DataSize);
-		mRedisManager->PushTask(redistask);
+
+		//redistask.pData = new char[redistask.DataSize];
+		//CopyMemory(redistask.pData, (char*)&redisReq, redistask.DataSize);
+		//mRedisManager->PushTask(redistask);
 
 		LOG_DEBUG("Login To Redis USER ID : %s\n", pUserID);
 	}
@@ -643,9 +644,10 @@ void PacketManager::ProcessLoginDBResult(UINT32 clientIndex_, UINT16 packetSize_
 			mysqlTask.UserIndex = clientIndex_;
 			mysqlTask.TaskID = MySQLTaskID::INSERT_LOGIN_EVENT;
 			mysqlTask.DataSize = sizeof(MySQLLoginEventReq);
-			mysqlTask.pData = new char[mysqlTask.DataSize];
-			CopyMemory(mysqlTask.pData, &mysqlReq, mysqlTask.DataSize);
-			mMySQLManager->PushTask(mysqlTask);
+
+			//mysqlTask.pData = new char[mysqlTask.DataSize];
+			//CopyMemory(mysqlTask.pData, &mysqlReq, mysqlTask.DataSize);
+			//mMySQLManager->PushTask(mysqlTask);
 		}
 	}
 
@@ -752,9 +754,10 @@ void PacketManager::ProcessEnterRoom(UINT32 clientIndex_, UINT16 packetSize_, ch
 		task.UserIndex = clientIndex_;
 		task.TaskID = MySQLTaskID::INSERT_ROOM_EVENT;
 		task.DataSize = sizeof(MySQLRoomEventReq);
-		task.pData = new char[task.DataSize];
-		CopyMemory(task.pData, &req, task.DataSize);
-		mMySQLManager->PushTask(task);
+
+		//task.pData = new char[task.DataSize];
+		//CopyMemory(task.pData, &req, task.DataSize);
+		//mMySQLManager->PushTask(task);
 
 		auto pRoom = mRoomManager->GetRoomByNumber(pRoomEnterReqPacket->RoomNumber);
 		if (pRoom != nullptr)
