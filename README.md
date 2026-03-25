@@ -340,6 +340,8 @@ Object Pool에서 SendBuffer 할당 (Lock-Free, new/delete 없음)
 // Config.h (또는 해당 헤더)
 #define USE_LOCK_FREE_ARCH  // Lock-Free 모드 (기본값, 최고 성능)
 // #define USE_MUTEX_ARCH   // Mutex 모드 (성능 비교용)
+
+#define USE_AMAZON_AWS_DB    // Amazon aws 이용모드, 아닐시 로컬환경의 MySQL
 ```
 
 ## 🔮 향후 개선 방향
