@@ -79,6 +79,7 @@ IOCPChatServer/
 ## 🔀 패킷 처리 흐름
 - 클라이언트가 채팅 메시지를 보내고, 같은 방의 모든 유저에게 
 브로드캐스트되기까지의 전체 흐름입니다.
+```markdown
 [Client A] ──WSASend──▶ 서버 수신
 │
 ① WSARecv 완료
@@ -109,6 +110,7 @@ Object Pool에서 SendBuffer 할당 (Lock-Free, new/delete 없음)
 ⑩ I/O 완료 후 SendBuffer를 Object Pool에 반환
 │
 [Client B,C,D...] ◀── 채팅 메시지 수신 완료
+```
 
 ## ▶️ 시연 영상
 
