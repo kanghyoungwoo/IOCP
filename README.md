@@ -40,42 +40,24 @@ Windows IOCP(I/O Completion Port)를 활용한 고성능 멀티스레드 채팅 
 ![AWS EC2](https://img.shields.io/badge/Infrastructure-AWS_EC2-232F3E?style=flat-square&logo=amazonaws)
 ![CloudWatch](https://img.shields.io/badge/Monitoring-AWS_CloudWatch-FF4F8B?style=flat-square&logo=amazoncloudwatch&logoColor=white)
 ![VS Diagnostic Tools](https://img.shields.io/badge/Profiling-VS_Diagnostic_Tools-5C2D91?style=flat-square&logo=visualstudio&logoColor=white)
-```markdown
-**Language & Network** <br>
-![C++17](https://img.shields.io/badge/C%2B%2B-17-00599C?style=flat-square&logo=c%2B%2B)
-![Windows IOCP](https://img.shields.io/badge/Network-Windows_IOCP-0078D6?style=flat-square&logo=windows)
 
-**Core Architecture** <br>
-![Lock-Free](https://img.shields.io/badge/Architecture-Lock--Free_Data_Structure-555555?style=flat-square)
-![Strand Pattern](https://img.shields.io/badge/Architecture-Strand_Pattern-555555?style=flat-square)
-![Object Pooling](https://img.shields.io/badge/Architecture-Object_Pooling-555555?style=flat-square)
-
-**Database & Cache** <br>
-![Redis](https://img.shields.io/badge/Cache-Redis-DC382D?style=flat-square&logo=redis&logoColor=white)
-![MySQL](https://img.shields.io/badge/Database-MySQL-4479A1?style=flat-square&logo=mysql&logoColor=white)
-
-**Infrastructure & Profiling** <br>
-![AWS EC2](https://img.shields.io/badge/Infrastructure-AWS_EC2-232F3E?style=flat-square&logo=amazonaws)
-![CloudWatch](https://img.shields.io/badge/Monitoring-AWS_CloudWatch-FF4F8B?style=flat-square&logo=amazoncloudwatch&logoColor=white)
-![VS Diagnostic Tools](https://img.shields.io/badge/Profiling-VS_Diagnostic_Tools-5C2D91?style=flat-square&logo=visualstudio&logoColor=white)
-```
 
 ---
 
 ## ▶️ 시연 영상
 
-[서로다른채팅방](https://github.com/user-attachments/assets/1d0586ef-4a7d-4af5-ab42-e74c615e3a07)
+![서로다른채팅방](https://github.com/user-attachments/assets/1d0586ef-4a7d-4af5-ab42-e74c615e3a07)
 
 서로다른채팅방
 
 > 💬 추가 시연 영상
-> 
+> ![DummyClientTest-ezgif com-optimize](https://github.com/user-attachments/assets/9ffc338d-c45d-4952-bdbe-462b06e3f24b)
 
-[일반 채팅](https://github.com/user-attachments/assets/bc99abc7-e3d9-41c1-8b06-03baf6d62534)
+![KakaoTalk_Recording_20250905_160030 (1)](https://github.com/user-attachments/assets/bc99abc7-e3d9-41c1-8b06-03baf6d62534)
 
 일반 채팅
 
-[로그인실패 및 중복 로그인 방어](https://github.com/user-attachments/assets/6e91bd00-2db3-4877-8c28-746cf93d7fff)
+![로그인실패중복된로그인방입장하지않고메세지](https://github.com/user-attachments/assets/6e91bd00-2db3-4877-8c28-746cf93d7fff)
 
 로그인실패 및 중복 로그인 방어
 
