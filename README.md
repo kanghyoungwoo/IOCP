@@ -125,7 +125,8 @@ Windows IOCP(I/O Completion Port)를 활용한 고성능 멀티스레드 채팅 
 > 
 > 
 > 
-> ![v2. Multi-Thread + Mutex CV Architecture.png](v2._Multi-Thread__Mutex_CV_Architecture.png)
+> <img width="2994" height="1902" alt="v2 _Multi-Thread__Mutex_CV_Architecture" src="https://github.com/user-attachments/assets/9f77aa29-79c3-45df-b278-56927b90ec36" />
+
 > 
 
 ### 🔹 v2 → v3: Multi-Thread (Lock-Free) ⭐️ 최종 아키텍처
@@ -136,7 +137,8 @@ Windows IOCP(I/O Completion Port)를 활용한 고성능 멀티스레드 채팅 
 > 
 > 
 > 
-> ![v3. Multi-Thread + Lock-Free Architecture.png](v3._Multi-Thread__Lock-Free_Architecture.png)
+> <img width="3378" height="2391" alt="v3 _Multi-Thread__Lock-Free_Architecture" src="https://github.com/user-attachments/assets/2fd419e8-6485-4b34-a9cb-484e65c6e381" />
+
 > 
 
 ### 📊 아키텍처별 극한 부하 성능 비교 (2,000명 Stress Test)
@@ -146,7 +148,8 @@ Windows IOCP(I/O Completion Port)를 활용한 고성능 멀티스레드 채팅 
 > 
 > 
 > 
-> ![서버아키텍처성능비교분석.png](%EC%84%9C%EB%B2%84%EC%95%84%ED%82%A4%ED%85%8D%EC%B2%98%EC%84%B1%EB%8A%A5%EB%B9%84%EA%B5%90%EB%B6%84%EC%84%9D.png)
+> <img width="1172" height="641" alt="서버아키텍처성능비교분석" src="https://github.com/user-attachments/assets/02085013-25f3-417f-9571-f5f3aadbf196" />
+
 > 
 
 **⚔️ 3가지 아키텍처 모델**
@@ -235,7 +238,8 @@ Windows IOCP(I/O Completion Port)를 활용한 고성능 멀티스레드 채팅 
 > 
 > 
 > 
-> ![cloudwatch3시간.png](cloudwatch3%EC%8B%9C%EA%B0%84.png)
+> ![10000](https://github.com/user-attachments/assets/e6b62468-91b0-4875-8ef9-5401a58064f1)
+
 > 
 
 ---
