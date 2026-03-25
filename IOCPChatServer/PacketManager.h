@@ -30,10 +30,11 @@ public:
 	void Init(const UINT32 maxClient_);
 	bool Run();
 	void End();
-	void ReceivePacketData(const UINT32 clientIndex_, const UINT32 dataSize_, char* pData_);
+	bool ReceivePacketData(const UINT32 clientIndex_, const UINT32 dataSize_, char* pData_);
 	void PushSystemPacket(PacketInfo packet_);
 
 	std::function<void(UINT32, UINT32, char*)>SendPacketFunc;
+	std::function<void(UINT32)> UpdateActivityFunc;
 
 
 private:

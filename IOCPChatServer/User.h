@@ -79,21 +79,21 @@ public:
 
 	// 링버퍼 처리 활용
 	// TODO: 링버퍼 구조체로 바꾸기
-	void SetPacketData(const UINT32 dataSize_, char* pData_)
+	bool SetPacketData(const UINT32 dataSize_, char* pData_)
 	{
 		if (pData_ == nullptr || dataSize_ == 0)
-			return;
+			return true;
 
 		std::lock_guard<std::mutex>lock(mPacketRingBuffMutex);
-
 		size_t written = mPacketDataBuffer.Write(pData_, dataSize_);
 
 		// 링버퍼에 쓸 수 없는 경우 에러
 		if (written < dataSize_)
 		{
 			LOG_ERROR("%zu bytes out of %u bytes to packet buffer\n", written, dataSize_);
-			return;
+			return false; // overflow 발생
 		}
+		return true;
 	}
 
 	PacketInfo GetPacket()
@@ -123,6 +123,15 @@ public:
 		}
 
 		auto pHeader = (PACKET_HEADER*)headerBuffer;
+
+		// 패킷 크기 유효성 검증
+		if (pHeader->PacketLength < PACKET_HEADER_LENGTH || pHeader->PacketLength > MAX_PACKET_DATA_BUFFER_SIZE)
+		{
+			LOG_ERROR("Invalid PacketLength: %d (valid: %d~%d) → 버퍼 초기화\n",
+				pHeader->PacketLength, PACKET_HEADER_LENGTH, MAX_PACKET_DATA_BUFFER_SIZE);
+			mPacketDataBuffer.Clear();  // 오염된 버퍼 폐기
+			return PacketInfo();
+		}
 
 		// 전체 패킷 크기만큼 데이터가 있는지 확인
 		if (pHeader->PacketLength > mPacketDataBuffer.Size())

@@ -205,12 +205,18 @@ void PacketManager::End()
 }
 
 // usermanager의 GetUserByConnIdx를 이용하여 유저의 idx를 받은 후 user의 data를 SetPacketData를 통해 set함
-void PacketManager::ReceivePacketData(const UINT32 clientIndex_, const UINT32 dataSize_, char* pData_)
+bool PacketManager::ReceivePacketData(const UINT32 clientIndex_, const UINT32 dataSize_, char* pData_)
 {
 	auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
-	pUser->SetPacketData(dataSize_, pData_); // 링버퍼에 저장 후
+	if (!pUser->SetPacketData(dataSize_, pData_))
+	{
+		LOG_ERROR("[ReceivePacketData] Client(%d) 버퍼 오버플로우 → 연결 해제 요청\n", clientIndex_);
+		return false;
+	}
+	//pUser->SetPacketData(dataSize_, pData_); // 링버퍼에 저장 후
 	// queue에 알려줌 어떤 client의 요청이 왔는지
 	EnqueuePacketData(clientIndex_);
+	return true;
 }
 
 
@@ -315,6 +321,10 @@ void PacketManager::ProcessPacket()
 			auto packetData = pUser->GetPacket();
 			if (packetData.PacketId == 0)
 				continue;
+
+			// 완전한 패킷이 조립되었으므로 활동 시간 갱신
+			if (UpdateActivityFunc)
+				UpdateActivityFunc(task.clientIndex);
 
 			packetData.ClientIndex = task.clientIndex;
 

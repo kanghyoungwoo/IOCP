@@ -38,8 +38,12 @@ public:
 	{
 		LOG_DEBUG("[OnReceive] Ciient Index : %d , DataSize : %d\n", clientIndex_, size_);
 
-
-		m_pPacketManager->ReceivePacketData(clientIndex_, size_, pData_);
+		if (!m_pPacketManager->ReceivePacketData(clientIndex_, size_, pData_))
+		{
+			// 버퍼오버플로우 -> 악의적 클라이언트, 연결 해제
+			DisconnectClient(clientIndex_);
+		}
+		//m_pPacketManager->ReceivePacketData(clientIndex_, size_, pData_);
 	}
 
 	void Run(const UINT32 maxClient)
@@ -49,8 +53,15 @@ public:
 			SendMsg(clientIndex_, packetSize_, pSendPacket);
 		};
 
+		// 유효 패킷 처리 시 활동 시간 갱신 콜백
+		auto updateActivityFunc = [&](UINT32 clientIndex_)
+		{
+			UpdateClientActivity(clientIndex_);
+		};
+
 		m_pPacketManager = std::make_unique<PacketManager>();
 		m_pPacketManager->SendPacketFunc = sendPacketFunc;
+		m_pPacketManager->UpdateActivityFunc = updateActivityFunc;
 		m_pPacketManager->Init(maxClient);
 		m_pPacketManager->Run();
 

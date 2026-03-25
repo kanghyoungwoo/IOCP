@@ -248,6 +248,25 @@ public:
 		return pClient->SendMsg(dataSize_, pMsg_);
 	}
 
+	void DisconnectClient(const UINT32 clientIndex)
+	{
+		auto pClient = GetClientInfo(clientIndex);
+		if (pClient && pClient->IsConnected())
+		{
+			LOG_ERROR("[DisconnectClient] Client(%d) 강제 연결 해제\n", clientIndex);
+			pClient->DisconnectAsync();  // shutdown(SD_BOTH) → WorkerThread가 자연스럽게 CloseSocket 호출
+		}
+	}
+
+	void UpdateClientActivity(const UINT32 clientIndex)
+	{
+		auto pClient = GetClientInfo(clientIndex);
+		if (pClient && pClient->IsConnected())
+		{
+			pClient->UpdateActivity();
+		}
+	}
+
 	virtual void OnConnect(const int clientIndex){}
 	virtual void OnClose(const int clientIndex){}
 	virtual void OnReceive(const UINT32 clientIndex, const UINT32 size, char* pData){}
@@ -522,8 +541,8 @@ private:
 						continue;
 					}
 
-					// 타임아웃 확인 위한 갱신
-					pClientSession->UpdateActivity();
+					//// 타임아웃 확인 위한 갱신
+					//pClientSession->UpdateActivity();
 
 					OnReceive(pClientSession->GetIndex(), dwIoSize, pClientSession->RecvBuff());
 					pClientSession->BindRecv(); // 다시 recv 걸어줌
