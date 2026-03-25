@@ -60,12 +60,6 @@ Windows IOCP(I/O Completion Port)를 활용한 고성능 멀티스레드 채팅 
 ![VS Diagnostic Tools](https://img.shields.io/badge/Profiling-VS_Diagnostic_Tools-5C2D91?style=flat-square&logo=visualstudio&logoColor=white)
 ```
 
-- **Language:** C++17
-- **Network:** Windows Sockets (Winsock2), IOCP
-- **Architecture:** Lock-Free Data Structures, Strand Pattern, Object Pooling
-- **Database:** Redis, MySQL (AWS RDS)
-- **Monitoring & Profiling:** AWS CloudWatch, Visual Studio Diagnostic Tools
-
 ---
 
 ## ▶️ 시연 영상
@@ -237,7 +231,6 @@ Windows IOCP(I/O Completion Port)를 활용한 고성능 멀티스레드 채팅 
 
 
 #### Phase 1: 실제 메모리 누수 발견 및 수정
-
 - **현상**: 최초 10,000명 테스트에서 서버 메모리가 **99%(6,680MB)**를 점유하며 **0.4MB/s**씩 지속 증가
 - **원인 분석**:
     1. **SendBuffer Pool 과잉 할당**: 봇당 400개씩 총 4,000,000개 할당 → 약 4.1GB 낭비
