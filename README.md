@@ -144,16 +144,12 @@ Object Pool에서 SendBuffer 할당 (Lock-Free, new/delete 없음)
 | **Network** | 동일 리전, 동일 클러스터 배치 그룹 (Cluster Placement Group) |
 
 > **아키텍처 진화 요약**
-> 
 
 > `v0 → v1` : 단일 큐의 락 경합 → **더블 버퍼링**으로 해결 (TPS 83% 향상)
 > 
-
 > `v1 → v2` : 단일 코어 한계 → **멀티스레드** 도입 (Mutex 병목 발견)
 > 
-
 > `v2 → v3` : Mutex 병목 → **Lock-Free**로 완전 해결 (142,400 TPS)
-> 
 
 ### 🔹 v0 → v1: Single-Thread (단일 큐 → 더블 버퍼링)
 
@@ -161,12 +157,8 @@ Object Pool에서 SendBuffer 할당 (Lock-Free, new/delete 없음)
 - **Solution:** 더블 버퍼링(Double Buffering) 기법 도입. 수신용 큐와 처리용 큐를 분리하고, 로직 스레드가 처리를 시작할 때 두 큐를 O(1) swap하여 락 경합을 원천 차단. IOCP I/O 워커 스레드도 4개 → 8개로 최적화.
 - **Result:** 기존 단일 큐 대비 **초당 처리량(TPS) 83% 증가 및 평균 지연시간 76% 단축** 달성. 최대 1,500명 부하까지 안정적 방어.
 
-> 
-> 
-> 
-> <img width="4528" height="998" alt="v1 _Single-Thread__Double_Buffering_Architecture" src="https://github.com/user-attachments/assets/51aef633-43af-4005-b3d5-585d68c70296" />
+<img width="4528" height="998" alt="v1 _Single-Thread__Double_Buffering_Architecture" src="https://github.com/user-attachments/assets/51aef633-43af-4005-b3d5-585d68c70296" />
 
-> 
 
 #### 📊 단일 큐 vs 더블 버퍼링 성능 비교
 
@@ -189,29 +181,20 @@ Object Pool에서 SendBuffer 할당 (Lock-Free, new/delete 없음)
 
 - **한계 극복:** 1,500명 이상에서 발생하는 단일 코어의 한계(CPU 100% 및 처리 스타베이션)를 극복하기 위해 스레드 풀(Thread Pool) 도입.
 - **이슈 발생:** 채팅 서버 특성상 브로드캐스트를 위한 공유 자원(Room, Session) 접근이 잦아 Mutex Lock/Unlock 과정에서 심각한 병목 현상 발생. p99 지연시간이 36.5ms까지 튀는 현상 확인.
+<img width="2994" height="1902" alt="v2 _Multi-Thread__Mutex_CV_Architecture" src="https://github.com/user-attachments/assets/9f77aa29-79c3-45df-b278-56927b90ec36" />
 
-> 
-> 
-> 
-> <img width="2994" height="1902" alt="v2 _Multi-Thread__Mutex_CV_Architecture" src="https://github.com/user-attachments/assets/9f77aa29-79c3-45df-b278-56927b90ec36" />
-
-> 
 
 ### 🔹 v2 → v3: Multi-Thread (Lock-Free) ⭐️ 최종 아키텍처
 
 - **구현:** Mutex를 완전히 제거하고 **CAS 연산 기반의 Lock-Free 큐와 Object Pool, Strand 패턴**을 직접 구현하여 적용. 패킷 전송 시마다 발생하던 잦은 동적 할당(new/delete)을 Lock-Free Object Pool로 대체하여 힙 메모리 단편화와 Lock 경합 병목을 동시에 해소.
 - **최종 성과:** 2,000명 극한의 스트레스 테스트(Max TPS)에서 **초당 142,400 건의 패킷 처리를 무응답 에러 없이 달성**하며 동급 아키텍처 대비 압도적인 성능 증명.
 
-> 
-> 
-> 
-> <img width="3378" height="2391" alt="v3 _Multi-Thread__Lock-Free_Architecture" src="https://github.com/user-attachments/assets/2fd419e8-6485-4b34-a9cb-484e65c6e381" />
+<img width="3378" height="2391" alt="v3 _Multi-Thread__Lock-Free_Architecture" src="https://github.com/user-attachments/assets/2fd419e8-6485-4b34-a9cb-484e65c6e381" />
 
-> 
 
 ### 📊 아키텍처별 극한 부하 성능 비교 (2,000명 Stress Test)
 
-초기 단일 스레드(Double Buffering) 아키텍처의 한계를 돌파하기 위해, 멀티 스레드 환경에서 **Mutex 방식과 Lock-Free 방식을 구현하고 극한의 브로드캐스트 부 상황에서 성능을 교차 검증**했습니다.
+초기 단일 스레드(Double Buffering) 아키텍처의 한계를 돌파하기 위해, 멀티 스레드 환경에서 **Mutex 방식과 Lock-Free 방식을 구현하고 극한의 브로드캐스트 부하 상황에서 성능을 교차 검증**했습니다.
 
 > 
 > 
@@ -336,16 +319,17 @@ Object Pool에서 SendBuffer 할당 (Lock-Free, new/delete 없음)
 ## 🛡️ Edge Case 방어 로직
 부하 테스트 이후, 악의적인 클라이언트가 서버를 공격할 수 있는 시나리오를 분석하고 사전 방어 로직을 설계했습니다.
 
-###  **Case 1**: 비정상 패킷 크기 검증 (Oversized / Malformed Packet)
+###  Case 1: 비정상 패킷 크기 검증 (Oversized / Malformed Packet)
 - **Attack**: 공격자가 패킷 헤더의 PacketLength를 65,535(UINT16 최대값)로 조작하여 전송. 링버퍼(8KB)는 해당 크기를 절대 모을 수 없어 세션이 영구 좀비 상태에 빠짐 — 패킷 처리 불가, 그러나 연결은 유지되어 세션 자원 점유.
 - **Defense**: GetPacket()에서 헤더를 peek한 직후, PacketLength의 상한(MAX_PACKET_DATA_BUFFER_SIZE)과 하한(PACKET_HEADER_LENGTH) 범위를 검증. 범위 밖이면 오염된 링버퍼를 즉시 Clear()하고 해당 패킷을 폐기.
-###  **Case 2**: 링버퍼 오버플로우 시 연결 해제 (Buffer Overflow Protection)
+###  Case 2: 링버퍼 오버플로우 시 연결 해제 (Buffer Overflow Protection)
 - **Attack**: 공격자가 서버의 처리 속도를 초과하는 대량의 데이터를 연속 전송하여 링버퍼(8KB)를 고의로 가득 채움. 오버플로우 이후의 데이터는 유실되어 패킷 경계가 영구적으로 깨지며, 해당 세션의 모든 후속 패킷 파싱이 불가능해짐.
 - **Defense**: SetPacketData()의 반환값을 bool로 변경하여 오버플로우를 호출자에게 전파. 오버플로우 감지 시 기존 DisconnectAsync() 경로(shutdown(SD_BOTH) → WorkerThread가 0바이트 감지 → CloseSocket)를 재활용하여 안전하게 세션을 정리.
-###  **Case 3**: Slowloris 변형 공격 방어 (Incomplete Packet Timeout)
+###  Case 3: Slowloris 변형 공격 방어 (Incomplete Packet Timeout)
 - **Attack**: 공격자가 1바이트씩 59초 간격으로 전송. 기존에는 WSARecv 완료 시마다 UpdateActivity()가 갱신되어, 1바이트만 보내도 60초 타임아웃이 매번 리셋됨 — 세션 하나를 영구 점유 가능.
 - **Defense**: UpdateActivity()의 호출 시점을 WSARecv 완료(바이트 수신) → 완전한 패킷 조립 성공 시로 이동. 콜백 패턴(SendPacketFunc과 동일 방식)으로 PacketManager에서 유효한 패킷 처리 완료 시에만 활동 시간을 갱신. 불완전한 바이트 스트림으로는 타임아웃을 리셋할 수 없어 60초 후 자동 연결 해제.
 
+---
 
 ## ⚙️ 빌드 및 모드 전환 방법
 
