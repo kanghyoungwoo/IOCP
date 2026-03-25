@@ -239,7 +239,8 @@ Object Pool에서 SendBuffer 할당 (Lock-Free, new/delete 없음)
 > 
 > 
 > 
-> ![10000.gif](10000.gif)
+> ![10000](https://github.com/user-attachments/assets/5f595c7b-654b-4e35-9d79-b75c6d24c767)
+
 
 
 ### 📊 1. 클라이언트 부하 테스트 지표 (82분 연속 실행)
