@@ -42,6 +42,7 @@ Windows IOCP(I/O Completion Port)를 활용한 고성능 멀티스레드 채팅 
 ![VS Diagnostic Tools](https://img.shields.io/badge/Profiling-VS_Diagnostic_Tools-5C2D91?style=flat-square&logo=visualstudio&logoColor=white)
 
 ## 📂 프로젝트 구조
+```markdown
 IOCPChatServer/
 ├── 📁 Network/ ← IOCP 네트워크 I/O 코어
 │ ├── iocp.h IOCP 엔진 (AcceptEx, WSARecv, WSASend)
@@ -74,7 +75,7 @@ IOCPChatServer/
 ├── define.h 공통 매크로 및 구조체
 ├── errorcode.h 에러 코드 정의
 └── crashdump.h 크래시 덤프 수집
-
+```
 ## 🔀 패킷 처리 흐름
 - 클라이언트가 채팅 메시지를 보내고, 같은 방의 모든 유저에게 
 브로드캐스트되기까지의 전체 흐름입니다.
@@ -239,7 +240,7 @@ Object Pool에서 SendBuffer 할당 (Lock-Free, new/delete 없음)
 > 
 > 
 > ![10000.gif](10000.gif)
-> 
+
 
 ### 📊 1. 클라이언트 부하 테스트 지표 (82분 연속 실행)
 
