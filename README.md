@@ -42,7 +42,7 @@ Windows IOCP(I/O Completion Port)를 활용한 고성능 멀티스레드 채팅 
 ![VS Diagnostic Tools](https://img.shields.io/badge/Profiling-VS_Diagnostic_Tools-5C2D91?style=flat-square&logo=visualstudio&logoColor=white)
 
 ## 📂 프로젝트 구조
-```markdown
+```
 IOCPChatServer/
 ├── 📁 Network/ ← IOCP 네트워크 I/O 코어
 │ ├── iocp.h IOCP 엔진 (AcceptEx, WSARecv, WSASend)
@@ -79,7 +79,7 @@ IOCPChatServer/
 ## 🔀 패킷 처리 흐름
 - 클라이언트가 채팅 메시지를 보내고, 같은 방의 모든 유저에게 
 브로드캐스트되기까지의 전체 흐름입니다.
-```markdown
+```
 [Client A] ──WSASend──▶ 서버 수신
 │
 ① WSARecv 완료
@@ -268,22 +268,7 @@ Object Pool에서 SendBuffer 할당 (Lock-Free, new/delete 없음)
 
 ### 🔍 3. 트러블슈팅: OS 레벨 교차 검증을 통한 Zero-Allocation 증명
 
-위의 서버 내부 지표(`Pool Free Count = 100,000`)로 객체 누수가 없음을 확인했으나, AWS CloudWatch를 통한 OS 레벨 메모리 모니터링 중 흥미로운 현상을 관찰하고 분석했습니다.
-
-#### 🚨 Phase 1: 실제 메모리 누수 발견 및 수정
-* **현상:** 최초 10,000명 테스트에서 서버 메모리가 99%(6,680MB)를 점유하며 0.4MB/s씩 지속 증가
-* **원인 분석:**
-  1. **SendBuffer Pool 과잉 할당:** 봇당 400개씩 총 4,000,000개 할당 → 약 4.1GB 낭비
-  2. **세션 버퍼 비대화:** `MAX_PACKET_DATA_BUFFER_SIZE`가 65,536으로 과도하게 설정
-  3. **리소스 미반환:** 세션 종료 시 `Closed()`에서 `Clear()` 미호출로 Send큐 잔존
-* **해결 및 결과:** Pool 크기(400→10) 및 버퍼 크기 최적화. `Clear()` 즉시 호출 적용. **결과적으로 시작 메모리를 2,372MB에서 372MB로 84% 절감하고 누수 완전 해소.**
-
-#### 🏆 Phase 2: OS 레벨 교차 검증을 통한 Zero-Allocation 최종 증명
-* **현상:** Phase 1 수정 후 메모리가 371.9MB에서 안정화되었으나, 10,000명 접속 해제 후에도 메모리가 떨어지지 않는 현상 발견
-* **가설 및 프로파일링:** VS 프로파일러 힙 스냅샷 분석 결과, 접속 전/후 할당 증가량 `+0 Bytes` 확인
-* **결론:** 버그가 아닌 의도된 최적화. Lock-Free Object Pool이 해제된 세션을 OS에 반납하지 않고 캐싱(Pre-allocation)하고 있었음.
-* **최종 성과:** 1만 명 유저가 740만 번 통신하는 극한 환경에서도 **동적 할당 오버헤드 없이 371.9MB 고정 메모리로 무중단 Zero-Allocation 서비스 입증.**
-
+위의 서버 내부 지표(`Pool Free Count = 100,000`)로 객체 누수가 없음을 확인했으나, AWS CloudWatch를 통한 OS 레벨 메모리 모니터링을 관찰하고 분석했습니다.
 
 #### Phase 1: 실제 메모리 누수 발견 및 수정
 - **현상**: 최초 10,000명 테스트에서 서버 메모리가 **99%(6,680MB)**를 점유하며 **0.4MB/s**씩 지속 증가
