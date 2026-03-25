@@ -41,8 +41,73 @@ Windows IOCP(I/O Completion Port)를 활용한 고성능 멀티스레드 채팅 
 ![CloudWatch](https://img.shields.io/badge/Monitoring-AWS_CloudWatch-FF4F8B?style=flat-square&logo=amazoncloudwatch&logoColor=white)
 ![VS Diagnostic Tools](https://img.shields.io/badge/Profiling-VS_Diagnostic_Tools-5C2D91?style=flat-square&logo=visualstudio&logoColor=white)
 
+## 📂 프로젝트 구조
+IOCPChatServer/
+├── 📁 Network/ ← IOCP 네트워크 I/O 코어
+│ ├── iocp.h IOCP 엔진 (AcceptEx, WSARecv, WSASend)
+│ ├── clientSession.h 클라이언트 세션 관리 및 생명주기
+│ ├── chatserver.h 서버 오케스트레이터 (IOCP 상속)
+│ ├── ringbuffer.h TCP 스트림 패킷 버퍼링
+│ └── packet.h 패킷 헤더/프로토콜 정의
+│
+├── 📁 Concurrency/ ← Lock-Free 자료구조 (직접 구현)
+│ ├── MPSCQueue.h CAS 기반 Lock-Free MPSC 큐
+│ ├── LockFreeStack.h Lock-Free 스택
+│ ├── objectpool.h Lock-Free Object Pool
+│ ├── objectmemorypool.h 범용 메모리 풀 (직접 구현 → 적용)
+│ ├── strandprocessor.h Strand 패턴 (Room별 직렬화)
+│ ├── strandcallback.h Strand 콜백 래퍼
+│ └── globalqueue_mutexcv.h Mutex+CV 큐 (v2 비교용)
+│
+├── 📁 Contents/ ← 비즈니스 로직
+│ ├── packetmanager.h/.cpp 패킷 라우팅 및 핸들러
+│ ├── packetjob.h 패킷 처리 작업 단위
+│ ├── user.h / usermanager.h 유저 세션 상태 관리
+│ └── room.h / roommanager.h 채팅방 관리 및 브로드캐스트
+│
+├── 📁 Database/ ← 비동기 DB/Cache
+│ ├── mysqlmanager.h MySQL 비동기 Task Queue
+│ ├── redismanager.h Redis 인메모리 캐시 (인증)
+│ └── *taskdefine.h DB 작업 정의
+│
+├── main.cpp 진입점
+├── define.h 공통 매크로 및 구조체
+├── errorcode.h 에러 코드 정의
+└── crashdump.h 크래시 덤프 수집
 
----
+## 🔀 패킷 처리 흐름
+- 클라이언트가 채팅 메시지를 보내고, 같은 방의 모든 유저에게 
+브로드캐스트되기까지의 전체 흐름입니다.
+[Client A] ──WSASend──▶ 서버 수신
+│
+① WSARecv 완료
+(IOCP Worker Thread)
+│
+② RingBuffer에 적재
+(User::SetPacketData)
+│
+③ PacketJob 생성 + Generation Token 기록
+│
+④ Lock-Free Global Queue에 Push
+(MPSCQueue::Enqueue, CAS 연산)
+│
+⑤ Packet Process Thread가 Dequeue
+│
+⑥ Generation Token 검증
+(유효하지 않으면 폐기)
+│
+⑦ Room Strand에 콜백 등록
+(동일 Room 작업의 직렬화 보장)
+│
+⑧ Room::BroadcastChat 실행
+│
+⑨ 같은 방 유저 N명에게 각각:
+Object Pool에서 SendBuffer 할당 (Lock-Free, new/delete 없음)
+→ WSASend 비동기 전송
+│
+⑩ I/O 완료 후 SendBuffer를 Object Pool에 반환
+│
+[Client B,C,D...] ◀── 채팅 메시지 수신 완료
 
 ## ▶️ 시연 영상
 
