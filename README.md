@@ -96,7 +96,8 @@ Windows IOCP(I/O Completion Port)를 활용한 고성능 멀티스레드 채팅 
 > 
 > 
 > 
-> ![v1. Single-Thread + Double Buffering Architecture.png](v1._Single-Thread__Double_Buffering_Architecture.png)
+> <img width="4528" height="998" alt="v1 _Single-Thread__Double_Buffering_Architecture" src="https://github.com/user-attachments/assets/51aef633-43af-4005-b3d5-585d68c70296" />
+
 > 
 
 #### 📊 단일 큐 vs 더블 버퍼링 성능 비교
@@ -276,13 +277,13 @@ Windows IOCP(I/O Completion Port)를 활용한 고성능 멀티스레드 채팅 
 ## 🛡️ Edge Case 방어 로직
 부하 테스트 이후, 악의적인 클라이언트가 서버를 공격할 수 있는 시나리오를 분석하고 사전 방어 로직을 설계했습니다.
 
-### - **Case 1**: 비정상 패킷 크기 검증 (Oversized / Malformed Packet)
+###  **Case 1**: 비정상 패킷 크기 검증 (Oversized / Malformed Packet)
 - **Attack**: 공격자가 패킷 헤더의 PacketLength를 65,535(UINT16 최대값)로 조작하여 전송. 링버퍼(8KB)는 해당 크기를 절대 모을 수 없어 세션이 영구 좀비 상태에 빠짐 — 패킷 처리 불가, 그러나 연결은 유지되어 세션 자원 점유.
 - **Defense**: GetPacket()에서 헤더를 peek한 직후, PacketLength의 상한(MAX_PACKET_DATA_BUFFER_SIZE)과 하한(PACKET_HEADER_LENGTH) 범위를 검증. 범위 밖이면 오염된 링버퍼를 즉시 Clear()하고 해당 패킷을 폐기.
-### - **Case 2**: 링버퍼 오버플로우 시 연결 해제 (Buffer Overflow Protection)
+###  **Case 2**: 링버퍼 오버플로우 시 연결 해제 (Buffer Overflow Protection)
 - **Attack**: 공격자가 서버의 처리 속도를 초과하는 대량의 데이터를 연속 전송하여 링버퍼(8KB)를 고의로 가득 채움. 오버플로우 이후의 데이터는 유실되어 패킷 경계가 영구적으로 깨지며, 해당 세션의 모든 후속 패킷 파싱이 불가능해짐.
 - **Defense**: SetPacketData()의 반환값을 bool로 변경하여 오버플로우를 호출자에게 전파. 오버플로우 감지 시 기존 DisconnectAsync() 경로(shutdown(SD_BOTH) → WorkerThread가 0바이트 감지 → CloseSocket)를 재활용하여 안전하게 세션을 정리.
-### - **Case 3**: Slowloris 변형 공격 방어 (Incomplete Packet Timeout)
+###  **Case 3**: Slowloris 변형 공격 방어 (Incomplete Packet Timeout)
 - **Attack**: 공격자가 1바이트씩 59초 간격으로 전송. 기존에는 WSARecv 완료 시마다 UpdateActivity()가 갱신되어, 1바이트만 보내도 60초 타임아웃이 매번 리셋됨 — 세션 하나를 영구 점유 가능.
 - **Defense**: UpdateActivity()의 호출 시점을 WSARecv 완료(바이트 수신) → 완전한 패킷 조립 성공 시로 이동. 콜백 패턴(SendPacketFunc과 동일 방식)으로 PacketManager에서 유효한 패킷 처리 완료 시에만 활동 시간을 갱신. 불완전한 바이트 스트림으로는 타임아웃을 리셋할 수 없어 60초 후 자동 연결 해제.
 
