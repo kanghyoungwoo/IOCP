@@ -238,7 +238,8 @@ Windows IOCP(I/O Completion Port)를 활용한 고성능 멀티스레드 채팅 
 > 
 > 
 > 
-> ![10000](https://github.com/user-attachments/assets/e6b62468-91b0-4875-8ef9-5401a58064f1)
+> <img width="1479" height="215" alt="cloudwatch3시간" src="https://github.com/user-attachments/assets/ccd1e3c7-fb96-4dec-be92-123c762c58d2" />
+
 
 > 
 
