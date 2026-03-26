@@ -108,7 +108,7 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\hiredis;$(ProjectDir)\include;C:\Program Files\MySQL\MySQL Server 8.0\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\nlohmann;C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\hiredis;$(ProjectDir)\include;C:\Program Files\MySQL\MySQL Server 8.0\include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -116,6 +116,9 @@
       <AdditionalLibraryDirectories>$(ProjectDir)\lib;C:\GitHub\mysql-connector-c++-9.4.0-winx64\lib64;C:\Program Files\MySQL\MySQL Server 8.0\lib</AdditionalLibraryDirectories>
       <AdditionalDependencies>hiredis.lib;libmysql.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PostBuildEvent>
+      <Command>copy /Y "$(ProjectDir)config.json" "$(TargetDir)config.json"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -126,7 +129,7 @@
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>C:\Program Files\MySQL\MySQL Server 8.0\include;C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\hiredis;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\nlohmann;C:\Program Files\MySQL\MySQL Server 8.0\include;C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\hiredis;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -136,6 +139,9 @@
       <AdditionalLibraryDirectories>C:\GitHub\mysql-connector-c++-9.4.0-winx64\lib64;C:\Program Files\MySQL\MySQL Server 8.0\lib;C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>libmysql.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PostBuildEvent>
+      <Command>copy /Y "$(ProjectDir)config.json" "$(TargetDir)config.json"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
@@ -143,6 +149,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ClientSession.h" />
+    <ClInclude Include="ConfigManager.h" />
     <ClInclude Include="CrashDump.h" />
     <ClInclude Include="Define.h" />
     <ClInclude Include="ChatServer.h" />

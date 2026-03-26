@@ -6,6 +6,7 @@
 #include "PacketManager.h"
 #include "UserManager.h"
 //#include "RedisTaskDefine.h"
+#include "ConfigManager.h"
 #include "RedisManager.h"
 #include "MysqlManager.h"
 #include "Define.h"
@@ -83,60 +84,47 @@ void PacketManager::RegisterHandlers()
 
 void PacketManager::CreateComponent(const UINT32 maxClient_)
 {
+	const auto& config = ConfigManager::GetInstance().Get();
 	mUserManager = new UserManager;
 	mUserManager->Init(maxClient_);
 
-	UINT32 startRoomNumber = 0;
-	UINT32 maxRoomUserCount = 8;
-	UINT32 maxRoomCount = 1250;
+	UINT32 startRoomNumber = config.StartRoomNumber;
+	UINT32 maxRoomUserCount = config.MaxRoomUserCount;
+	UINT32 maxRoomCount = config.MaxRoomCount;
+
 	mRoomManager = new RoomManager;
 	mRoomManager->SendPacketFunc = SendPacketFunc;
 	mRoomManager->Init(startRoomNumber, maxRoomCount, maxRoomUserCount);
 
-	m_strandProcessor.Init(100000, 4000, maxRoomCount);
+	m_strandProcessor.Init(config.JobPoolSize, config.CallbackPoolSize, config.MaxRoomCount);
 }
 
 
 bool PacketManager::Run()
 {
-	//if (mRedisManager->Run("127.0.0.1", 6379, 1) == false)
-	//{
-	//	return false;
-	//}
-#ifdef  USE_AMAZON_AWS_DB
-	// AWS_연동
-	LOG_DEBUG("AMAZON AWS MySQL 모드로 실행.\n");
+	const auto& config = ConfigManager::GetInstance().Get();
+
+	if (mRedisManager->Run(config.RedisHost, config.RedisPort, 1) == false)
+	{
+		return false;
+	}
+
 	mMySQLManager->configure(
-		"chatserver-database.cts4w8y0e8qh.ap-northeast-2.rds.amazonaws.com",  // RDS 엔드포인트
-		"admin",															 // 마스터 사용자명
-		"12345678",															 // 마스터 비밀번호
-		"chatserver-database",												   // 데이터베이스명
-		3306																  // 포트
-	);
-#else
-	// 로컬 MySQL연동
-	LOG_DEBUG("Local MySQL 모드로 서버를 실행.\n");
-	mMySQLManager->configure(
-		"127.0.0.1",
-		"root",															
-		"1234",															 
-		"chatserver_local",												   
-		3306																  
+		config.MySQLHost.c_str(),
+		config.MySQLUser.c_str(),
+		config.MySQLPassword.c_str(),
+		config.MySQLDatabase.c_str(),
+		config.MySQLPort
 	);
 
-
-#endif //  USE_AMAZON_AWS_DB
-
-
-
-	//if (mMySQLManager->Run(1) == false)
-	//{
-	//	return false;
-	//}
+	if (mMySQLManager->Run(1) == false)
+	{
+		return false;
+	}
 
 	mIsRunProcessThread = true;
 	mProcessThead = std::thread([this]() { ProcessPacket();});
-	m_strandProcessor.Start(MAX_LOGICTHREAD);
+	m_strandProcessor.Start(config.MaxLogicThread);
 
 	return true;
 }
@@ -174,8 +162,8 @@ void PacketManager::End()
 		fprintf(fp, "========================\n\n");
 
 		fprintf(fp, "=== Benchmark Result ===\n");
-		fprintf(fp, "IOCP Workers: %u\n", MAX_WORKERTHREAD);
-		fprintf(fp, "Logic Threads: %u\n", MAX_LOGICTHREAD);
+		fprintf(fp, "IOCP Workers: %u\n", ConfigManager::GetInstance().Get().MaxIOWorkerThread);
+		fprintf(fp, "Logic Threads: %u\n", ConfigManager::GetInstance().Get().MaxLogicThread);
 		fprintf(fp, "Job Pool Size: %u\n", m_strandProcessor.GetJobPoolSize());
 		fprintf(fp, "Alloc Fail Count: %llu\n", m_strandProcessor.GetAllocFailCount());
 		fprintf(fp, "Current Pool Free Count: %u\n", m_strandProcessor.GetCurrentFreeCount());

@@ -5,6 +5,7 @@
 #include "Define.h"
 #include "ClientSession.h"
 #include "Packet.h"
+#include "ConfigManager.h"
 #include <thread>
 #include <vector>
 #include <mswsock.h>
@@ -136,8 +137,10 @@ public:
 			return false;
 		}
 
+		const auto& config = ConfigManager::GetInstance().Get();
+
 		// 초기 AcceptEx 100개 걸어놓기
-		for (UINT32 i = 0; i < MAX_PENDING_ACCEPT;++i)
+		for (UINT32 i = 0; i < config.MaxPendingAccept;++i)
 		{
 			// pop으로 빈 인덱스 가져옴
 			UINT32 emptyIndex = PopFreeSessionIndex();
@@ -311,9 +314,11 @@ private:
 	// WaitingThread Queue에서 대기할 스레드들을 생성
 	bool CreateWorkerThread()
 	{
+		const auto& config = ConfigManager::GetInstance().Get();
+		
 		mIsWorkerRun = true;
 		// WaitingThread Queue에 대기 상태로 만들 스레드들, 권장갯수는 (cpu코어 * 2) + 1
-		for (int i = 0;i < MAX_WORKERTHREAD;i++)
+		for (int i = 0;i < config.MaxWorkerThread;i++)
 		{
 			mIOWorkerThreads.emplace_back([this]() {WorkerThread();});
 		}
@@ -324,9 +329,10 @@ private:
 
 	void TimeoutCheckThread()
 	{
-		const ULONGLONG TIMEOUT_MS = 60000; // 60초 동안 무응답 시 연결 종료
-		const ULONGLONG PING_INTERVAL_MS = 30000; // 30초 동안 무응답이면 PING
-		const ULONGLONG CHECK_INTERVAL_MS = 10000; // 10초 순회주기
+		const auto& config = ConfigManager::GetInstance().Get();
+		const ULONGLONG TIMEOUT_MS = config.TimeoutMs; // 60초 동안 무응답 시 연결 종료
+		const ULONGLONG PING_INTERVAL_MS = config.PingIntervalMs; // 30초 동안 무응답이면 PING
+		const ULONGLONG CHECK_INTERVAL_MS = config.CheckIntervalMs; // 10초 순회주기
 		while (mIsTimeoutRun)
 		{
 			ULONGLONG now = GetTickCount64();
@@ -342,7 +348,7 @@ private:
 				ULONGLONG lastActivity = pSession->GetLastActivityTime();
 				ULONGLONG elapsed = now - lastActivity;
 
-				if (elapsed >= TIMEOUT_MS) // 60초
+				if (elapsed >= config.TimeoutMs) // 60초
 				{
 					// 60초동안 무응답 시 Disconnect 호출하여 끊기
 					LOG_DEBUG("[TimeoutThread] Client Index(%d) 타임아웃! (60초 무응답) -> 연결 종료 요청\n", pSession->GetIndex());
@@ -350,10 +356,10 @@ private:
 					//CloseSocket(pSession, true);
 					pSession->DisconnectAsync();
 				}
-				else if (elapsed >= PING_INTERVAL_MS) // 30초
+				else if (elapsed >= config.PingIntervalMs) // 30초
 				{
 					ULONGLONG lastping = pSession->GetLastPingTime();
-					if (now - lastping >= PING_INTERVAL_MS)
+					if (now - lastping >= config.PingIntervalMs)
 					{
 						pSession->SetLastPingTime(now);
 
@@ -370,7 +376,7 @@ private:
 
 				// 최근 활동이 있으면 아무것도 하지 않고 넘어감
 			}
-			Sleep(CHECK_INTERVAL_MS); // 10초
+			Sleep(config.CheckIntervalMs); // 10초
 		}
 	}
 
@@ -680,7 +686,7 @@ private:
 	std::mutex mFreeListLock;
 
 	// 초기 AcceptEx 대기 100개
-	static constexpr UINT32 MAX_PENDING_ACCEPT = 100;
+	//static constexpr UINT32 MAX_PENDING_ACCEPT = 100;
 
 	std::thread mTimeoutThread;
 	std::atomic<bool> mIsTimeoutRun{ false };

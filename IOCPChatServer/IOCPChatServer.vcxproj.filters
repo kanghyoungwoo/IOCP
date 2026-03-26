@@ -12,61 +12,108 @@
     <Filter Include="ServerNetwork">
       <UniqueIdentifier>{3b8eec0d-859a-4e67-ac6f-3c32858c71ee}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Concurrency">
+      <UniqueIdentifier>{9d210ca3-e0ed-4b04-8c79-32a83f0f25d2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Contents">
+      <UniqueIdentifier>{aa6f8647-e8a7-4b48-a759-6a9ee2743040}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Database">
+      <UniqueIdentifier>{388303b9-4448-4cad-888d-6790b240128c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Common">
+      <UniqueIdentifier>{15091036-72b6-4a7e-a246-f9c365edf198}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Define.h">
-      <Filter>ServerNetwork</Filter>
-    </ClInclude>
     <ClInclude Include="IOCP.h">
       <Filter>ServerNetwork</Filter>
     </ClInclude>
-    <ClInclude Include="ChatServer.h" />
     <ClInclude Include="ClientSession.h">
-      <Filter>ServerNetwork</Filter>
-    </ClInclude>
-    <ClInclude Include="Packet.h" />
-    <ClInclude Include="PacketManager.h" />
-    <ClInclude Include="User.h" />
-    <ClInclude Include="UserManager.h" />
-    <ClInclude Include="ErrorCode.h" />
-    <ClInclude Include="RedisManager.h" />
-    <ClInclude Include="Room.h" />
-    <ClInclude Include="RedisTaskDefine.h" />
-    <ClInclude Include="RoomManager.h" />
-    <ClInclude Include="RingBuffer.h" />
-    <ClInclude Include="MysqlManager.h" />
-    <ClInclude Include="MySQLTaskDefine.h" />
-    <ClInclude Include="ObjectPool.h">
-      <Filter>ServerNetwork</Filter>
-    </ClInclude>
-    <ClInclude Include="ObjectMemoryPool.h">
-      <Filter>ServerNetwork</Filter>
-    </ClInclude>
-    <ClInclude Include="CrashDump.h" />
-    <ClInclude Include="LockFreeStack.h">
-      <Filter>ServerNetwork</Filter>
-    </ClInclude>
-    <ClInclude Include="MPSCQueue.h">
-      <Filter>ServerNetwork</Filter>
-    </ClInclude>
-    <ClInclude Include="PacketJob.h">
-      <Filter>ServerNetwork</Filter>
-    </ClInclude>
-    <ClInclude Include="GlobalQueue_MutexCV.h">
-      <Filter>ServerNetwork</Filter>
-    </ClInclude>
-    <ClInclude Include="StrandCallback.h">
-      <Filter>ServerNetwork</Filter>
-    </ClInclude>
-    <ClInclude Include="StrandProcessor.h">
       <Filter>ServerNetwork</Filter>
     </ClInclude>
     <ClInclude Include="GlobalQueue_LockFree.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="Define.h">
+      <Filter>Common</Filter>
+    </ClInclude>
+    <ClInclude Include="ErrorCode.h">
+      <Filter>Common</Filter>
+    </ClInclude>
+    <ClInclude Include="CrashDump.h">
+      <Filter>Common</Filter>
+    </ClInclude>
+    <ClInclude Include="MysqlManager.h">
+      <Filter>Database</Filter>
+    </ClInclude>
+    <ClInclude Include="MySQLTaskDefine.h">
+      <Filter>Database</Filter>
+    </ClInclude>
+    <ClInclude Include="RedisManager.h">
+      <Filter>Database</Filter>
+    </ClInclude>
+    <ClInclude Include="RedisTaskDefine.h">
+      <Filter>Database</Filter>
+    </ClInclude>
+    <ClInclude Include="PacketManager.h">
+      <Filter>Contents</Filter>
+    </ClInclude>
+    <ClInclude Include="User.h">
+      <Filter>Contents</Filter>
+    </ClInclude>
+    <ClInclude Include="UserManager.h">
+      <Filter>Contents</Filter>
+    </ClInclude>
+    <ClInclude Include="Room.h">
+      <Filter>Contents</Filter>
+    </ClInclude>
+    <ClInclude Include="RoomManager.h">
+      <Filter>Contents</Filter>
+    </ClInclude>
+    <ClInclude Include="PacketJob.h">
+      <Filter>Contents</Filter>
+    </ClInclude>
+    <ClInclude Include="MPSCQueue.h">
+      <Filter>Concurrency</Filter>
+    </ClInclude>
+    <ClInclude Include="LockFreeStack.h">
+      <Filter>Concurrency</Filter>
+    </ClInclude>
+    <ClInclude Include="GlobalQueue_MutexCV.h">
+      <Filter>Concurrency</Filter>
+    </ClInclude>
+    <ClInclude Include="StrandProcessor.h">
+      <Filter>Concurrency</Filter>
+    </ClInclude>
+    <ClInclude Include="StrandCallback.h">
+      <Filter>Concurrency</Filter>
+    </ClInclude>
+    <ClInclude Include="ObjectMemoryPool.h">
+      <Filter>Concurrency</Filter>
+    </ClInclude>
+    <ClInclude Include="ObjectPool.h">
+      <Filter>Concurrency</Filter>
+    </ClInclude>
+    <ClInclude Include="ChatServer.h">
+      <Filter>ServerNetwork</Filter>
+    </ClInclude>
+    <ClInclude Include="Packet.h">
+      <Filter>ServerNetwork</Filter>
+    </ClInclude>
+    <ClInclude Include="RingBuffer.h">
+      <Filter>ServerNetwork</Filter>
+    </ClInclude>
+    <ClInclude Include="ConfigManager.h">
+      <Filter>Common</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp" />
-    <ClCompile Include="PacketManager.cpp" />
+    <ClCompile Include="main.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="PacketManager.cpp">
+      <Filter>Contents</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

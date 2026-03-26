@@ -2,11 +2,12 @@
 #include "ChatServer.h"
 #include "CrashDump.h"
 #include "ObjectPool.h"
+#include "ConfigManager.h"
 #include <string>
 #include <iostream>
-const UINT16 SERVER_PORT = 11021;
-const UINT16 MAX_CLIENT = 10000;	// 한 번에 접속할 클라이언트 수
-const UINT32 MAX_IO_WORKER_THREAD =8;
+//const UINT16 SERVER_PORT = 11021;
+//const UINT16 MAX_CLIENT = 10000;	// 한 번에 접속할 클라이언트 수
+//const UINT32 MAX_IO_WORKER_THREAD =8;
 
 
 // Ctrl+c, 콘솔 닫기 버튼에서 graceful shutdown을 호출하기 위한 전역변수
@@ -31,6 +32,10 @@ BOOL WINAPI ConsoleCtrlHandler(DWORD ctrlType)
 int main()
 {
 	CrashDump::Init();
+
+	ConfigManager::GetInstance().Load("config.json");
+	const auto& config = ConfigManager::GetInstance().Get();
+	
 	SetConsoleCtrlHandler(ConsoleCtrlHandler, TRUE);
 	ObjectPool<SendOverlappedEx> pool;
 	if (pool.IsLockFree())
@@ -46,14 +51,14 @@ int main()
 	g_pServer = &Server;
 
 	// 서버 초기화
-	Server.Init(MAX_IO_WORKER_THREAD);
+	Server.Init(config.MaxIOWorkerThread);
 
 	// 소켓과 서버 주소를 바인딩하고 리슨
-	Server.BindandListen(SERVER_PORT);
+	Server.BindandListen(config.ServerPort);
 
-	Server.Run(MAX_CLIENT);
+	Server.Run(config.MaxClient);
 
-	printf("Type 'quit' to stop the server.\n");
+	printf("'quit' 입력으로 서버 종료.\n");
 
 	while (true)
 	{

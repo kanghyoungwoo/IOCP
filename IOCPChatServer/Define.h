@@ -3,13 +3,9 @@
 #include <Ws2tcpip.h>
 #include <mswsock.h>
 #include <cstdint>
-//#define MAX_SOCKBUF 1024
 const UINT32 MAX_SOCKBUF = 1024;
 const UINT32 MAX_SOCK_SENDBUF = 4096;
 //const UINT32 MAX_SEND_QUEUE_DEPTH = 128;	// 클라이언트당 최대 Send 큐 깊이 (Backpressure)
-const UINT64 RE_USE_SESSION_WAIT_TIMESEC = 3; 
-#define MAX_WORKERTHREAD 4
-#define MAX_LOGICTHREAD 4
 //#define USE_AMAZON_AWS_DB // 주석처리 로컬모드
 
 // Release 빌드 시 디버그 출력 제거

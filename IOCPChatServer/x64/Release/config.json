@@ -1,0 +1,36 @@
+{
+    "Network": {
+        "ServerPort": 11021,
+        "MaxClient": 10000,
+        "MaxIOWorkerThread": 8
+    },
+    "Thread": {
+        "MaxWorkerThread": 4,
+        "MaxLogicThread": 4
+    },
+    "Session": {
+        "ReUseSessionWaitTimeSec": 3,
+        "TimeoutMs": 60000,
+        "PingIntervalMs": 30000,
+        "CheckIntervalMs": 10000,
+        "MaxPendingAccept": 100
+    },
+    "Room": {
+        "StartRoomNumber": 0,
+        "MaxRoomUserCount": 8,
+        "MaxRoomCount": 1250
+    },
+    "Pool": {
+        "JobPoolSize": 100000,
+        "CallbackPoolSize": 4000
+    },
+    "Database": {
+        "MySQLHost": "127.0.0.1",
+        "MySQLUser": "root",
+        "MySQLPassword": "1234",
+        "MySQLDatabase": "chatserver_local",
+        "MySQLPort": 3306,
+        "RedisHost": "127.0.0.1",
+        "RedisPort": 6379
+    }
+}

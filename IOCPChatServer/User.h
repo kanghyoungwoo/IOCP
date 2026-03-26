@@ -127,7 +127,7 @@ public:
 		// 패킷 크기 유효성 검증
 		if (pHeader->PacketLength < PACKET_HEADER_LENGTH || pHeader->PacketLength > MAX_PACKET_DATA_BUFFER_SIZE)
 		{
-			LOG_ERROR("Invalid PacketLength: %d (valid: %d~%d) → 버퍼 초기화\n",
+			LOG_ERROR("Invalid PacketLength: %d (valid: %u~%zd) → 버퍼 초기화\n",
 				pHeader->PacketLength, PACKET_HEADER_LENGTH, MAX_PACKET_DATA_BUFFER_SIZE);
 			mPacketDataBuffer.Clear();  // 오염된 버퍼 폐기
 			return PacketInfo();
