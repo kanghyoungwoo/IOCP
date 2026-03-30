@@ -31,8 +31,7 @@ public:
 
 	bool IsConnected()
 	{
-		//return m_socketClient != INVALID_SOCKET;
-		return mIsConnected;
+		return mIsConnected.load(std::memory_order_acquire);
 	}
 
 	SOCKET GetSocket()
@@ -65,17 +64,24 @@ public:
 	bool OnConnect(HANDLE iocpHandle, SOCKET socket)
 	{
 		m_socketClient = socket;
-		mIsConnected = true;
+
+
 		++mGeneration;
 
 		// 접속 직후 타임아웃 판정을 위한 시간 기록
 		UpdateActivity();
 
 		Clear();
+		// 모든 준비가 끝난 후 문 엶(이후 부턴 CloseSocket으로만 닫아야함)
+		mIsConnected.store(true, std::memory_order_release);
+
+		// IOCP등록 및 Recv대기
 		if (BindIOCompletionPort(iocpHandle) == false)
 		{
 			return false;
 		}
+
+		// BindRecv()가 실패할때도 알아서 CloseSocket()이 불림
 		return BindRecv();
 	}
 
@@ -96,7 +102,7 @@ public:
 		// 소켓 옵션을 설정
 		setsockopt(m_socketClient, SOL_SOCKET, SO_LINGER, (char*)&stLinger, sizeof(stLinger));
 
-		mIsConnected = false;
+		//mIsConnected = false;// TryMarkDisconnect가 대신함
 
 		mLatestClosedTimeSec = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
 
@@ -464,6 +470,12 @@ public:
 		}
 	}
 
+	// true 반환시 내가 닫는 스레드, false면 다른 스레드가 이미 닫음
+	bool TryMarkDisconnected()
+	{
+		return mIsConnected.exchange(false, std::memory_order_acq_rel);
+	}
+
 	//bool mAcceptPendingg = false;
 private:
 	UINT32			mIndex = 0;				// Client의 index
@@ -484,7 +496,8 @@ private:
 	char mSendingBuf[MAX_SOCK_SENDBUF];
 	//std::queue<stOverlappedEx*> mSendDataqueue;
 	std::queue<SendOverlappedEx*> mSendDataqueue;
-	bool mIsConnected = false;			// Client의 접속 요청을 했는지 확인하는 변수
+	//bool mIsConnected = false;			// Client의 접속 요청을 했는지 확인하는 변수
+	std::atomic<bool>mIsConnected{ false };
 	char mAcceptbuf[128];				// AcceptEx의 3번째 인자로 넘겨줄 버퍼
 	UINT64 mLatestClosedTimeSec = 0;		// 마지막으로 소켓이 닫혔던 시간
 

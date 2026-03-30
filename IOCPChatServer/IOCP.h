@@ -600,10 +600,16 @@ private:
 	// 소켓의 연결을 종료
 	void CloseSocket(ClientSession* pClientSession, bool bIsForce = false)
 	{
-		if (pClientSession->IsConnected() == false)
+		//if (pClientSession->IsConnected() == false)
+		//{
+		//	return;
+		//}
+		if (pClientSession->TryMarkDisconnected() == false)
 		{
+			// 이미 다른 쓰레드가 닫았으므로 무시하고 돌아감
 			return;
 		}
+
 		UINT32 ClientIndex = pClientSession->GetIndex();
 		pClientSession->Closed(bIsForce);
 		OnClose(ClientIndex);
