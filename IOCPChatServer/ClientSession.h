@@ -480,8 +480,14 @@ public:
 		return mLastPingTime.load(std::memory_order_relaxed);
 	}
 
-	void DisconnectAsync()
+	void DisconnectAsync(UINT32 expectedGeneration)
 	{
+		// 소켓을 끊기 직전 마지막 세대 검사 (Timeout Snipe 방지)
+		if (mGeneration.load(std::memory_order_acquire) != expectedGeneration)
+		{
+			LOG_DEBUG("[Timeout] Snipe 방어 성공! (세대 변경됨)\n");
+			return;
+		}
 		if (m_socketClient != INVALID_SOCKET)
 		{
 			shutdown(m_socketClient, SD_BOTH);

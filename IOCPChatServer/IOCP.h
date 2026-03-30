@@ -287,7 +287,8 @@ public:
 		if (pClient && pClient->IsConnected())
 		{
 			LOG_ERROR("[DisconnectClient] Client(%d) 강제 연결 해제\n", clientIndex);
-			pClient->DisconnectAsync();  // shutdown(SD_BOTH) → WorkerThread가 자연스럽게 CloseSocket 호출
+			UINT32 gen = pClient->GetGeneration();	// gen 캡쳐
+			pClient->DisconnectAsync(gen);  // shutdown(SD_BOTH) → WorkerThread가 자연스럽게 CloseSocket 호출
 		}
 	}
 
@@ -403,16 +404,18 @@ private:
 				if (pSession == nullptr || !pSession->IsConnected())
 					continue;
 
+				UINT32 genBefore = pSession->GetGeneration();	// gen 캡쳐
+
 				ULONGLONG lastActivity = pSession->GetLastActivityTime();
 				ULONGLONG elapsed = now - lastActivity;
 
-				if (elapsed >= config.TimeoutMs) // 60초
+				if (elapsed >= config.TimeoutMs)
 				{
 					// 60초동안 무응답 시 Disconnect 호출하여 끊기
 					LOG_DEBUG("[TimeoutThread] Client Index(%d) 타임아웃! (60초 무응답) -> 연결 종료 요청\n", pSession->GetIndex());
 					// 연결 종료
 					//CloseSocket(pSession, true);
-					pSession->DisconnectAsync();
+					pSession->DisconnectAsync(genBefore); // 캡쳐한 gen 전달
 				}
 				else if (elapsed >= config.PingIntervalMs) // 30초
 				{
@@ -588,7 +591,7 @@ private:
 					}
 					else
 					{
-						// Accept 실패, 소켓 정리
+						// Accept 실패, 소켓 정리 + 인덱스 반납
 						if (pClientSession->IsConnected())
 						{
 							pClientSession->TryMarkDisconnected();
@@ -599,7 +602,8 @@ private:
 							pClientSession->CloseAcceptSocket();
 						}
 
-						// PostImmediateAccept에서 올린 AddRef해제
+						// Accept IO의 ReleaseRef (PostImmediateAccept에서 AddRef한 것)
+						// 실패했으므로 OnConnect의 store(1)은 안 일어남 → 정상적으로 해제
 						pClientSession->ReleaseRef();
 						PushFreeSessionIndex(pOverlappedEx->clientSessionIndex);
 						
@@ -630,7 +634,7 @@ private:
 					//pClientSession->UpdateActivity();
 
 					OnReceive(pClientSession->GetIndex(), dwIoSize, pClientSession->RecvBuff());
-					// 다시 recv 걸어줌
+					// 새 recv 등록
 					if (!pClientSession->BindRecv())
 					{
 						CloseSocket(pClientSession, true);
@@ -808,5 +812,6 @@ private:
 	std::thread mTimeoutThread;
 	std::atomic<bool> mIsTimeoutRun{ false };
 	std::atomic<int> mPendingAcceptCount{ 0 };
+	std::atomic<int> mTotalPendingIO{ 0 };      // 전체 비동기 IO 카운트
 
 };
