@@ -141,6 +141,9 @@ public:
 	// WSASend Overlapped I/O 작업을 수행
 	bool SendMsg(const UINT32 dataSize, char* pMsg)
 	{
+		// 
+		if (!IsConnected()) 
+			return false;
 		// 풀에서 SendOverlappedEx 하나를 가져옴 (힙 할당 제거)
 		auto pSendOvl = mSendPool->Alloc();
 		if (pSendOvl == nullptr)
