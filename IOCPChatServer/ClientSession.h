@@ -64,8 +64,6 @@ public:
 	bool OnConnect(HANDLE iocpHandle, SOCKET socket)
 	{
 		m_socketClient = socket;
-
-
 		//++mGeneration;
 		mGeneration.fetch_add(1, std::memory_order_acq_rel);
 
@@ -84,6 +82,7 @@ public:
 		}
 
 		// BindRecv()가 실패할때도 알아서 CloseSocket()이 불림
+		// BindRecv 내부에서 AddRef-> RefCount = 2
 		return BindRecv();
 	}
 
@@ -175,7 +174,10 @@ public:
 		// 데이터가 1개이면 앞에 보내는 데이터가 없으니 바로 wsasend
 		if (mSendDataqueue.size() == 1)
 		{
-			SendIO();
+			if (!SendIO())
+			{
+				DisconnectAsync();
+			}
 		}
 
 		// buffer를 이용한 1-send
@@ -208,6 +210,8 @@ public:
 		m_stRecvOverlappedEx.generation = mGeneration.load(std::memory_order_acquire);
 		//m_stRecvOverlappedEx.generation = mGeneration;
 
+		AddRef();
+
 		int nRet = WSARecv(m_socketClient,
 			&(m_stRecvOverlappedEx.m_wsaBuf),
 			1,
@@ -220,7 +224,7 @@ public:
 		if (nRet == SOCKET_ERROR && (WSAGetLastError() != ERROR_IO_PENDING))
 		{
 			LOG_ERROR("WSARecv() 실패 : %d\n", WSAGetLastError());
-			Closed(true); // 강제 종료 처리
+			ReleaseRef();	//IO 등록 실패 + 올렸던 카운트 되돌림
 			return false;
 		}
 		LOG_DEBUG("bind recv 성공\n");
@@ -249,6 +253,9 @@ public:
 	{
 		auto sendOverlappedEx = mSendDataqueue.front();
 		DWORD dwRecvNumBytes = 0;
+
+		AddRef();
+
 		int nRet = WSASend(
 			m_socketClient,
 			&(sendOverlappedEx->wsaBuf),
@@ -262,6 +269,8 @@ public:
 
 		if (nRet == SOCKET_ERROR && (WSAGetLastError() != ERROR_IO_PENDING))
 		{
+			ReleaseRef();
+			// 큐정리 안함- > false -> 호출부에서 DisconnectAsync() -> CloseSocket -> Closed -> Clear()가 안전하게 큐 정리
 			LOG_ERROR_ONCE("WSASend() 실패 : %d\n", WSAGetLastError());
 			return false;
 		}
@@ -317,7 +326,10 @@ public:
 		mSendDataqueue.pop();
 		if (mSendDataqueue.empty() == false)
 		{
-			SendIO();
+			if (!SendIO())
+			{
+				DisconnectAsync();
+			}
 		}
 	}
 
@@ -410,7 +422,10 @@ public:
 
 			{
 				LOG_ERROR("AcceptEx failed! Error code: %d\n", GetLastError());
-
+				ReleaseRef();
+				closesocket(m_socketClient);
+				m_socketClient = INVALID_SOCKET;
+				// index 반납은 호출부에서 처리
 				return false;
 			}
 		}
@@ -479,6 +494,31 @@ public:
 		return mIsConnected.exchange(false, std::memory_order_acq_rel);
 	}
 
+	void AddRef() 
+	{ 
+		mRefCount.fetch_add(1, std::memory_order_relaxed);
+	}
+
+	// true면 내가 마지막 스레드 -> 세션 반납 책임
+	bool ReleaseRef()
+	{
+		return mRefCount.fetch_add(1, std::memory_order_acq_rel) == 1;
+	}
+
+	int GetRefCount() const
+	{
+		return mRefCount.load(std::memory_order_acquire);
+	}
+
+	void CloseAcceptSocket()
+	{
+		if (m_socketClient != INVALID_SOCKET)
+		{
+			closesocket(m_socketClient);
+			m_socketClient = INVALID_SOCKET;
+		}
+	}
+
 	//bool mAcceptPendingg = false;
 private:
 	UINT32			mIndex = 0;				// Client의 index
@@ -506,7 +546,10 @@ private:
 
 	//UINT32 mGeneration = 0;
 	std::atomic<UINT32> mGeneration{ 0 };
+	std::atomic<int> mRefCount{ 0 };
 
 	std::atomic<ULONGLONG> mLastActivityTime{ 0 };
 	std::atomic<ULONGLONG> mLastPingTime{ 0 };
+
+
 };

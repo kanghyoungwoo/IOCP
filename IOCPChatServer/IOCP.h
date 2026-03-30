@@ -148,6 +148,14 @@ public:
 			{
 				// 해당 세션에 postImmediate 호출
 				auto pClient = GetClientInfo(emptyIndex);
+				if (pClient->PostImmediateAccept(mListenSocket))
+				{
+					++mPendingAcceptCount;
+				}
+				else
+				{
+					PushFreeSessionIndex(emptyIndex);
+				}
 				pClient->PostImmediateAccept(mListenSocket);
 			}
 		}
@@ -188,7 +196,7 @@ public:
 		// step2. 클라이언트 강제종료 + IO 취소
 		for (auto& client : mClientInfos)
 		{
-			if (client->IsConnected())
+			if (client->TryMarkDisconnected())
 			{
 				// 연결된 클라이언트가 있다면
 				// 해당 소켓 모든 비동기 IO 취소
@@ -202,8 +210,30 @@ public:
 		// step3. 잔여 IO Draining
 		// 이미 커널에서 OS 한 잔여 완료 신호가 IOCP queue에 도착
 		// 짧은 대기 후 처리 시간줌
-		std::this_thread::sleep_for(std::chrono::milliseconds(500));
+		//std::this_thread::sleep_for(std::chrono::milliseconds(500));
 		LOG_DEBUG("step3: 잔여 IO Draining 완료\n");
+
+		const int MAX_DRAIN_WAIT_MS = 5000;
+		bool allDrained = false;
+		int elapsed = 0;
+		while (elapsed < MAX_DRAIN_WAIT_MS)
+		{
+			allDrained = true;
+			for (auto& client : mClientInfos)
+			{
+				if (client->GetRefCount() > 0)
+				{
+					allDrained = false;
+					break;
+				}
+			}
+			if (allDrained)
+				break;
+			Sleep(10);
+			elapsed += 10;
+		}
+		if(!allDrained)
+			LOG_ERROR("step3: IO Draining 타임아웃\n");
 
 		// step4. 워커 스레드 종료 - PQCS로 신호
 		mIsWorkerRun = false;
@@ -275,7 +305,35 @@ public:
 	virtual void OnReceive(const UINT32 clientIndex, const UINT32 size, char* pData){}
 
 	// 모니터링
-	uint64_t GetSendPoolAllocFailCount() const { return mSendBufferPool.GetAllocFailCount(); }
+	uint64_t GetSendPoolAllocFailCount() const
+	{ 
+		return mSendBufferPool.GetAllocFailCount();
+	}
+
+	// AcceptEx 기아 방지
+	void TryPostAcceptEx()
+	{
+		if (mListenSocket == INVALID_SOCKET)
+			return;
+
+		const auto& config = ConfigManager::GetInstance().Get();
+		if (mPendingAcceptCount.load(std::memory_order_relaxed) >= (int)config.MaxPendingAccept)
+			return;
+
+		UINT32 emptyIndex = PopFreeSessionIndex();
+		if (emptyIndex == UINT32_MAX)
+			return;
+
+		auto pClient = GetClientInfo(emptyIndex);
+		if (pClient->PostImmediateAccept(mListenSocket))
+		{
+			++mPendingAcceptCount;
+		}
+		else
+		{
+			PushFreeSessionIndex(emptyIndex);
+		}
+	}
 
 
 private:
@@ -502,10 +560,16 @@ private:
 				}
 
 				auto pOverlappedEx = (stOverlappedEx*)lpOverlapped;
-				// client의 접속이 끊어졌을때
+				// client의 접속이 끊어졌을때(0바이트 수신(연결종료)
 				if (dwIoSize == 0 && pOverlappedEx->m_eOperation != IOOperation::ACCEPT)
 				{
 					CloseSocket(pClientSession);
+
+					if (pClientSession->ReleaseRef())
+					{
+						PushFreeSessionIndex(pClientSession->GetIndex());
+						TryPostAcceptEx();
+					}
 					continue;
 				}
 				//printf("[DEBUG] Operation=%d, ClientSessionIndex=%d\n",
@@ -513,6 +577,7 @@ private:
 				if (IOOperation::ACCEPT == pOverlappedEx->m_eOperation)
 				{
 					pClientSession = GetClientInfo(pOverlappedEx->clientSessionIndex);
+					--mPendingAcceptCount;
 
 					if (pClientSession->AcceptCompletion(mListenSocket))
 					{
@@ -523,27 +588,41 @@ private:
 					}
 					else
 					{
-						CloseSocket(pClientSession, true);
+						// Accept 실패, 소켓 정리
+						if (pClientSession->IsConnected())
+						{
+							pClientSession->TryMarkDisconnected();
+							pClientSession->Closed(true);
+						}
+						else
+						{
+							pClientSession->CloseAcceptSocket();
+						}
+
+						// PostImmediateAccept에서 올린 AddRef해제
+						pClientSession->ReleaseRef();
+						PushFreeSessionIndex(pOverlappedEx->clientSessionIndex);
+						
 					}
 
-					// 새로운 AcceptEx 1개 재등록하기
-					UINT32 nextEmptyIndex = PopFreeSessionIndex();
-					if (nextEmptyIndex != UINT32_MAX)
-					{
-						auto pNextClient = GetClientInfo(nextEmptyIndex);
-						pNextClient->PostImmediateAccept(mListenSocket);
-					}
+					// AcceptEx 재등록하기
+					TryPostAcceptEx();
 				}
 
 				// Overlapped I/O Recv 작업 완료 시 처리
+				// workerthread accept 처리
 				else if (IOOperation::RECV == pOverlappedEx->m_eOperation)
 				{
-
 					// Stale I/O 방지
 					if (pOverlappedEx->generation != pClientSession->GetGeneration())
 					{
 						LOG_DEBUG("[Stale I/O] RECV 무시 - gen: %d vs %d\n",
 							pOverlappedEx->generation, pClientSession->GetGeneration());
+						if (pClientSession->ReleaseRef())
+						{
+							PushFreeSessionIndex(pClientSession->GetIndex());
+							TryPostAcceptEx();
+						}
 						continue;
 					}
 
@@ -551,7 +630,19 @@ private:
 					//pClientSession->UpdateActivity();
 
 					OnReceive(pClientSession->GetIndex(), dwIoSize, pClientSession->RecvBuff());
-					pClientSession->BindRecv(); // 다시 recv 걸어줌
+					// 다시 recv 걸어줌
+					if (!pClientSession->BindRecv())
+					{
+						CloseSocket(pClientSession, true);
+					}
+
+					// 이 Recv 완료에 대한 ReleaseRef
+					if (pClientSession->ReleaseRef())
+					{
+						PushFreeSessionIndex(pClientSession->GetIndex());
+						TryPostAcceptEx();
+					}
+
 				}
 
 				else if (IOOperation::SEND == pOverlappedEx->m_eOperation) // 송신이 완료되면
@@ -562,11 +653,24 @@ private:
 					{
 						LOG_DEBUG("[Stale I/O] SEND 무시 - gen: %d vs %d\n",
 							pSendOvl->generation, pClientSession->GetGeneration());
-						mSendBufferPool.Free(pSendOvl);  // 풀로 반납
+						// Clear()가 이미 풀에 반납했으므로 Free 안해도됨
+						if (pClientSession->ReleaseRef())
+						{
+							PushFreeSessionIndex(pClientSession->GetIndex());
+							TryPostAcceptEx();
+						}
+						//mSendBufferPool.Free(pSendOvl);  // 풀로 반납
 						continue;
 					}
 					pClientSession->SendComplete(dwIoSize);
+					if (pClientSession->ReleaseRef())
+					{
+						PushFreeSessionIndex(pClientSession->GetIndex());
+						TryPostAcceptEx();
+					}
 				}
+
+
 				// 예외
 				else
 				{
@@ -613,10 +717,17 @@ private:
 		UINT32 ClientIndex = pClientSession->GetIndex();
 		pClientSession->Closed(bIsForce);
 		OnClose(ClientIndex);
-
-		// 세션 사용이 끝났으므로 번호표 반납
-		PushFreeSessionIndex(ClientIndex);
 		--mClientCnt;
+
+		// Base Ref(1) 해제
+		if (pClientSession->ReleaseRef())
+		{
+			// 잔여 IO없으므로 즉시 반납
+			PushFreeSessionIndex(ClientIndex);
+			TryPostAcceptEx();
+		}
+		// else: 잔여 IO있으므로 workerThread의 마짐가 ReleaseRef가 반납
+		// 
 	}
 
 	// 빈 세션 하나 가져오는 함수
@@ -696,4 +807,6 @@ private:
 
 	std::thread mTimeoutThread;
 	std::atomic<bool> mIsTimeoutRun{ false };
+	std::atomic<int> mPendingAcceptCount{ 0 };
+
 };
