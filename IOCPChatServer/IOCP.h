@@ -276,9 +276,11 @@ public:
 	}
 	// 클라이언트의 데이터를 받아서
 	// 클라이언트에게 메시지를 send하는 함수
-	bool SendMsg(const UINT32 ClientSessionIndex_, const UINT32 dataSize_, char* pMsg_)
+	bool SendMsg(const UINT32 ClientSessionIndex_, UINT32 generation_, const UINT32 dataSize_, char* pMsg_)
 	{
 		auto pClient = GetClientInfo(ClientSessionIndex_);
+		if (pClient->GetGeneration() != generation_)
+			return false;	// 세대 불일치-> 다른사람
 		return pClient->SendMsg(dataSize_, pMsg_);
 	}
 
@@ -304,7 +306,7 @@ public:
 
 	virtual void OnConnect(const int clientIndex){}
 	virtual void OnClose(const int clientIndex){}
-	virtual void OnReceive(const UINT32 clientIndex, const UINT32 size, char* pData){}
+	virtual void OnReceive(const UINT32 clientIndex, const UINT32 generation, const UINT32 size, char* pData) {}
 
 	// 모니터링
 	uint64_t GetSendPoolAllocFailCount() const
@@ -634,7 +636,7 @@ private:
 					//// 타임아웃 확인 위한 갱신
 					//pClientSession->UpdateActivity();
 
-					OnReceive(pClientSession->GetIndex(), dwIoSize, pClientSession->RecvBuff());
+					OnReceive(pClientSession->GetIndex(), pClientSession->GetGeneration(), dwIoSize, pClientSession->RecvBuff());
 					// 새 recv 등록
 					if (!pClientSession->BindRecv())
 					{

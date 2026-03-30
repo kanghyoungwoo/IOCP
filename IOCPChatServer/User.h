@@ -41,6 +41,8 @@ public:
 		//mGeneration++;	// 세대 카운터 증가
 
 		mIsDisconnecting.store(false);
+
+		mSessionGeneration = 0;
 	}
 
 	std::string GetUserID() const
@@ -196,8 +198,25 @@ public:
 		mGeneration++;
 	}
 
-	bool IsDisconnecting() const { return mIsDisconnecting.load(); }
-	void SetDisconnecting() { mIsDisconnecting.store(true); }
+	bool IsDisconnecting() const
+	{
+		return mIsDisconnecting.load(); 
+	}
+
+	void SetDisconnecting()
+	{
+		mIsDisconnecting.store(true);
+	}
+
+	void SetSessionGeneration(UINT32 gen)
+	{
+		mSessionGeneration = gen;
+	}
+
+	UINT32 GetSessionGeneration() const
+	{
+		return mSessionGeneration;
+	}
 
 private:
 	INT32 mIndex = -1;
@@ -205,6 +224,7 @@ private:
 	bool mIsconfirm = false;
 	INT32 roomIndex = -1;
 	std::atomic<UINT32> mGeneration{ 0 };
+	UINT32 mSessionGeneration = 0; // 유저가 속한 ClientSession의 세대
 	std::string mAuthToken = "";
 
 	UINT32 mPacketDataBufferWritePos = 0; // 쓰기 위치

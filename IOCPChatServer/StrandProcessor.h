@@ -236,7 +236,7 @@ private:
                         resPacket.PacketId = (UINT16)PACKET_ID::ROOM_CHAT_RESPONSE;
                         resPacket.PacketLength = sizeof(ROOM_CHAT_RESPONSE_PACKET);
                         resPacket.Result = 0; // ERROR_CODE::NONE
-                        pRoom->SendPacketFunc(pJob->clientIndex, sizeof(resPacket), (char*)&resPacket);
+                        pRoom->SendPacketFunc(pJob->clientIndex, pUser->GetSessionGeneration(), sizeof(resPacket), (char*)&resPacket);
 
                         // 방 전체에 브로드캐스트
                         pRoom->NotifyChat(pJob->clientIndex, pUser->GetUserID().c_str(), pJob->body);
@@ -262,7 +262,7 @@ private:
                         resPacket.PacketId = (UINT16)PACKET_ID::ROOM_LEAVE_RESPONSE;
                         resPacket.PacketLength = sizeof(ROOM_LEAVE_RESPONSE_PACKET);
                         resPacket.Result = 0; // ERROR_CODE::NONE
-                        pRoom->SendPacketFunc(pJob->clientIndex, sizeof(resPacket), (char*)&resPacket);
+                        pRoom->SendPacketFunc(pJob->clientIndex, pUser->GetSessionGeneration(), sizeof(resPacket), (char*)&resPacket);
 
                         // 패킷 매니저에게 상태 변경 요청 콜백
                         StrandCallback* cb = mCallbackPool.Alloc();

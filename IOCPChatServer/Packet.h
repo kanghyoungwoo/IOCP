@@ -51,6 +51,7 @@ typedef struct _RawPacketData
 struct PacketInfo
 {
 	UINT32 ClientIndex = 0;
+	UINT32 Generation = 0;
 	UINT32 PacketId = 0;
 	UINT32 DataSize = 0;
 	char* pDataPtr = nullptr;

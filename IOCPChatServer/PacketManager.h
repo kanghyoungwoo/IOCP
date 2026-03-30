@@ -30,39 +30,37 @@ public:
 	void Init(const UINT32 maxClient_);
 	bool Run();
 	void End();
-	bool ReceivePacketData(const UINT32 clientIndex_, const UINT32 dataSize_, char* pData_);
+	bool ReceivePacketData(const UINT32 clientIndex_, const UINT32 generation_, const UINT32 dataSize_, char* pData_);
 	void PushSystemPacket(PacketInfo packet_);
 
-	std::function<void(UINT32, UINT32, char*)>SendPacketFunc;
+	std::function<void(UINT32, UINT32, UINT32, char*)> SendPacketFunc;
 	std::function<void(UINT32)> UpdateActivityFunc;
 
 
 private:
-	using PacketHandler = std::function<void(UINT32 clientIndex, UINT16 packetSize, char* pPacket)>;
+	using PacketHandler = std::function<void(UINT32 clientIndex, UINT32 generation, UINT16 packetSize, char* pPacket)>;
 	void RegisterHandlers(); // 핸들러 함수 등록
 	// std::function 기반 디스패치
 	std::unordered_map<UINT16, PacketHandler>mPacketHandlers;
 	void CreateComponent(const UINT32 maxClient_);
 	void ClearConnectionInfo(INT32 clientIndex_);
 
-	void EnqueuePacketData(const UINT32 clientIndex_);
+	void EnqueuePacketData(const UINT32 clientIndex_, const UINT32 generation_);
 	//PacketInfo DequePacketData();
 	//PacketInfo DequeSystemPacketData();
 	void ProcessPacket();
-	void ProcessRecvPacket(const UINT32 clientIndex_, const UINT16 packetId_, const UINT16 packetSize_, char* pPacket_);
-	void ProcessUserConnect(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket);
-	void ProcessUserDisconnect(UINT32 clientIndex_m, UINT16 packetSize_, char* pPacket);
-	void ProcessLogin(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_); // 최대 접속자 수, 중복 로그인 확인
-	void ProcessLoginDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
-
-
-	void ProcessEnterRoom(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
-	void ProcessLeaveRoom(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
-	void ProcessRoomChatMessage(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
+	void ProcessRecvPacket(const UINT32 clientIndex_, const UINT32 generation_, const UINT16 packetId_, const UINT16 packetSize_, char* pPacket_);
+	void ProcessUserConnect(UINT32 clientIndex_, UINT32 generation_, UINT16 packetSize_, char* pPacket);
+	void ProcessUserDisconnect(UINT32 clientIndex_, UINT32 generation_, UINT16 packetSize_, char* pPacket);
+	void ProcessLogin(UINT32 clientIndex_, UINT32 generation_, UINT16 packetSize_, char* pPacket_); // 최대 접속자 수, 중복 로그인 확인
+	void ProcessLoginDBResult(UINT32 clientIndex_, UINT32 generation_, UINT16 packetSize_, char* pPacket_);
+	void ProcessEnterRoom(UINT32 clientIndex_, UINT32 generation_, UINT16 packetSize_, char* pPacket_);
+	void ProcessLeaveRoom(UINT32 clientIndex_, UINT32 generation_, UINT16 packetSize_, char* pPacket_);
+	void ProcessRoomChatMessage(UINT32 clientIndex_, UINT32 generation_, UINT16 packetSize_, char* pPacket_);
 
 	void NotifyPacketEvent();
 
-	typedef void(PacketManager::* PROCESS_RECV_PACKET_FUNCTION)(UINT32, UINT16, char*);
+	typedef void(PacketManager::* PROCESS_RECV_PACKET_FUNCTION)(UINT32, UINT32, UINT16, char*);
 	std::unordered_map<int, PROCESS_RECV_PACKET_FUNCTION>mRecvFunctionDictionary;
 
 	UserManager* mUserManager;

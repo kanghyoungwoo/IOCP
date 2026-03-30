@@ -115,8 +115,7 @@ public:
 		printf("메세지가 전송되었습니다 !\n");*/
 	}
 
-
-	std::function<void(UINT32, UINT32, char*)>SendPacketFunc;
+	std::function<void(UINT32, UINT32, UINT32, char*)> SendPacketFunc;
 
 	void Reset(INT32 roomNumber_, INT32 maxUserCount_)
 	{
@@ -194,7 +193,7 @@ private:
 				continue;
 			if (skip_ == true && pUser->GetNetConnIndex() == skipUserIndex_)
 				continue;
-			SendPacketFunc((UINT32)pUser->GetNetConnIndex(), (UINT32)dataSize_, data_);
+			SendPacketFunc((UINT32)pUser->GetNetConnIndex(),pUser->GetSessionGeneration(),(UINT32)dataSize_, data_);
 		}
 
 	}

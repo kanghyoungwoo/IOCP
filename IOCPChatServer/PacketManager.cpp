@@ -43,27 +43,27 @@ void PacketManager::Init(const UINT32 maxClient_)
 void PacketManager::RegisterHandlers()
 {
 	// 시스템 패킷 핸들러
-	mPacketHandlers[(UINT16)PACKET_ID::SYS_USER_CONNECT] = [this](UINT32 clientIndex, UINT16 packetSize, char* pPacket)
+	mPacketHandlers[(UINT16)PACKET_ID::SYS_USER_CONNECT] = [this](UINT32 clientIndex, UINT32 generation, UINT16 packetSize, char* pPacket)
 		{
-			ProcessUserConnect(clientIndex, packetSize, pPacket);
+			ProcessUserConnect(clientIndex, generation, packetSize, pPacket);
 		};
-	mPacketHandlers[(UINT16)PACKET_ID::SYS_USER_DISCONNECT] = [this](UINT32 clientIndex, UINT16 packetSize, char* pPacket)
+	mPacketHandlers[(UINT16)PACKET_ID::SYS_USER_DISCONNECT] = [this](UINT32 clientIndex, UINT32 generation, UINT16 packetSize, char* pPacket)
 		{
-			ProcessUserDisconnect(clientIndex, packetSize, pPacket);
+			ProcessUserDisconnect(clientIndex, generation, packetSize, pPacket);
 		};
 	// 로그인 핸들러
-	mPacketHandlers[(UINT16)PACKET_ID::LOGIN_REQUEST] = [this](UINT32 clientIndex, UINT16 packetSize, char* pPacket)
-		{
-			ProcessLogin(clientIndex, packetSize, pPacket);
-		};
-	mPacketHandlers[(UINT16)RedisTaskID::RESPONSE_LOGIN] = [this](UINT32 clientIndex, UINT16 packetSize, char* pPacket)
-		{
-			ProcessLoginDBResult(clientIndex, packetSize, pPacket);
-		};
+    mPacketHandlers[(UINT16)PACKET_ID::LOGIN_REQUEST] = [this](UINT32 clientIndex, UINT32 generation, UINT16 packetSize, char* pPacket)
+        {
+            ProcessLogin(clientIndex, generation, packetSize, pPacket);
+        };
+    mPacketHandlers[(UINT16)RedisTaskID::RESPONSE_LOGIN] = [this](UINT32 clientIndex, UINT32 generation, UINT16 packetSize, char* pPacket)
+        {
+            ProcessLoginDBResult(clientIndex, generation, packetSize, pPacket);
+        };
 	// 방 관련 핸들러
-	mPacketHandlers[(UINT16)PACKET_ID::ROOM_ENTER_REQUEST] = [this](UINT32 clientIndex, UINT16 packetSize, char* pPacket)
+	mPacketHandlers[(UINT16)PACKET_ID::ROOM_ENTER_REQUEST] = [this](UINT32 clientIndex, UINT32 generation, UINT16 packetSize, char* pPacket)
 		{
-			ProcessEnterRoom(clientIndex, packetSize, pPacket);
+			ProcessEnterRoom(clientIndex, generation, packetSize, pPacket);
 		};
 	//mPacketHandlers[(UINT16)PACKET_ID::ROOM_LEAVE_REQUEST] = [this](UINT32 clientIndex, UINT16 packetSize, char* pPacket)
 	//	{
@@ -75,10 +75,9 @@ void PacketManager::RegisterHandlers()
 	//	};
 
 	// 좀비세션 관련 핸들러
-	mPacketHandlers[(UINT16)PACKET_ID::SYS_PONG] = [this](UINT32 clientIndex, UINT16 packetSize, char* pPacket)
+	mPacketHandlers[(UINT16)PACKET_ID::SYS_PONG] = [this](UINT32 clientIndex, UINT32 generation, UINT16 packetSize, char* pPacket)
 		{
-			// RECV에서 이미 UpdateActivity() 완료. 추가 처리 없음.
-			LOG_DEBUG("[PacketManager] Client Index(%d)로부터 PONG 수신 완료 (생존 연장)\n", clientIndex);
+			LOG_DEBUG("[PacketManager] Client Index(%d)로부터 PONG 수신 완료\n", clientIndex);
 		};
 }
 
@@ -174,26 +173,11 @@ void PacketManager::End()
 
 		fclose(fp);
 	}
-	// 기존 종료 방식
-	//mRedisManager->End();
-	//mMySQLManager->End();
-
-	//{
-	//	std::lock_guard<std::mutex> lock(mLock);
-	//	mIsRunProcessThread = false;
-	//}
-	//// wait중인 processPacket 쓰레드 깨움
-	//mPacketEventCV.notify_all();
-	////mIsRunProcessThread = false;
-	//if (mProcessThead.joinable())
-	//{
-	//	mProcessThead.join();
-	//}
 
 }
 
 // usermanager의 GetUserByConnIdx를 이용하여 유저의 idx를 받은 후 user의 data를 SetPacketData를 통해 set함
-bool PacketManager::ReceivePacketData(const UINT32 clientIndex_, const UINT32 dataSize_, char* pData_)
+bool PacketManager::ReceivePacketData(const UINT32 clientIndex_, const UINT32 generation_, const UINT32 dataSize_, char* pData_)
 {
 	auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
 	if (!pUser->SetPacketData(dataSize_, pData_))
@@ -203,7 +187,7 @@ bool PacketManager::ReceivePacketData(const UINT32 clientIndex_, const UINT32 da
 	}
 	//pUser->SetPacketData(dataSize_, pData_); // 링버퍼에 저장 후
 	// queue에 알려줌 어떤 client의 요청이 왔는지
-	EnqueuePacketData(clientIndex_);
+	EnqueuePacketData(clientIndex_, generation_);
 	return true;
 }
 
@@ -273,7 +257,7 @@ void PacketManager::ProcessPacket()
 		// 시스템 패킷 처리
 		for (auto& sysPacket : mSystemReadBuffer)
 		{
-			ProcessRecvPacket(sysPacket.ClientIndex, sysPacket.PacketId, sysPacket.DataSize, sysPacket.pDataPtr);
+			ProcessRecvPacket(sysPacket.ClientIndex, sysPacket.Generation, sysPacket.PacketId, sysPacket.DataSize, sysPacket.pDataPtr);
 		}
 		mSystemReadBuffer.clear();
 
@@ -300,12 +284,6 @@ void PacketManager::ProcessPacket()
 				continue;
 			}
 
-			if (pUser->GetGeneration() != task.generation)
-			{
-				//printf("Enqueue Generation: %d와 현재 Generation: %d가 서로 맞지 않습니다.\n", task.generation, pUser->GetGeneration());
-				continue;
-			}
-
 			auto packetData = pUser->GetPacket();
 			if (packetData.PacketId == 0)
 				continue;
@@ -315,6 +293,19 @@ void PacketManager::ProcessPacket()
 				UpdateActivityFunc(task.clientIndex);
 
 			packetData.ClientIndex = task.clientIndex;
+			packetData.Generation = task.generation;
+
+			auto packetId = packetData.PacketId;
+			// 시스템 패킷과 로그인 요청 패킷은 세대 검사에서 제외 (무사 통과)
+			if (packetId != (UINT16)PACKET_ID::SYS_USER_CONNECT &&packetId != (UINT16)PACKET_ID::SYS_USER_DISCONNECT && packetId != (UINT16)PACKET_ID::LOGIN_REQUEST)
+			{
+				// 이미 로그인된 유저인데 세대가 다르다면 (이전 세대의 지각 패킷) 버림
+				if (pUser->GetSessionGeneration() != task.generation)
+				{
+					LOG_DEBUG("Stale Packet 버림 (Gen: %d vs %d)\n", pUser->GetSessionGeneration(), task.generation);
+					continue;
+				}
+			}
 
 			//if (pUser->GetDomainState() == User::DOMAIN_STATE::ROOM)
 			//{
@@ -338,7 +329,7 @@ void PacketManager::ProcessPacket()
 					}
 					else
 					{
-						ProcessRecvPacket(packetData.ClientIndex, packetData.PacketId, packetData.DataSize, packetData.pDataPtr);
+						ProcessRecvPacket(packetData.ClientIndex, packetData.Generation, packetData.PacketId, packetData.DataSize, packetData.pDataPtr);
 					}
 				};
 			processOnePacket(packetData);
@@ -366,7 +357,7 @@ void PacketManager::ProcessPacket()
 			if (task.TaskID == RedisTaskID::INVALID)
 				break;
 
-			ProcessRecvPacket(task.UserIndex, (UINT16)task.TaskID, task.DataSize, task.pData);
+			ProcessRecvPacket(task.UserIndex, task.Generation, (UINT16)task.TaskID, task.DataSize, task.pData);
 			task.release();
 		}
 
@@ -395,68 +386,29 @@ void PacketManager::ProcessPacket()
 	// 시스템 패킷(네트워크가 보낸것, 연결, 연결종료 등..) 을 있으면 처리하고 
 }
 
-void PacketManager::EnqueuePacketData(const UINT32 clientIndex_)
+void PacketManager::EnqueuePacketData(const UINT32 clientIndex_, const UINT32 generation_)
 {
 	{
 		std::lock_guard<std::mutex> guard(mLock);
-		auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
-		if (pUser)
-		{
-			PacketTask task;
-			task.clientIndex = clientIndex_;
-			task.generation = pUser->GetGeneration();	// 현재 generation
-			//mInComingPacketUserIndex.push_back(task);
-			// 더블 버퍼링 구현
-			mWriteBuffer.push_back(task);
-		}
+		PacketTask task;
+		task.clientIndex = clientIndex_;
+		task.generation = generation_;  // ★ ClientSession의 세대를 사용
+		mWriteBuffer.push_back(task);
 	}
 	// 큐에 새로운 패킷이 들어왔다고 처리 쓰레드 깨움
 	NotifyPacketEvent();
 	//mInComingPacketUserIndex.push_back(clientIndex_);
 }
 
-//PacketInfo PacketManager::DequePacketData()
-//{
-//	//UINT32 userIndex = 0;
-//	PacketTask task;
-//	// 요청을 보낸 유저가 있는지 확인 후 
-//	// empty면 리턴
-//	{
-//		std::lock_guard<std::mutex>guard(mLock);
-//		if (mInComingPacketUserIndex.empty())
-//		{
-//			return PacketInfo();
-//		}
-//		// 있으면 데이터를 뽑아내고 
-//		// user index를 통해서 user 객체를 알아내고 링버퍼를 이용
-//		//userIndex = mInComingPacketUserIndex.front();
-//		task = mInComingPacketUserIndex.front();
-//		mInComingPacketUserIndex.pop_front();
-//	}
-//	auto pUser = mUserManager->GetUserByConnIdx(task.clientIndex);
-//	if (!pUser) // 유저가 이미 삭제됐으면
-//		return PacketInfo();
-//	if (pUser->GetGeneration() != task.generation)
-//	{
-//		// Generation 불일치로 패킷 처리 중단
-//		printf("enqueue generation: %d 이 current generation: %d 맞지 않습니다\n", task.generation, pUser->GetGeneration());
-//		return PacketInfo();
-//	}
-//
-//	auto packetData = pUser->GetPacket();
-//	packetData.ClientIndex = task.clientIndex;
-//
-//	return packetData;
-//}
 
-void PacketManager::ProcessUserConnect(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket)
+void PacketManager::ProcessUserConnect(UINT32 clientIndex_, UINT32 generation_, UINT16 packetSize_, char* pPacket)
 {
 	LOG_DEBUG("[ProcessUserConnect] ClientIndex : %d\n", clientIndex_);
 	auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
-	//pUser->Clear();
+	pUser->SetSessionGeneration(generation_);  //접속 시점에 세대 설정
 }
 
-void PacketManager::ProcessUserDisconnect(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket)
+void PacketManager::ProcessUserDisconnect(UINT32 clientIndex_, UINT32 generation_, UINT16 packetSize_, char* pPacket)
 {
 	LOG_DEBUG("[ProcessUserDisconnect] ClientIndex : %d\n", clientIndex_);
 	ClearConnectionInfo(clientIndex_);
@@ -488,32 +440,19 @@ void PacketManager::PushSystemPacket(PacketInfo packet_)
 //}
 
 
-void PacketManager::ProcessRecvPacket(const UINT32 clientIndex_, const UINT16 packetId_, const UINT16 packetSize_, char* pPacket_)
+void PacketManager::ProcessRecvPacket(const UINT32 clientIndex_, const UINT32 generation_, const UINT16 packetId_, const UINT16 packetSize_, char* pPacket_)
 {
-	// 패킷 id를 찾아서 
-	// 관계된 객체를 할당해서 처리
-	//auto iter = mRecvFunctionDictionary.find(packetId_);
-	//if (iter != mRecvFunctionDictionary.end())
-	//{
-	//	(this->*(iter->second))(clientIndex_, packetSize_, pPacket_);
-	//}
-	//// 잘못된 패킷 처리
-	//else
-	//{
-	//	printf("알 수 없는 패킷 ID : %d (ClientIndex: %d)\n", packetId_, clientIndex_);
-	//}
-
 	// 패킷key값(packetid)을 찾으면 
 	auto it = mPacketHandlers.find(packetId_);
 	if (it != mPacketHandlers.end())
-		it->second(clientIndex_, packetSize_, pPacket_);
+		it->second(clientIndex_, generation_, packetSize_, pPacket_);
 	else
 		LOG_ERROR("알 수 없는 패킷 ID : %d (ClientIndex: %d)\n", packetId_, clientIndex_);
 
 }
 
 
-void PacketManager::ProcessLogin(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_) // 최대 접속자 수, 중복 정도만 확인
+void PacketManager::ProcessLogin(UINT32 clientIndex_, UINT32 generation_,  UINT16 packetSize_, char* pPacket_) // 최대 접속자 수, 중복 정도만 확인
 {
 	if (LOGIN_REQUEST_PACKET_SIZE != packetSize_)
 	{
@@ -534,13 +473,14 @@ void PacketManager::ProcessLogin(UINT32 clientIndex_, UINT16 packetSize_, char* 
 		// usermanager에 사용자 추가
 		auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
 		pUser->SetLogin(pUserID);
+		pUser->SetSessionGeneration(generation_);
 		mUserManager->Adduser(pUserID, clientIndex_);
 
 		LOGIN_RESPONSE_PACKET loginResPacket;
 		loginResPacket.PacketId = (UINT16)PACKET_ID::LOGIN_RESPONSE;
 		loginResPacket.PacketLength = sizeof(loginResPacket);
 		loginResPacket.Result = (UINT16)ERROR_CODE::NONE;
-		SendPacketFunc(clientIndex_, sizeof(LOGIN_RESPONSE_PACKET), (char*)&loginResPacket);
+		SendPacketFunc(clientIndex_, generation_, sizeof(LOGIN_RESPONSE_PACKET), (char*)&loginResPacket);
 
 		LOG_DEBUG("[Load Test] Dummy login Success: %s\n", pUserID);
 		
@@ -569,7 +509,7 @@ void PacketManager::ProcessLogin(UINT32 clientIndex_, UINT16 packetSize_, char* 
 		LOG_DEBUG("중복 로그인 차단! UserID='%s', 기존Index=%d, 새요청Index=%d\n",
 			pUserID, existingIndex, clientIndex_);
 		loginResPacket.Result = (UINT16)ERROR_CODE::LOGIN_USER_ALREADY;
-		SendPacketFunc(clientIndex_, sizeof(LOGIN_RESPONSE_PACKET), (char*)&loginResPacket);
+		SendPacketFunc(clientIndex_, generation_, sizeof(LOGIN_RESPONSE_PACKET), (char*)&loginResPacket);
 		LOG_DEBUG("중복 로그인 거부 응답 전송 완료\n");
 		return;
 	}
@@ -579,7 +519,7 @@ void PacketManager::ProcessLogin(UINT32 clientIndex_, UINT16 packetSize_, char* 
 	{
 		// 접속자 수가 최대라면 접속 불가
 		loginResPacket.Result = (UINT16)ERROR_CODE::LOGIN_USER_USED_ALL_OBJ;
-		SendPacketFunc(clientIndex_, sizeof(LOGIN_RESPONSE_PACKET), (char*)&loginResPacket);
+		SendPacketFunc(clientIndex_, generation_, sizeof(LOGIN_RESPONSE_PACKET), (char*)&loginResPacket);
 		return;
 	}
 
@@ -592,6 +532,7 @@ void PacketManager::ProcessLogin(UINT32 clientIndex_, UINT16 packetSize_, char* 
 
 		RedisTask redistask;
 		redistask.UserIndex = clientIndex_;
+		redistask.Generation = generation_;
 		redistask.TaskID = RedisTaskID::REQUEST_LOGIN;
 		redistask.DataSize = sizeof(RedisLoginReq);
 
@@ -605,12 +546,12 @@ void PacketManager::ProcessLogin(UINT32 clientIndex_, UINT16 packetSize_, char* 
 	{
 		// 접속중인 유저라면 실패
 		loginResPacket.Result = (UINT16)ERROR_CODE::LOGIN_USER_ALREADY;
-		SendPacketFunc(clientIndex_, sizeof(LOGIN_RESPONSE_PACKET), (char*)&loginResPacket);
+		SendPacketFunc(clientIndex_, generation_, sizeof(LOGIN_RESPONSE_PACKET), (char*)&loginResPacket);
 		return;
 	}
 }
 
-void PacketManager::ProcessLoginDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
+void PacketManager::ProcessLoginDBResult(UINT32 clientIndex_, UINT32 generation_, UINT16 packetSize_, char* pPacket_)
 {
 	LOG_DEBUG("ProcessLoginDBResult. UserIndex : %d \n", clientIndex_);
 
@@ -630,6 +571,7 @@ void PacketManager::ProcessLoginDBResult(UINT32 clientIndex_, UINT16 packetSize_
 		}
 		else {
 			auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
+			pUser->SetSessionGeneration(generation_);
 			LOG_DEBUG("User added successfully. UserID: '%s'\n", pUser->GetUserID().c_str());
 			mUserManager->IncreaseUserCnt();
 
@@ -653,7 +595,7 @@ void PacketManager::ProcessLoginDBResult(UINT32 clientIndex_, UINT16 packetSize_
 	loginResPacket.PacketId = (UINT16)PACKET_ID::LOGIN_RESPONSE;
 	loginResPacket.PacketLength = sizeof(LOGIN_RESPONSE_PACKET);
 	loginResPacket.Result = pBody->Result;
-	SendPacketFunc(clientIndex_, sizeof(LOGIN_RESPONSE_PACKET), (char*)&loginResPacket);
+	SendPacketFunc(clientIndex_, generation_, sizeof(LOGIN_RESPONSE_PACKET), (char*)&loginResPacket);
 }
 
 void PacketManager::ClearConnectionInfo(INT32 clientIndex_)
@@ -703,7 +645,7 @@ void PacketManager::ClearConnectionInfo(INT32 clientIndex_)
 	//}
 }
 
-void PacketManager::ProcessEnterRoom(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket)
+void PacketManager::ProcessEnterRoom(UINT32 clientIndex_, UINT32 generation_, UINT16 packetSize_, char* pPacket)
 {
 	UNREFERENCED_PARAMETER(packetSize_);
 
@@ -725,7 +667,7 @@ void PacketManager::ProcessEnterRoom(UINT32 clientIndex_, UINT16 packetSize_, ch
 		errorPacket.PacketId = (UINT16)PACKET_ID::ROOM_ENTER_RESPONSE;
 		errorPacket.PacketLength = sizeof(ROOM_ENTER_RESPONSE_PACKET);
 		errorPacket.Result = (UINT16)ERROR_CODE::ENTER_ROOM_INVALID_USER_STATUS;
-		SendPacketFunc(clientIndex_, sizeof(ROOM_ENTER_RESPONSE_PACKET), (char*)&errorPacket);
+		SendPacketFunc(clientIndex_, generation_, sizeof(ROOM_ENTER_RESPONSE_PACKET), (char*)&errorPacket);
 		return;
 		
 	}
@@ -774,12 +716,12 @@ void PacketManager::ProcessEnterRoom(UINT32 clientIndex_, UINT16 packetSize_, ch
 
 	
 	//	해당 값의 결과를 응답 패킷의 데이터에 넣어서 전송한다.
-	SendPacketFunc(clientIndex_, sizeof(ROOM_ENTER_RESPONSE_PACKET), (char*)&roomEnterResPacket);
+	SendPacketFunc(clientIndex_, generation_, sizeof(ROOM_ENTER_RESPONSE_PACKET), (char*)&roomEnterResPacket);
 	LOG_DEBUG("Enter Room Res Packet Send ! \n");
 
 }
 
-void PacketManager::ProcessLeaveRoom(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket)
+void PacketManager::ProcessLeaveRoom(UINT32 clientIndex_, UINT32 generation_, UINT16 packetSize_, char* pPacket)
 {
 
 	UNREFERENCED_PARAMETER(packetSize_);
@@ -838,12 +780,12 @@ void PacketManager::ProcessLeaveRoom(UINT32 clientIndex_, UINT16 packetSize_, ch
 	}
 
 	//	해당 값의 결과를 응답 패킷의 데이터에 넣어서 전송한다.
-	SendPacketFunc(clientIndex_, sizeof(ROOM_LEAVE_RESPONSE_PACKET), (char*)&roomLeaveResPacket);
+	SendPacketFunc(clientIndex_, generation_, sizeof(ROOM_LEAVE_RESPONSE_PACKET), (char*)&roomLeaveResPacket);
 	printf("Leave Room Res Packet Send ! \n");
 
 }
 
-void PacketManager::ProcessRoomChatMessage(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket)
+void PacketManager::ProcessRoomChatMessage(UINT32 clientIndex_, UINT32 generation_, UINT16 packetSize_, char* pPacket)
 {
 	UNREFERENCED_PARAMETER(packetSize_);
 	//  채팅 패킷을 받는다.
@@ -863,7 +805,7 @@ void PacketManager::ProcessRoomChatMessage(UINT32 clientIndex_, UINT16 packetSiz
 		roomChatResPacket.PacketId = (UINT16)PACKET_ID::ROOM_CHAT_RESPONSE;
 		roomChatResPacket.PacketLength = sizeof(ROOM_CHAT_RESPONSE_PACKET);
 		roomChatResPacket.Result = (UINT16)ERROR_CODE::ENTER_ROOM_INVALID_USER_STATUS;
-		SendPacketFunc(clientIndex_, sizeof(ROOM_CHAT_RESPONSE_PACKET), (char*)&roomChatResPacket);
+		SendPacketFunc(clientIndex_, generation_, sizeof(ROOM_CHAT_RESPONSE_PACKET), (char*)&roomChatResPacket);
 		return;
 	}
 
@@ -874,11 +816,11 @@ void PacketManager::ProcessRoomChatMessage(UINT32 clientIndex_, UINT16 packetSiz
 	if (pRoom == nullptr || !pRoom)
 	{
 		roomChatResPacket.Result = (UINT16)ERROR_CODE::CHAT_ROOM_INVALID_ROOM_NUMBER;
-		SendPacketFunc(clientIndex_, sizeof(ROOM_CHAT_RESPONSE_PACKET), (char*)&roomChatResPacket);
+		SendPacketFunc(clientIndex_, generation_, sizeof(ROOM_CHAT_RESPONSE_PACKET), (char*)&roomChatResPacket);
 		return;
 	}
 	
-	SendPacketFunc(clientIndex_, sizeof(ROOM_CHAT_RESPONSE_PACKET), (char*)&roomChatResPacket);
+	SendPacketFunc(clientIndex_, generation_, sizeof(ROOM_CHAT_RESPONSE_PACKET), (char*)&roomChatResPacket);
 	
 	// MySQL 채팅 메세지 저장
 	MySQLChatMsgReq chatmsg{};

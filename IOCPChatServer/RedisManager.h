@@ -157,6 +157,7 @@ private:
 
 				RedisTask resTask;
 				resTask.UserIndex = task.UserIndex;
+				resTask.Generation = task.Generation;
 				resTask.TaskID = RedisTaskID::RESPONSE_LOGIN;
 				resTask.DataSize = sizeof(RedisLoginRes);
 				resTask.pData = new char[resTask.DataSize];

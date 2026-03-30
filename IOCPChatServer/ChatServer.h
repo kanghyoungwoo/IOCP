@@ -22,23 +22,33 @@ public:
 	virtual void OnConnect(const int clientIndex_) override
 	{
 		LOG_DEBUG("[OnConnect] Client Index : %d\n", clientIndex_);
-		PacketInfo packet{ clientIndex_, (UINT16)PACKET_ID::SYS_USER_CONNECT,0};
+		PacketInfo packet;
+		packet.ClientIndex = clientIndex_;
+		packet.Generation = 0;  // Connect 시점엔 아직 의미 없음
+		packet.PacketId = (UINT16)PACKET_ID::SYS_USER_CONNECT;
+		packet.DataSize = 0;
 		m_pPacketManager->PushSystemPacket(packet);
 	}
 
 	virtual void OnClose(const int clientIndex_) override
 	{
 		LOG_DEBUG("[OnClosed] Client Index : %d\n", clientIndex_);
-		PacketInfo packet{ clientIndex_, (UINT16)PACKET_ID::SYS_USER_DISCONNECT, 0 };
+		//PacketInfo packet{ clientIndex_, (UINT16)PACKET_ID::SYS_USER_DISCONNECT, 0 };
+		PacketInfo packet;
+		packet.ClientIndex = clientIndex_;
+		packet.Generation = 0;  // Disconnect도 시스템 패킷이라 검증 불필요
+		packet.PacketId = (UINT16)PACKET_ID::SYS_USER_DISCONNECT;
+		packet.DataSize = 0;
+
 		m_pPacketManager->PushSystemPacket(packet);
 
 	}
 
-	virtual void OnReceive(const UINT32 clientIndex_, const UINT32 size_, char* pData_) override
+	virtual void OnReceive(const UINT32 clientIndex_, const UINT32 generation_, const UINT32 size_, char* pData_) override
 	{
 		LOG_DEBUG("[OnReceive] Ciient Index : %d , DataSize : %d\n", clientIndex_, size_);
 
-		if (!m_pPacketManager->ReceivePacketData(clientIndex_, size_, pData_))
+		if (!m_pPacketManager->ReceivePacketData(clientIndex_, generation_, size_, pData_))
 		{
 			// 버퍼오버플로우 -> 악의적 클라이언트, 연결 해제
 			DisconnectClient(clientIndex_);
@@ -48,9 +58,9 @@ public:
 
 	void Run(const UINT32 maxClient)
 	{
-		auto sendPacketFunc = [&](UINT32 clientIndex_, UINT16 packetSize_, char* pSendPacket)
+		auto sendPacketFunc = [&](UINT32 clientIndex_, UINT32 gen_, UINT32 packetSize_, char* pSendPacket)
 		{
-			SendMsg(clientIndex_, packetSize_, pSendPacket);
+			SendMsg(clientIndex_, gen_, packetSize_, pSendPacket);
 		};
 
 		// 유효 패킷 처리 시 활동 시간 갱신 콜백

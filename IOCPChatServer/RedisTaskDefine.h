@@ -21,6 +21,7 @@ enum class RedisTaskID : UINT16
 struct RedisTask
 {
 	UINT32 UserIndex = 0;
+	UINT32 Generation = 0;
 	RedisTaskID TaskID = RedisTaskID::INVALID;
 	UINT16 DataSize = 0;
 	char* pData = nullptr;

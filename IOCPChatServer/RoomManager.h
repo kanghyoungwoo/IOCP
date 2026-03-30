@@ -79,8 +79,8 @@ public:
 		return &mRooms[index];
 	}
 
+	std::function<void(UINT32, UINT32, UINT32, char*)> SendPacketFunc;
 
-	std::function<void(UINT32, UINT32, char*)>SendPacketFunc;
 private:
 	//std::vector<Room*> mRoomList;
 	Room* mRooms = nullptr;
