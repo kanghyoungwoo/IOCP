@@ -176,7 +176,7 @@ public:
 		{
 			if (!SendIO())
 			{
-				DisconnectAsync();
+				DisconnectAsync(GetGeneration());
 			}
 		}
 
@@ -328,7 +328,7 @@ public:
 		{
 			if (!SendIO())
 			{
-				DisconnectAsync();
+				DisconnectAsync(GetGeneration());
 			}
 		}
 	}
@@ -406,6 +406,8 @@ public:
 			return false;
 		}
 
+		AddRef();	// AcceptEx 비동기 IO에 대한 참조 카운트
+
 		ZeroMemory(&mAcceptContext, sizeof(stOverlappedEx));
 		DWORD bytes = 0;
 		DWORD flags = 0;
@@ -413,7 +415,6 @@ public:
 		mAcceptContext.m_wsaBuf.buf = nullptr;
 		mAcceptContext.m_eOperation = IOOperation::ACCEPT;
 		mAcceptContext.clientSessionIndex = mIndex;
-
 		bool bRet = AcceptEx(listenSock, m_socketClient, mAcceptbuf, 0, sizeof(SOCKADDR_IN) + 16, sizeof(SOCKADDR_IN) + 16, &bytes, (LPWSAOVERLAPPED) & (mAcceptContext));
 
 		if (bRet == FALSE)
@@ -508,7 +509,7 @@ public:
 	// true면 내가 마지막 스레드 -> 세션 반납 책임
 	bool ReleaseRef()
 	{
-		return mRefCount.fetch_add(1, std::memory_order_acq_rel) == 1;
+		return mRefCount.fetch_sub(1, std::memory_order_acq_rel) == 1;
 	}
 
 	int GetRefCount() const

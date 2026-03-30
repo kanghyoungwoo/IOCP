@@ -156,7 +156,6 @@ public:
 				{
 					PushFreeSessionIndex(emptyIndex);
 				}
-				pClient->PostImmediateAccept(mListenSocket);
 			}
 		}
 
@@ -812,6 +811,4 @@ private:
 	std::thread mTimeoutThread;
 	std::atomic<bool> mIsTimeoutRun{ false };
 	std::atomic<int> mPendingAcceptCount{ 0 };
-	std::atomic<int> mTotalPendingIO{ 0 };      // 전체 비동기 IO 카운트
-
 };
