@@ -41,7 +41,7 @@ public:
 
 	UINT32 GetGeneration() const
 	{
-		return mGeneration;
+		return mGeneration.load(std::memory_order_acquire);
 	}
 
 
@@ -66,7 +66,9 @@ public:
 		m_socketClient = socket;
 
 
-		++mGeneration;
+		//++mGeneration;
+		mGeneration.fetch_add(1, std::memory_order_acq_rel);
+
 
 		// 접속 직후 타임아웃 판정을 위한 시간 기록
 		UpdateActivity();
@@ -154,8 +156,8 @@ public:
 		pSendOvl->wsaBuf.buf = pSendOvl->buffer;	// 내부 버퍼를 가리킴
 		CopyMemory(pSendOvl->buffer, pMsg, dataSize);
 		pSendOvl->operation = IOOperation::SEND;
-		pSendOvl->generation = mGeneration;
-
+		//pSendOvl->generation = mGeneration;
+		pSendOvl->generation = mGeneration.load(std::memory_order_acquire);
 		std::lock_guard<std::mutex> guard(mSendLock);
 		mSendDataqueue.push(pSendOvl);
 
@@ -203,7 +205,8 @@ public:
 		m_stRecvOverlappedEx.m_wsaBuf.len = MAX_SOCKBUF;
 		m_stRecvOverlappedEx.m_wsaBuf.buf = mRecvBuf;
 		m_stRecvOverlappedEx.m_eOperation = IOOperation::RECV;
-		m_stRecvOverlappedEx.generation = mGeneration;
+		m_stRecvOverlappedEx.generation = mGeneration.load(std::memory_order_acquire);
+		//m_stRecvOverlappedEx.generation = mGeneration;
 
 		int nRet = WSARecv(m_socketClient,
 			&(m_stRecvOverlappedEx.m_wsaBuf),
@@ -501,7 +504,8 @@ private:
 	char mAcceptbuf[128];				// AcceptEx의 3번째 인자로 넘겨줄 버퍼
 	UINT64 mLatestClosedTimeSec = 0;		// 마지막으로 소켓이 닫혔던 시간
 
-	UINT32 mGeneration = 0;
+	//UINT32 mGeneration = 0;
+	std::atomic<UINT32> mGeneration{ 0 };
 
 	std::atomic<ULONGLONG> mLastActivityTime{ 0 };
 	std::atomic<ULONGLONG> mLastPingTime{ 0 };
