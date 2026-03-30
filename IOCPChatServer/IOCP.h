@@ -195,13 +195,15 @@ public:
 		// step2. 클라이언트 강제종료 + IO 취소
 		for (auto& client : mClientInfos)
 		{
-			if (client->TryMarkDisconnected())
+			// 1. 소켓이 아직 살아있다면, 걸려있는 비동기 I/O들을 강제로 취소
+			// 이후 워커 스레드에서 dwIoSize == 0 또는 ERROR_OPERATION_ABORTED 로 뱉어냄
+			if (client->GetSocket() != INVALID_SOCKET)
 			{
-				// 연결된 클라이언트가 있다면
-				// 해당 소켓 모든 비동기 IO 취소
 				CancelIoEx((HANDLE)client->GetSocket(), NULL);
-				client->Closed(true);	// 강제 종료 처리
 			}
+
+			// 2. Base Ref 해제 및 뒷정리
+			CloseSocket(client.get(), true);
 		}
 		LOG_DEBUG("step2 모든 클라이언트 강제 종료 완료\n");
 
