@@ -210,12 +210,12 @@ public:
 
 	void SetSessionGeneration(UINT32 gen)
 	{
-		mSessionGeneration = gen;
+		mSessionGeneration.store(gen, std::memory_order_release);
 	}
 
 	UINT32 GetSessionGeneration() const
 	{
-		return mSessionGeneration;
+		return mSessionGeneration.load(std::memory_order_acquire);
 	}
 
 private:
@@ -224,7 +224,8 @@ private:
 	bool mIsconfirm = false;
 	INT32 roomIndex = -1;
 	std::atomic<UINT32> mGeneration{ 0 };
-	UINT32 mSessionGeneration = 0; // 유저가 속한 ClientSession의 세대
+	//UINT32 mSessionGeneration = 0; // 유저가 속한 ClientSession의 세대
+	std::atomic<UINT32> mSessionGeneration{ 0 };
 	std::string mAuthToken = "";
 
 	UINT32 mPacketDataBufferWritePos = 0; // 쓰기 위치
