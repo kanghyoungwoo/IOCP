@@ -456,15 +456,7 @@ void PacketManager::ProcessLogin(UINT32 clientIndex_, UINT32 generation_,  UINT1
 		// Redis 요청
 		LOG_DEBUG("Login To Redis USER ID : %s\n", pUserID);
 	}
-	else // 중복 거부처리
-	{
-		LOG_DEBUG("중복 로그인 차단! UserID='%s', 기존Index=%d, 새요청Index=%d\n",
-			pUserID, existingIndex, clientIndex_);
-		loginResPacket.Result = (UINT16)ERROR_CODE::LOGIN_USER_ALREADY;
-		SendPacketFunc(clientIndex_, generation_, sizeof(LOGIN_RESPONSE_PACKET), (char*)&loginResPacket);
-		LOG_DEBUG("중복 로그인 거부 응답 전송 완료\n");
-		return;
-	}
+
 
 	// 접속자 수가 최대수인지 확인
 	if (mUserManager->GetCurrentUserCnt() >= mUserManager->GetMaxUserCnt())
@@ -475,32 +467,25 @@ void PacketManager::ProcessLogin(UINT32 clientIndex_, UINT32 generation_,  UINT1
 		return;
 	}
 
-	if (mUserManager->FindUserIndexByID(pUserID) == -1)
-	{
-		RedisLoginReq redisReq;
 
-		CopyMemory(redisReq.UserID, pLoginReqPacket->UserID, (MAX_USER_ID_LENGTH + 1));
-		CopyMemory(redisReq.UserPW, pLoginReqPacket->UserPW, (MAX_USER_PW_LENGTH + 1));
+	// 신규로그인 redis 인증요청
+	LOG_DEBUG("새로운 사용자 - Redis로 전송\n");
 
-		RedisTask redistask;
-		redistask.UserIndex = clientIndex_;
-		redistask.Generation = generation_;
-		redistask.TaskID = RedisTaskID::REQUEST_LOGIN;
-		redistask.DataSize = sizeof(RedisLoginReq);
+	RedisLoginReq redisReq;
+	CopyMemory(redisReq.UserID, pLoginReqPacket->UserID, (MAX_USER_ID_LENGTH + 1));
+	CopyMemory(redisReq.UserPW, pLoginReqPacket->UserPW, (MAX_USER_PW_LENGTH + 1));
 
-		redistask.pData = new char[redistask.DataSize];
-		CopyMemory(redistask.pData, (char*)&redisReq, redistask.DataSize);
-		mRedisManager->PushTask(redistask);
+	RedisTask redistask;
+	redistask.UserIndex = clientIndex_;
+	redistask.Generation = generation_;
+	redistask.TaskID = RedisTaskID::REQUEST_LOGIN;
+	redistask.DataSize = sizeof(RedisLoginReq);
 
-		LOG_DEBUG("Login To Redis USER ID : %s\n", pUserID);
-	}
-	else // 중복거부처리
-	{
-		// 접속중인 유저라면 실패
-		loginResPacket.Result = (UINT16)ERROR_CODE::LOGIN_USER_ALREADY;
-		SendPacketFunc(clientIndex_, generation_, sizeof(LOGIN_RESPONSE_PACKET), (char*)&loginResPacket);
-		return;
-	}
+	redistask.pData = new char[redistask.DataSize];
+	CopyMemory(redistask.pData, (char*)&redisReq, redistask.DataSize);
+	mRedisManager->PushTask(redistask);
+
+	LOG_DEBUG("Login To Redis USER ID : %s\n", pUserID);
 }
 
 void PacketManager::ProcessLoginDBResult(UINT32 clientIndex_, UINT32 generation_, UINT16 packetSize_, char* pPacket_)
