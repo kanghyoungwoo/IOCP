@@ -6,14 +6,7 @@ class RoomManager
 {
 public:
 	RoomManager() = default;
-	~RoomManager()
-	{
-		if (mRooms != nullptr)
-		{
-			delete[] mRooms;
-			mRooms = nullptr;
-		}
-	}
+	//~RoomManager();
 
 	void Init(const INT32 beginRoomNumber_, const INT32 maxRoomCount_, const INT32 maxRoomUserCount_);
 
@@ -32,7 +25,8 @@ public:
 
 private:
 	//std::vector<Room*> mRoomList;
-	Room* mRooms = nullptr;
+	//Room* mRooms = nullptr;
+	std::vector<std::unique_ptr<Room>> mRooms;
 	INT32 mBeginRoomNumber = 0;
 	INT32 mMaxRoomCount = 0;
 	INT32 mEndRoomNumber = 0;

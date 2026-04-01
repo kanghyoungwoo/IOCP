@@ -14,11 +14,13 @@ void RoomManager::Init(const INT32 beginRoomNumber_, const INT32 maxRoomCount_, 
 	//	mRoomList[i]->SendPacketFunc = SendPacketFunc;
 	//	mRoomList[i]->Init(i + beginRoomNumber_, maxRoomUserCount_);
 	//}
-	mRooms = new Room[mMaxRoomCount];
+	mRooms.resize(maxRoomCount_);	
 	for (int i = 0;i < maxRoomCount_;i++)
 	{
-		mRooms[i].SendPacketFunc = SendPacketFunc;
-		mRooms[i].Init(i + beginRoomNumber_, maxRoomUserCount_);
+		auto room = std::make_unique<Room>();
+		room->SendPacketFunc = SendPacketFunc;
+		room->Init(i + beginRoomNumber_, maxRoomCount_);
+		mRooms.push_back(std::move(room));
 	}
 }
 
@@ -55,7 +57,6 @@ Room* RoomManager::GetRoomByNumber(INT32 number_)
 		return nullptr;
 	}
 	INT32 index = number_ - mBeginRoomNumber;
-	//return mRoomList[index];
-	return &mRooms[index];
+	return mRooms[index].get();
 }
 
