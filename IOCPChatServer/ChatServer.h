@@ -19,24 +19,24 @@ public:
 	ChatServer() = default;
 	virtual ~ChatServer() = default;
 
-	virtual void OnConnect(const int clientIndex_) override
+	virtual void OnConnect(const int clientIndex_, const UINT32 generation_) override
 	{
 		LOG_DEBUG("[OnConnect] Client Index : %d\n", clientIndex_);
 		PacketInfo packet;
 		packet.ClientIndex = clientIndex_;
-		packet.Generation = 0;  // Connect 시점엔 아직 의미 없음
+		packet.Generation = generation_;  // Connect 시점엔 아직 의미 없음
 		packet.PacketId = (UINT16)PACKET_ID::SYS_USER_CONNECT;
 		packet.DataSize = 0;
 		m_pPacketManager->PushSystemPacket(packet);
 	}
 
-	virtual void OnClose(const int clientIndex_) override
+	virtual void OnClose(const int clientIndex_, const UINT32 generation_) override
 	{
 		LOG_DEBUG("[OnClosed] Client Index : %d\n", clientIndex_);
 		//PacketInfo packet{ clientIndex_, (UINT16)PACKET_ID::SYS_USER_DISCONNECT, 0 };
 		PacketInfo packet;
 		packet.ClientIndex = clientIndex_;
-		packet.Generation = 0;  // Disconnect도 시스템 패킷이라 검증 불필요
+		packet.Generation = 0;  // 
 		packet.PacketId = (UINT16)PACKET_ID::SYS_USER_DISCONNECT;
 		packet.DataSize = 0;
 

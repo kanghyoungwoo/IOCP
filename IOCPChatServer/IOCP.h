@@ -304,8 +304,8 @@ public:
 		}
 	}
 
-	virtual void OnConnect(const int clientIndex){}
-	virtual void OnClose(const int clientIndex){}
+	virtual void OnConnect(const int clientIndex, const UINT32 generation){}
+	virtual void OnClose(const int clientIndex, const UINT32 generation){}
 	virtual void OnReceive(const UINT32 clientIndex, const UINT32 generation, const UINT32 size, char* pData) {}
 
 	// 모니터링
@@ -589,7 +589,7 @@ private:
 					{
 						// 여러 스레드가 동시에 호출해도 안전하게 atomic 처리
 						++mClientCnt;
-						OnConnect(pClientSession->GetIndex());
+						OnConnect(pClientSession->GetIndex(), pClientSession->GetGeneration());
 						LOG_DEBUG("######################################### 접속됨 #################################\n");
 					}
 					else
@@ -723,7 +723,7 @@ private:
 
 		UINT32 ClientIndex = pClientSession->GetIndex();
 		pClientSession->Closed(bIsForce);
-		OnClose(ClientIndex);
+		OnClose(ClientIndex, pClientSession->GetGeneration());
 		--mClientCnt;
 
 		// Base Ref(1) 해제

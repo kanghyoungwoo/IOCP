@@ -297,7 +297,7 @@ void PacketManager::ProcessPacket()
 
 			auto packetId = packetData.PacketId;
 			// 시스템 패킷과 로그인 요청 패킷은 세대 검사에서 제외 (무사 통과)
-			if (packetId != (UINT16)PACKET_ID::SYS_USER_CONNECT &&packetId != (UINT16)PACKET_ID::SYS_USER_DISCONNECT && packetId != (UINT16)PACKET_ID::LOGIN_REQUEST)
+			if (packetId != (UINT16)PACKET_ID::SYS_USER_CONNECT && packetId != (UINT16)PACKET_ID::LOGIN_REQUEST)
 			{
 				// 이미 로그인된 유저인데 세대가 다르다면 (이전 세대의 지각 패킷) 버림
 				if (pUser->GetSessionGeneration() != task.generation)
@@ -410,6 +410,16 @@ void PacketManager::ProcessUserConnect(UINT32 clientIndex_, UINT32 generation_, 
 
 void PacketManager::ProcessUserDisconnect(UINT32 clientIndex_, UINT32 generation_, UINT16 packetSize_, char* pPacket)
 {
+	auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
+	if (pUser == nullptr) return;
+
+	// Stale Disconnect 방어
+	if (pUser->GetSessionGeneration() != generation_)
+	{
+		LOG_DEBUG("Stale Disconnect 무시 (Gen: %d vs %d)\n",
+			generation_, pUser->GetSessionGeneration());
+		return;
+	}
 	LOG_DEBUG("[ProcessUserDisconnect] ClientIndex : %d\n", clientIndex_);
 	ClearConnectionInfo(clientIndex_);
 	
