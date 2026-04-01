@@ -80,28 +80,32 @@ public:
 
 	void End()
 	{
-		DestroyThread();			// step1~5, 네트워크 레이어 종료
-		m_pPacketManager->End();	// step6: 패킷매니저 + DB매니저
+		bool expected = false;
+		if (!mIsEnded.exchange(true))
+		{
+			DestroyThread();			// step1~5, 네트워크 레이어 종료
+			m_pPacketManager->End();	// step6: 패킷매니저 + DB매니저
 
+			// 벤치마크 (콘솔 + 파일)
+			printf("\n=== Benchmark Result ===\n");
+			printf("SendPool Alloc Fail: %llu\n", GetSendPoolAllocFailCount());
+			printf("========================\n\n");
+
+			FILE* fp = nullptr;
+			fopen_s(&fp, "benchmark_result.txt", "a");
+			if (fp) {
+				fprintf(fp, "SendPool Alloc Fail: %llu\n\n", GetSendPoolAllocFailCount());
+				fclose(fp);
+			}
+		}
 		// 역순 종료 방식
 		//m_pPacketManager->End();
 		//DestroyThread();
 
-		// 벤치마크 (콘솔 + 파일)
-		printf("\n=== Benchmark Result ===\n");
-		printf("SendPool Alloc Fail: %llu\n", GetSendPoolAllocFailCount());
-		printf("========================\n\n");
-
-		FILE* fp = nullptr;
-		fopen_s(&fp, "benchmark_result.txt", "a");
-		if (fp) {
-			fprintf(fp, "SendPool Alloc Fail: %llu\n\n", GetSendPoolAllocFailCount());
-			fclose(fp);
-		}
 	}
 
 
 private:
 	std::unique_ptr<PacketManager>m_pPacketManager;
-
+	std::atomic<bool>mIsEnded{ false };
 };

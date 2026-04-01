@@ -90,7 +90,7 @@ public:
 	void UpdateActivity()
 	{
 		ULONGLONG now = GetTickCount64();
-		mLastActivityTime.store(GetTickCount64(), std::memory_order_relaxed);
+		mLastActivityTime.store(now, std::memory_order_relaxed);
 		// 클라이언트가 방금 활동했으므로 ping 기록도 리셋
 		mLastPingTime.store(0, std::memory_order_relaxed);
 	}

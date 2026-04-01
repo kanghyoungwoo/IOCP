@@ -456,7 +456,7 @@ void PacketManager::ProcessLogin(UINT32 clientIndex_, UINT32 generation_,  UINT1
 		// Redis 요청
 		LOG_DEBUG("Login To Redis USER ID : %s\n", pUserID);
 	}
-	else
+	else // 중복 거부처리
 	{
 		LOG_DEBUG("중복 로그인 차단! UserID='%s', 기존Index=%d, 새요청Index=%d\n",
 			pUserID, existingIndex, clientIndex_);
@@ -494,7 +494,7 @@ void PacketManager::ProcessLogin(UINT32 clientIndex_, UINT32 generation_,  UINT1
 
 		LOG_DEBUG("Login To Redis USER ID : %s\n", pUserID);
 	}
-	else
+	else // 중복거부처리
 	{
 		// 접속중인 유저라면 실패
 		loginResPacket.Result = (UINT16)ERROR_CODE::LOGIN_USER_ALREADY;
@@ -745,8 +745,13 @@ void PacketManager::ProcessRoomChatMessage(UINT32 clientIndex_, UINT32 generatio
 	roomChatResPacket.Result = (UINT16)ERROR_CODE::NONE;
 	//	user 객체로 해당 정보를 전달한다.
 	auto pReqUser = mUserManager->GetUserByConnIdx(clientIndex_);
+	if (pReqUser == nullptr)
+	{
+		LOG_ERROR("유효하지 않은 유저!. ClientIndex : %d\n", clientIndex_);
+		return;
+	}
 
-	// 유저가 방에 있는지 확인
+	// 유저가 방에 있는지 확인, 
 	if (pReqUser->GetDomainState() != User::DOMAIN_STATE::ROOM)
 	{
 		roomChatResPacket.Result = (UINT16)ERROR_CODE::ENTER_ROOM_INVALID_USER_STATUS;

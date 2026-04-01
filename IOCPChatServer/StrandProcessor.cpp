@@ -1,11 +1,11 @@
-#include "StrandProcessor.h"
+ï»¿#include "StrandProcessor.h"
 
 void StrandProcessor::Init(uint32_t jobPoolSize, uint32_t callbackPoolSize, uint32_t maxRoomCount)
 {
     mJobPool.Init(jobPoolSize);
     mCallbackPool.Init(callbackPoolSize);
 #ifdef USE_LOCKFREE_GLOBAL_QUEUE
-    // Lock-Free ¹æ½ÄÀº 2ÀÇ °ÅµìÁ¦°ö Å©±âÀÇ ¹Ù¿îµğµå Å¥¸¦ ÃÊ±âÈ­ÇÕ´Ï´Ù.
+    // Lock-Free ë°©ì‹ì€ 2ì˜ ê±°ë“­ì œê³± í¬ê¸°ì˜ ë°”ìš´ë””ë“œ íë¥¼ ì´ˆê¸°í™”í•©ë‹ˆë‹¤.
     uint32_t globalQueueSize = GetNextPowerOf2(maxRoomCount);
     mGlobalQueue.Init(globalQueueSize);
 #endif
@@ -21,7 +21,7 @@ void StrandProcessor::Start(int threadCount)
 
 void StrandProcessor::Stop()
 {
-    // Å¥¸¦ ¸ÕÀú ´İ°í ÀÚ´Â ½º·¹µåµéÀ» ±ú ±ú¿î´Ù
+    // íë¥¼ ë¨¼ì € ë‹«ê³  ìëŠ” ìŠ¤ë ˆë“œë“¤ì„ ê¹¨ ê¹¨ìš´ë‹¤
     mGlobalQueue.Shutdown();
 
     for (auto& t : mLogicThreads)
@@ -32,7 +32,7 @@ void StrandProcessor::Stop()
         }
     }
     mLogicThreads.clear();
-    LOG_DEBUG("StrandProcessor: ¸ğµç Logic Thread Á¾·áÇÏ°í Stop ¿Ï·á\n");
+    LOG_DEBUG("StrandProcessor: ëª¨ë“  Logic Thread ì¢…ë£Œí•˜ê³  Stop ì™„ë£Œ\n");
 }
 
 void StrandProcessor::EnqueueJob(Room* pRoom, uint32_t clientIndex, uint32_t targetGeneration, uint16_t packetId, uint16_t dataSize, const char* data)
@@ -41,9 +41,9 @@ void StrandProcessor::EnqueueJob(Room* pRoom, uint32_t clientIndex, uint32_t tar
     PacketJob* pJob = mJobPool.Alloc();
     if (pJob == nullptr)
     {
-        // ¿©±â¼­ Ä«¿îÅÍ Áõ°¡
+        // ì—¬ê¸°ì„œ ì¹´ìš´í„° ì¦ê°€
         mAllocFailCount.fetch_add(1, std::memory_order_relaxed);
-        LOG_ERROR_ONCE("Job Pool ¼ÒÁø. packet drop.\n");
+        LOG_ERROR_ONCE("Job Pool ì†Œì§„. packet drop.\n");
         return;
     }
     pJob->clientIndex = clientIndex;
@@ -87,7 +87,7 @@ void StrandProcessor::WorkerThreadMain()
             DrainRoom(pRoom);
             continue;
         }
-        // ÀÏ°ıÃ³¸®
+        // ì¼ê´„ì²˜ë¦¬
         ProcessRoom(pRoom);
 
     }
@@ -96,38 +96,38 @@ void StrandProcessor::WorkerThreadMain()
 void StrandProcessor::ProcessRoom(Room* pRoom)
 {
     do {
-        // adaptive backoff·Î Pop
+        // adaptive backoffë¡œ Pop
         PacketJob* pJob = PopWithBackoff(pRoom);
 
         if (pJob == nullptr)
         {
-            // preemption Hole Å¸ÀÓ¾Æ¿ô -> ¹æ °­Á¦Á¾·á
+            // preemption Hole íƒ€ì„ì•„ì›ƒ -> ë°© ê°•ì œì¢…ë£Œ
             pRoom->SetBroken();
             DrainRoom(pRoom);
-            return; // ¹æ Ã³¸® Á¾·á
+            return; // ë°© ì²˜ë¦¬ ì¢…ë£Œ
         }
 
-        // generation ¼¼´ë °Ë»ç
+        // generation ì„¸ëŒ€ ê²€ì‚¬
         if (pJob->targetGeneration != pRoom->GetGeneration())
         {
-            // ¼¼´ëºÒÀÏÄ¡ -> skip
-            LOG_DEBUG("¼¼´ë ÆĞÅ¶ ¹«½Ã\n");
+            // ì„¸ëŒ€ë¶ˆì¼ì¹˜ -> skip
+            LOG_DEBUG("ì„¸ëŒ€ íŒ¨í‚· ë¬´ì‹œ\n");
         }
         else
         {
-            // ½ÇÁ¦ Ã³¸®
-            // ºñÁî´Ï½º ·ÎÁ÷
+            // ì‹¤ì œ ì²˜ë¦¬
+            // ë¹„ì¦ˆë‹ˆìŠ¤ ë¡œì§
             User* pUser = pRoom->FindUserByClientIndex(pJob->clientIndex);
 
             if (pUser != nullptr)
             {
-                // °­Á¦Á¢¼Ó Á¾·á (DISCONNECT)
+                // ê°•ì œì ‘ì† ì¢…ë£Œ (DISCONNECT)
                 if (pJob->packetId == (uint16_t)PACKET_ID::SYS_USER_DISCONNECT)
                 {
-                    // 1. ¹æ ³»ºÎ Á¤¸® (À¯Àú »èÁ¦, ÅğÀå ¾Ë¸² ºê·ÎµåÄ³½ºÆ®)
+                    // 1. ë°© ë‚´ë¶€ ì •ë¦¬ (ìœ ì € ì‚­ì œ, í‡´ì¥ ì•Œë¦¼ ë¸Œë¡œë“œìºìŠ¤íŠ¸)
                     pRoom->LeaveUser(pUser);
 
-                    // ÀÓ½Ã Ã¤ÆÃ ÆĞÅ¶ »ı¼º (Å©±â¿Í µ¿ÀÏ)
+                    // ì„ì‹œ ì±„íŒ… íŒ¨í‚· ìƒì„± (í¬ê¸°ì™€ ë™ì¼)
                     ROOM_CHAT_REQUEST_PACKET tempChatPacket;
                     tempChatPacket.PacketId = (UINT16)PACKET_ID::ROOM_CHAT_REQUEST;
                     tempChatPacket.PacketLength = sizeof(tempChatPacket);
@@ -138,27 +138,33 @@ void StrandProcessor::ProcessRoom(Room* pRoom)
 
 
 
-                    // 2. ±Û·Î¹ú ½º·¹µå¿¡ Äİ¹éÀ¸·Î Àü´Ş
+                    // 2. ê¸€ë¡œë²Œ ìŠ¤ë ˆë“œì— ì½œë°±ìœ¼ë¡œ ì „ë‹¬
                     StrandCallback* cb = mCallbackPool.Alloc();
-                    cb->type = StrandCallbackType::FREE_USER;
+                    if (cb == nullptr)// cbì´ nullptrì´ë©´ crash ë°©ì§€
+                    {
+                        LOG_ERROR_ONCE("Callback Pool ì†Œì§„! callback drop.\n");
+                        mJobPool.Free(pJob);
+                        continue;
+                    }
+                    cb->type = StrandCallbackType::FREE_USER; 
                     cb->clientIndex = pJob->clientIndex;
                     mCallbackQueue.Push(cb);
                 }
-                // ¹æ Ã¤ÆÃ
+                // ë°© ì±„íŒ…
                 else if (pJob->packetId == (uint16_t)PACKET_ID::ROOM_CHAT_REQUEST)
                 {
                     constexpr uint16_t MIN_CHAT_PACKET_SIZE = sizeof(PACKET_HEADER);
 
                     if (pJob->dataSize <= MIN_CHAT_PACKET_SIZE)
                     {
-                        // ¸Ş½ÃÁö°¡ ¾Æ¿¹¾ø´Â ºó ÆĞÅ¶ ¹«½Ã
+                        // ë©”ì‹œì§€ê°€ ì•„ì˜ˆì—†ëŠ” ë¹ˆ íŒ¨í‚· ë¬´ì‹œ
                         mJobPool.Free(pJob);
                         continue;
                     }
-                    // ³ªÁß¿¡ printf¿Í strcpy¸¦ ¾µ ¶§ ¸Ş¸ğ¸® ¿À¹öÇÃ·Î¿ì ¹æÁö.
+                    // ë‚˜ì¤‘ì— printfì™€ strcpyë¥¼ ì“¸ ë•Œ ë©”ëª¨ë¦¬ ì˜¤ë²„í”Œë¡œìš° ë°©ì§€.
                     ROOM_CHAT_REQUEST_PACKET* pChatReq = (ROOM_CHAT_REQUEST_PACKET*)pJob->body;
 
-                    // ¼ö½Å¹ŞÀº ¹ÙÀÌÆ®ÀÇ Null·Î µ¤¾î¾²±â (¾ÈÀü)
+                    // ìˆ˜ì‹ ë°›ì€ ë°”ì´íŠ¸ì˜ Nullë¡œ ë®ì–´ì“°ê¸° (ì•ˆì „)
                     uint16_t messageLen = pJob->dataSize - sizeof(PACKET_HEADER);
                     if (messageLen < 256) {
                         pChatReq->Message[messageLen] = '\0';
@@ -167,23 +173,23 @@ void StrandProcessor::ProcessRoom(Room* pRoom)
                         pChatReq->Message[255] = '\0';
                     }
 
-                    // Ã¤ÆÃ Ã³¸®
-                    // ¿äÃ»ÇÑ Å¬¶óÀÌ¾ğÆ®¿¡ ÀÀ´ä °á°ú ÆĞÅ¶ Àü¼Û
+                    // ì±„íŒ… ì²˜ë¦¬
+                    // ìš”ì²­í•œ í´ë¼ì´ì–¸íŠ¸ì— ì‘ë‹µ ê²°ê³¼ íŒ¨í‚· ì „ì†¡
                     ROOM_CHAT_RESPONSE_PACKET resPacket;
                     resPacket.PacketId = (UINT16)PACKET_ID::ROOM_CHAT_RESPONSE;
                     resPacket.PacketLength = sizeof(ROOM_CHAT_RESPONSE_PACKET);
                     resPacket.Result = 0; // ERROR_CODE::NONE
                     pRoom->SendPacketFunc(pJob->clientIndex, pUser->GetSessionGeneration(), sizeof(resPacket), (char*)&resPacket);
 
-                    // ¹æ ÀüÃ¼¿¡ ºê·ÎµåÄ³½ºÆ®
+                    // ë°© ì „ì²´ì— ë¸Œë¡œë“œìºìŠ¤íŠ¸
                     pRoom->NotifyChat(pJob->clientIndex, pUser->GetUserID().c_str(), pJob->body);
                 }
-                // ¹æ¿¡¼­ÀÇ ÅğÀå
+                // ë°©ì—ì„œì˜ í‡´ì¥
                 else if (pJob->packetId == (uint16_t)PACKET_ID::ROOM_LEAVE_REQUEST)
                 {
-                    // ÅğÀå Ã³¸®
+                    // í‡´ì¥ ì²˜ë¦¬
 
-                    // ¹æ¿¡¼­ À¯Àú »èÁ¦ ¾Ë¸²
+                    // ë°©ì—ì„œ ìœ ì € ì‚­ì œ ì•Œë¦¼
                     pRoom->LeaveUser(pUser);
 
                     ROOM_CHAT_REQUEST_PACKET tempChatPacket;
@@ -194,15 +200,21 @@ void StrandProcessor::ProcessRoom(Room* pRoom)
 
                     pRoom->NotifyChat(pJob->clientIndex, pUser->GetUserID().c_str(), (char*)&tempChatPacket);
 
-                    // Å¬¶óÀÌ¾ğÆ®¿¡ ÅğÀå ÀÀ´ä Àü¼Û
+                    // í´ë¼ì´ì–¸íŠ¸ì— í‡´ì¥ ì‘ë‹µ ì „ì†¡
                     ROOM_LEAVE_RESPONSE_PACKET resPacket;
                     resPacket.PacketId = (UINT16)PACKET_ID::ROOM_LEAVE_RESPONSE;
                     resPacket.PacketLength = sizeof(ROOM_LEAVE_RESPONSE_PACKET);
                     resPacket.Result = 0; // ERROR_CODE::NONE
                     pRoom->SendPacketFunc(pJob->clientIndex, pUser->GetSessionGeneration(), sizeof(resPacket), (char*)&resPacket);
 
-                    // ÆĞÅ¶ ¸Å´ÏÀú¿¡°Ô »óÅÂ º¯°æ ¿äÃ» Äİ¹é
+                    // íŒ¨í‚· ë§¤ë‹ˆì €ì—ê²Œ ìƒíƒœ ë³€ê²½ ìš”ì²­ ì½œë°±
                     StrandCallback* cb = mCallbackPool.Alloc();
+                    if (cb == nullptr)// cbì´ nullptrì´ë©´ crash ë°©ì§€
+                    {
+                        LOG_ERROR_ONCE("Callback Pool ì†Œì§„! callback drop.\n");
+                        mJobPool.Free(pJob);
+                        continue;
+                    }
                     cb->type = StrandCallbackType::USER_LEFT_ROOM;
                     cb->clientIndex = pJob->clientIndex;
                     mCallbackQueue.Push(cb);
@@ -219,9 +231,9 @@ PacketJob* StrandProcessor::PopWithBackoff(Room* pRoom)
 {
     PacketJob* pJob = pRoom->GetLocalQueue().Pop();
     if (pJob != nullptr)
-        return pJob; // ´ëºÎºĞÀº ¿©±â¼­ ¹Ù·Î ¼º°ø
+        return pJob; // ëŒ€ë¶€ë¶„ì€ ì—¬ê¸°ì„œ ë°”ë¡œ ì„±ê³µ
 
-    // pop½ÇÆĞ -> preemption Hole ÀÇ½É, ´Ü°èº° ´ë±â
+    // popì‹¤íŒ¨ -> preemption Hole ì˜ì‹¬, ë‹¨ê³„ë³„ ëŒ€ê¸°
     uint32_t spinCount = 0;
     const uint32_t PHASE1_LIMIT = 64;
     const uint32_t PHASE2_LIMIT = 1024;
@@ -231,15 +243,15 @@ PacketJob* StrandProcessor::PopWithBackoff(Room* pRoom)
     {
         if (spinCount < PHASE1_LIMIT)
         {
-            _mm_pause();    //  phase1: cpu¿¡°Ô ´ë±â ÁßÀÓ ¾Ë¸²
+            _mm_pause();    //  phase1: cpuì—ê²Œ ëŒ€ê¸° ì¤‘ì„ ì•Œë¦¼
         }
         else if (spinCount < PHASE2_LIMIT)
         {
-            Sleep(0);       // phase2 : °°Àº ¿ì¼±¼øÀ§ ½º·¹µå¿¡ ¾çº¸
+            Sleep(0);       // phase2 : ê°™ì€ ìš°ì„ ìˆœìœ„ ìŠ¤ë ˆë“œì— ì–‘ë³´
         }
         else if (spinCount >= TIMEOUT_LIMIT)
         {
-            return nullptr; // phase3 : Å¸ÀÓ¾Æ¿ô, Æ÷±â
+            return nullptr; // phase3 : íƒ€ì„ì•„ì›ƒ, í¬ê¸°
         }
         ++spinCount;
     }
@@ -252,7 +264,7 @@ void StrandProcessor::DrainRoom(Room* pRoom)
         PacketJob* pJob = pRoom->GetLocalQueue().Pop();
         if (pJob != nullptr)
             mJobPool.Free(pJob);
-        // nullptrÀÌ¾îµµ msgcount´Â °¨¼Ò½ÃÄÑ¾ßÇÔ
+        // nullptrì´ì–´ë„ msgcountëŠ” ê°ì†Œì‹œì¼œì•¼í•¨
     } while (pRoom->GetMsgCount().fetch_sub(1, std::memory_order_acq_rel) > 1);
 
 }
