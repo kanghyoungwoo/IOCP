@@ -43,8 +43,8 @@ public:
 			return BufferSize;
 		if (head >= tail)
 			return head - tail;
-		if (tail > head)
-			return BufferSize - tail + head;
+		//if (tail > head)
+		return BufferSize - tail + head;
 	}
 
 	bool WriteByte(char byte)

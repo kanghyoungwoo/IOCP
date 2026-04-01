@@ -16,11 +16,11 @@ private:
 	// 메모리, 문자열 사이즈에는 size_t를 사용
 
 public:
-	ObjectMemoryPool(size_t chunkSize)
-		: poolSize(poolSize) {
+	ObjectMemoryPool(size_t chunkSize, size_t poolSize)
+		: chunkSize(chunkSize), poolSize(poolSize) {
 
-		// 유저 요청 크기를 넣고
-		this->chunkSize = chunkSize;
+		//// 유저 요청 크기를 넣고 // 생성자 인자로 변경
+		//this->chunkSize = chunkSize;
 
 		// 각 크기가 포인터 하나도 못 담을만큼 작다면
 		if (this->chunkSize < sizeof(FreeNode*))
@@ -70,6 +70,11 @@ public:
 			return;
 		// 반납된 메모리를 FreeList의 맨 앞에 다시 끼워넣기
 		FreeNode* chunk = static_cast<FreeNode*>(ptr);
+		
+		// 현재 Head를 새 노드의 next에 연결하여 리스트 유지
+		chunk->next = freeListHead;
+
+		// Head를 새로 반환된 노드로 업데이트
 		freeListHead = chunk;
 	}
 };

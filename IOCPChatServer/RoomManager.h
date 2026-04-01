@@ -33,7 +33,7 @@ public:
 		for (int i = 0;i < maxRoomCount_;i++)
 		{
 			mRooms[i].SendPacketFunc = SendPacketFunc;
-			mRooms[i].Init(i + beginRoomNumber_, maxRoomCount_);
+			mRooms[i].Init(i + beginRoomNumber_, maxRoomUserCount_);
 		}
 	}
 

@@ -24,8 +24,8 @@ struct PacketTask
 
 class PacketManager {
 public:
-	PacketManager() = default;
-	~PacketManager() = default;
+	PacketManager();// = default;
+	~PacketManager();// = default;
 
 	void Init(const UINT32 maxClient_);
 	bool Run();
@@ -63,10 +63,16 @@ private:
 	typedef void(PacketManager::* PROCESS_RECV_PACKET_FUNCTION)(UINT32, UINT32, UINT16, char*);
 	std::unordered_map<int, PROCESS_RECV_PACKET_FUNCTION>mRecvFunctionDictionary;
 
-	UserManager* mUserManager;
-	RedisManager* mRedisManager;
-	RoomManager* mRoomManager;
-	MySQLManager* mMySQLManager;
+	//UserManager* mUserManager;
+	//RedisManager* mRedisManager;
+	//RoomManager* mRoomManager;
+	//MySQLManager* mMySQLManager;
+
+	std::unique_ptr<UserManager> mUserManager;
+	std::unique_ptr<RedisManager> mRedisManager;
+	std::unique_ptr<RoomManager> mRoomManager;
+	std::unique_ptr<MySQLManager> mMySQLManager;
+
 	StrandProcessor m_strandProcessor;
 
 	std::function<void(int, char*)>mSendMQDataFunc;

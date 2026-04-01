@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <vector>
 #include <atomic>
+#include <memory>
 //#include <string>
 
 
@@ -18,15 +19,14 @@ public:
 	void Init(const UINT32 maxUserCount_)
 	{
 		mMaxUserCnt = maxUserCount_;
-		mUserObjPool = std::vector<User*>(mMaxUserCnt);
-		//mUserObjPool = std::vector<std::shared_ptr<User>>(maxUserCount_);
+		mUserObjPool.clear();
+		mUserObjPool.reserve(mMaxUserCnt);
 
 		for (auto i = 0;i < mMaxUserCnt;i++)
 		{
-			//mUserObjPool[i] = std::make_shared<User>();
-			//mUserObjPool[i]->Init(i);
-			mUserObjPool[i] = new User;
-			mUserObjPool[i]->Init(i);
+			auto newUser = std::make_unique<User>();
+			newUser->Init(i);
+			mUserObjPool.push_back(std::move(newUser));
 		}
 	}
 
@@ -97,7 +97,7 @@ public:
 	//}
 	User* GetUserByConnIdx(INT32 clientIndex_)
 	{
-		return mUserObjPool[clientIndex_];
+		return mUserObjPool[clientIndex_].get();
 	}
 
 	void DeleteUserInfo(User* user_)
@@ -130,8 +130,9 @@ private:
 	//INT32 mCurrentUserCnt = 0;
 	std::atomic<int> mCurrentUserCnt = { 0 };
 	INT32 mMaxUserCnt = -1;
+	std::vector<std::unique_ptr<User>>mUserObjPool;
 
-	std::vector<User*> mUserObjPool;
+	//std::vector<User*> mUserObjPool;
 	//std::vector<std::shared_ptr<User>> mUserObjPool;
 	std::unordered_map<std::string, int>mUserIDDictionary;
 	std::mutex mLock;

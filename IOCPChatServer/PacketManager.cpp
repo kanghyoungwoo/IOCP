@@ -5,7 +5,7 @@
 
 #include "PacketManager.h"
 #include "UserManager.h"
-//#include "RedisTaskDefine.h"
+#include "RoomManager.h"
 #include "ConfigManager.h"
 #include "RedisManager.h"
 #include "MysqlManager.h"
@@ -13,7 +13,8 @@
 #include <chrono>
 #include <ctime>
 
-
+PacketManager::PacketManager() = default;
+PacketManager::~PacketManager() = default;
 
 void PacketManager::Init(const UINT32 maxClient_)
 {
@@ -31,8 +32,10 @@ void PacketManager::Init(const UINT32 maxClient_)
 	RegisterHandlers();
 	CreateComponent(maxClient_);
 
-	mRedisManager = new RedisManager;
-	mMySQLManager = new MySQLManager;
+	//mRedisManager = new RedisManager;
+	//mMySQLManager = new MySQLManager;
+	mRedisManager = std::make_unique<RedisManager>();
+	mMySQLManager = std::make_unique<MySQLManager>();
 
 	mRedisManager->OnResponsePushed = [this]()
 	{
@@ -84,14 +87,16 @@ void PacketManager::RegisterHandlers()
 void PacketManager::CreateComponent(const UINT32 maxClient_)
 {
 	const auto& config = ConfigManager::GetInstance().Get();
-	mUserManager = new UserManager;
+	//mUserManager = new UserManager;
+	mUserManager = std::make_unique <UserManager>();
 	mUserManager->Init(maxClient_);
 
 	UINT32 startRoomNumber = config.StartRoomNumber;
 	UINT32 maxRoomUserCount = config.MaxRoomUserCount;
 	UINT32 maxRoomCount = config.MaxRoomCount;
 
-	mRoomManager = new RoomManager;
+	//mRoomManager = new RoomManager;
+	mRoomManager = std::make_unique <RoomManager>();
 	mRoomManager->SendPacketFunc = SendPacketFunc;
 	mRoomManager->Init(startRoomNumber, maxRoomCount, maxRoomUserCount);
 
