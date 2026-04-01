@@ -552,22 +552,23 @@ void PacketManager::ProcessLoginDBResult(UINT32 clientIndex_, UINT32 generation_
 
 void PacketManager::ClearConnectionInfo(INT32 clientIndex_)
 {
-	{
-		// queue에서 해당 유저의 대기중인 task 제거
-		std::lock_guard<std::mutex>guard(mLock);
-		//auto it = mInComingPacketUserIndex.begin();
-		auto it = mWriteBuffer.begin();
-		while (it != mWriteBuffer.end())
-		{
-			if (it->clientIndex == clientIndex_)
-			{
-				it = mWriteBuffer.erase(it);
-				LOG_DEBUG("remove enqueue packetdata for disconnected used : %d\n", clientIndex_);
-			}
-			else
-				++it;
-		}
-	}
+	// 로직은 이미 processPacket에서 진행
+	//{
+	//	// queue에서 해당 유저의 대기중인 task 제거
+	//	std::lock_guard<std::mutex>guard(mLock);
+	//	//auto it = mInComingPacketUserIndex.begin();
+	//	auto it = mWriteBuffer.begin();
+	//	while (it != mWriteBuffer.end())
+	//	{
+	//		if (it->clientIndex == clientIndex_)
+	//		{
+	//			it = mWriteBuffer.erase(it);
+	//			LOG_DEBUG("remove enqueue packetdata for disconnected used : %d\n", clientIndex_);
+	//		}
+	//		else
+	//			++it;
+	//	}
+	//}
 
 	auto pReqUser = mUserManager->GetUserByConnIdx(clientIndex_);
 
