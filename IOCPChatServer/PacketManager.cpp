@@ -1,8 +1,5 @@
 ﻿#pragma once
 
-//#include <utility>
-//#include <cstring>
-
 #include "PacketManager.h"
 #include "UserManager.h"
 #include "RoomManager.h"
@@ -18,17 +15,6 @@ PacketManager::~PacketManager() = default;
 
 void PacketManager::Init(const UINT32 maxClient_)
 {
-	//mRecvFunctionDictionary = std::unordered_map<int, PROCESS_RECV_PACKET_FUNCTION>();
-
-	mRecvFunctionDictionary[(int)PACKET_ID::SYS_USER_CONNECT] = &PacketManager::ProcessUserConnect;
-	mRecvFunctionDictionary[(int)PACKET_ID::SYS_USER_DISCONNECT] = &PacketManager::ProcessUserDisconnect;
-
-	mRecvFunctionDictionary[(int)PACKET_ID::LOGIN_REQUEST] = &PacketManager::ProcessLogin;
-	mRecvFunctionDictionary[(int)RedisTaskID::RESPONSE_LOGIN] = &PacketManager::ProcessLoginDBResult;
-
-	mRecvFunctionDictionary[(int)PACKET_ID::ROOM_ENTER_REQUEST] = &PacketManager::ProcessEnterRoom;
-	mRecvFunctionDictionary[(int)PACKET_ID::ROOM_LEAVE_REQUEST] = &PacketManager::ProcessLeaveRoom;
-	mRecvFunctionDictionary[(int)PACKET_ID::ROOM_CHAT_REQUEST] = &PacketManager::ProcessRoomChatMessage;
 	RegisterHandlers();
 	CreateComponent(maxClient_);
 
@@ -68,14 +54,6 @@ void PacketManager::RegisterHandlers()
 		{
 			ProcessEnterRoom(clientIndex, generation, packetSize, pPacket);
 		};
-	//mPacketHandlers[(UINT16)PACKET_ID::ROOM_LEAVE_REQUEST] = [this](UINT32 clientIndex, UINT16 packetSize, char* pPacket)
-	//	{
-	//		ProcessLeaveRoom(clientIndex, packetSize, pPacket);
-	//	};
-	//mPacketHandlers[(UINT16)PACKET_ID::ROOM_CHAT_REQUEST] = [this](UINT32 clientIndex, UINT16 packetSize, char* pPacket)
-	//	{
-	//		ProcessRoomChatMessage(clientIndex, packetSize, pPacket);
-	//	};
 
 	// 좀비세션 관련 핸들러
 	mPacketHandlers[(UINT16)PACKET_ID::SYS_PONG] = [this](UINT32 clientIndex, UINT32 generation, UINT16 packetSize, char* pPacket)
@@ -227,15 +205,7 @@ void PacketManager::ProcessPacket()
 
 				return false;
 			});
-			//if (mSystemPacketQueue.empty() && mInComingPacketUserIndex.empty())
-			//{
-			//	mPacketEventCV.wait_for(lock,
-			//		std::chrono::milliseconds(1),
-			//		[this]()
-			//		{
-			//			return !mIsRunProcessThread || !mSystemPacketQueue.empty() || !mInComingPacketUserIndex.empty();
-			//		});
-			//}
+
 			if (!mIsRunProcessThread)
 				break;
 
@@ -245,8 +215,6 @@ void PacketManager::ProcessPacket()
 		}
 
 		// lock 해제, 아래는 전부 lock-free
-		
-		int generationMismatchCount = 0;	// 배치 내 generation 불일치 카운트
 		
 		// Queue Depth logging (5sec interval)
 		{
@@ -266,13 +234,6 @@ void PacketManager::ProcessPacket()
 		}
 		mSystemReadBuffer.clear();
 
-		////bool isIdle = true;
-		//// 시스템 패킷 처리
-		//if (auto packetData = DequeSystemPacketData(); packetData.PacketId != 0)
-		//{
-		//	//isIdle = false;
-		//	ProcessRecvPacket(packetData.ClientIndex, packetData.PacketId, packetData.DataSize, packetData.pDataPtr);
-		//}
 
 		// 일반 패킷 처리
 		for (auto& task : mReadBuffer)
@@ -312,18 +273,6 @@ void PacketManager::ProcessPacket()
 				}
 			}
 
-			//if (pUser->GetDomainState() == User::DOMAIN_STATE::ROOM)
-			//{
-			//	auto pRoom = mRoomManager->GetRoomByNumber(pUser->GetRoomIndex());
-			//	m_strandProcessor.EnqueueJob(pRoom, task.clientIndex,
-			//		pRoom->GetGeneration(), packetData.PacketId,
-			//		packetData.DataSize, packetData.pDataPtr);
-			//}
-			//else
-			//{
-			//	ProcessRecvPacket(packetData.ClientIndex, packetData.PacketId, packetData.DataSize, packetData.pDataPtr);
-			//}
-			// 
 			// 첫 패킷 + 잔여 패킷 공통 처리
 			auto processOnePacket = [&](PacketInfo& packetData)
 				{
@@ -441,18 +390,6 @@ void PacketManager::PushSystemPacket(PacketInfo packet_)
 	NotifyPacketEvent();
 }
 
-
-//PacketInfo PacketManager::DequeSystemPacketData()
-//{
-//	std::lock_guard<std::mutex>guard(mLock);
-//	if (mSystemPacketQueue.empty())
-//	{
-//		return PacketInfo();
-//	}
-//	auto packetData = mSystemPacketQueue.front();
-//	mSystemPacketQueue.pop_front();
-//	return packetData;
-//}
 
 
 void PacketManager::ProcessRecvPacket(const UINT32 clientIndex_, const UINT32 generation_, const UINT16 packetId_, const UINT16 packetSize_, char* pPacket_)
@@ -654,10 +591,6 @@ void PacketManager::ClearConnectionInfo(INT32 clientIndex_)
 		}
 	}
 
-	//if (pReqUser->GetDomainState() != User::DOMAIN_STATE::NONE)
-	//{
-	//	mUserManager->DeleteUserInfo(pReqUser);
-	//}
 }
 
 void PacketManager::ProcessEnterRoom(UINT32 clientIndex_, UINT32 generation_, UINT16 packetSize_, char* pPacket)
@@ -669,7 +602,7 @@ void PacketManager::ProcessEnterRoom(UINT32 clientIndex_, UINT32 generation_, UI
 
 	//	유효한 유저인지 검사한다.
 	auto pReqUser = mUserManager->GetUserByConnIdx(clientIndex_);
-	if (!pReqUser || pReqUser == nullptr)
+	if (pReqUser == nullptr)
 	{
 		LOG_ERROR("유효하지 않은 유저 !. ClientIndex : %d\n", clientIndex_);
 		return;
@@ -745,9 +678,9 @@ void PacketManager::ProcessLeaveRoom(UINT32 clientIndex_, UINT32 generation_, UI
 	auto pRoomLeaveReqPacket = reinterpret_cast<ROOM_LEAVE_REQUEST_PACKET*>(pPacket);
 	//	유효한 유저인지 검사한다.
 	auto pReqUser = mUserManager->GetUserByConnIdx(clientIndex_);
-	if (!pReqUser || pReqUser == nullptr)
+	if (pReqUser == nullptr)
 	{
-		printf("유효하지 않은 유저 ! . ClientIndex : %d\n", clientIndex_);
+		LOG_DEBUG("유효하지 않은 유저 ! . ClientIndex : %d\n", clientIndex_);
 		return;
 	}
 	// 방 퇴장 전 방 정보 미리 저장
@@ -796,7 +729,7 @@ void PacketManager::ProcessLeaveRoom(UINT32 clientIndex_, UINT32 generation_, UI
 
 	//	해당 값의 결과를 응답 패킷의 데이터에 넣어서 전송한다.
 	SendPacketFunc(clientIndex_, generation_, sizeof(ROOM_LEAVE_RESPONSE_PACKET), (char*)&roomLeaveResPacket);
-	printf("Leave Room Res Packet Send ! \n");
+	LOG_DEBUG("Leave Room Res Packet Send ! \n");
 
 }
 
@@ -816,9 +749,6 @@ void PacketManager::ProcessRoomChatMessage(UINT32 clientIndex_, UINT32 generatio
 	// 유저가 방에 있는지 확인
 	if (pReqUser->GetDomainState() != User::DOMAIN_STATE::ROOM)
 	{
-		ROOM_CHAT_RESPONSE_PACKET roomChatResPacket;
-		roomChatResPacket.PacketId = (UINT16)PACKET_ID::ROOM_CHAT_RESPONSE;
-		roomChatResPacket.PacketLength = sizeof(ROOM_CHAT_RESPONSE_PACKET);
 		roomChatResPacket.Result = (UINT16)ERROR_CODE::ENTER_ROOM_INVALID_USER_STATUS;
 		SendPacketFunc(clientIndex_, generation_, sizeof(ROOM_CHAT_RESPONSE_PACKET), (char*)&roomChatResPacket);
 		return;
@@ -828,7 +758,7 @@ void PacketManager::ProcessRoomChatMessage(UINT32 clientIndex_, UINT32 generatio
 
 	auto pRoom = mRoomManager->GetRoomByNumber(roomNum);
 
-	if (pRoom == nullptr || !pRoom)
+	if (pRoom == nullptr)
 	{
 		roomChatResPacket.Result = (UINT16)ERROR_CODE::CHAT_ROOM_INVALID_ROOM_NUMBER;
 		SendPacketFunc(clientIndex_, generation_, sizeof(ROOM_CHAT_RESPONSE_PACKET), (char*)&roomChatResPacket);

@@ -70,7 +70,6 @@ void Room::NotifyChat(INT32 clientIndex_, const char* userID_, const char* msg_)
 	printf("메세지가 전송되었습니다 !\n");*/
 }
 
-std::function<void(UINT32, UINT32, UINT32, char*)> SendPacketFunc;
 
 void Room::Reset(INT32 roomNumber_, INT32 maxUserCount_)
 {

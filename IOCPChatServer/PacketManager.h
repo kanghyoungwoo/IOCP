@@ -1,7 +1,6 @@
 ﻿#pragma once
 
 #include "Packet.h"
-//#include "RedisManager.h"
 #include "RoomManager.h"
 #include "StrandProcessor.h"
 
@@ -46,8 +45,6 @@ private:
 	void ClearConnectionInfo(INT32 clientIndex_);
 
 	void EnqueuePacketData(const UINT32 clientIndex_, const UINT32 generation_);
-	//PacketInfo DequePacketData();
-	//PacketInfo DequeSystemPacketData();
 	void ProcessPacket();
 	void ProcessRecvPacket(const UINT32 clientIndex_, const UINT32 generation_, const UINT16 packetId_, const UINT16 packetSize_, char* pPacket_);
 	void ProcessUserConnect(UINT32 clientIndex_, UINT32 generation_, UINT16 packetSize_, char* pPacket);
@@ -60,8 +57,6 @@ private:
 
 	void NotifyPacketEvent();
 
-	typedef void(PacketManager::* PROCESS_RECV_PACKET_FUNCTION)(UINT32, UINT32, UINT16, char*);
-	std::unordered_map<int, PROCESS_RECV_PACKET_FUNCTION>mRecvFunctionDictionary;
 
 	//UserManager* mUserManager;
 	//RedisManager* mRedisManager;
