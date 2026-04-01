@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include "nlohmann/json.hpp"
 #include "Define.h"
 #include <fstream>
@@ -55,7 +55,7 @@ public:
     {
         if (mLoaded)
         {
-            LOG_ERROR("[Config] ÀÌ¹Ì ·Îµå µÊ. Áßº¹ ¿äÃ»ÄÝÀ» ¹«½ÃÇÕ´Ï´Ù.\n");
+            LOG_ERROR("[Config] ì´ë¯¸ ë¡œë“œ ë¨. ì¤‘ë³µ ìš”ì²­ì½œì„ ë¬´ì‹œí•©ë‹ˆë‹¤.\n");
             return false;
         }
         std::ifstream file(filePath);
@@ -112,13 +112,13 @@ public:
 
         if (!Validate())
         {
-            LOG_ERROR("[Config] À¯È¿ÇÏÁö ¾ÊÀº °ªµéÀÌ¶ó default·Î ÃÊ±âÈ­ ÇÕ´Ï´Ù.\n");
+            LOG_ERROR("[Config] ìœ íš¨í•˜ì§€ ì•Šì€ ê°’ë“¤ì´ë¼ defaultë¡œ ì´ˆê¸°í™” í•©ë‹ˆë‹¤.\n");
         }
         LOG_DEBUG("[Config] Loaded: Port=%d, MaxClient=%d, IO=%d, Worker=%d, Logic=%d\n",
             mConfig.ServerPort, mConfig.MaxClient,
             mConfig.MaxIOWorkerThread, mConfig.MaxWorkerThread, mConfig.MaxLogicThread);
         
-        mLoaded = true; // ¼º°ø ½Ã¿¡¸¸ ÇÃ·¡±× ¼¼ÆÃ 
+        mLoaded = true; // ì„±ê³µ ì‹œì—ë§Œ í”Œëž˜ê·¸ ì„¸íŒ… 
         return true;
     }
 
@@ -131,7 +131,7 @@ private:
     {
         bool valid = true;
 
-        // ½º·¹µå ¼ö: 0ÀÌ¸é ¼­¹ö ±¸µ¿ ºÒ°¡
+        // ìŠ¤ë ˆë“œ ìˆ˜: 0ì´ë©´ ì„œë²„ êµ¬ë™ ë¶ˆê°€
         if (mConfig.MaxIOWorkerThread == 0)
         {
             LOG_ERROR("[Config] MaxIOWorkerThread cannot be 0, reset to default(8)\n");
@@ -151,7 +151,7 @@ private:
             valid = false;
         }
 
-        // Å¬¶óÀÌ¾ðÆ® ¼ö: 0ÀÌ¸é ¼­¹ö ÀÇ¹Ì ¾øÀ½
+        // í´ë¼ì´ì–¸íŠ¸ ìˆ˜: 0ì´ë©´ ì„œë²„ ì˜ë¯¸ ì—†ìŒ
         if (mConfig.MaxClient == 0)
         {
             LOG_ERROR("[Config] MaxClient cannot be 0, reset to default(10000)\n");
@@ -159,7 +159,7 @@ private:
             valid = false;
         }
 
-        // ¹æ ¼³Á¤: 0ÀÌ¸é ¹æ »ý¼º ºÒ°¡
+        // ë°© ì„¤ì •: 0ì´ë©´ ë°© ìƒì„± ë¶ˆê°€
         if (mConfig.MaxRoomCount == 0)
         {
             LOG_ERROR("[Config] MaxRoomCount cannot be 0, reset to default(1250)\n");
@@ -173,7 +173,7 @@ private:
             valid = false;
         }
 
-        // Ç® »çÀÌÁî: 0ÀÌ¸é ÇÒ´ç Áï½Ã ½ÇÆÐ
+        // í’€ ì‚¬ì´ì¦ˆ: 0ì´ë©´ í• ë‹¹ ì¦‰ì‹œ ì‹¤íŒ¨
         if (mConfig.JobPoolSize == 0)
         {
             LOG_ERROR("[Config] JobPoolSize cannot be 0, reset to default(100000)\n");
@@ -187,7 +187,7 @@ private:
             valid = false;
         }
 
-        // Å¸ÀÓ¾Æ¿ô: PingIntervalÀÌ Timeoutº¸´Ù Å©¸é ³í¸® ¿À·ù
+        // íƒ€ìž„ì•„ì›ƒ: PingIntervalì´ Timeoutë³´ë‹¤ í¬ë©´ ë…¼ë¦¬ ì˜¤ë¥˜
         if (mConfig.PingIntervalMs >= mConfig.TimeoutMs)
         {
             LOG_ERROR("[Config] PingIntervalMs(%llu) >= TimeoutMs(%llu), reset to defaults\n",
