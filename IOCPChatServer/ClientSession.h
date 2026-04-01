@@ -352,14 +352,14 @@ public:
 		{
 			return false;
 		}
-		SOCKADDR_IN stClientAddr;
+		SOCKADDR_IN stClientAddr = { 0 };
 		int nAddrLen = sizeof(SOCKADDR_IN);
-		char clientIP[32] = { 0 };
-		inet_ntop(AF_INET, &(stClientAddr.sin_addr), clientIP, 32 - 1);
-		LOG_DEBUG("Client IP : %s, SOCKET(%d)\n", clientIP, (int)m_socketClient);
-
-		//mAcceptPendingg = false;
-
+		if (getpeername(m_socketClient, (SOCKADDR*)&stClientAddr, &nAddrLen) == 0)
+		{
+			char clientIP[32] = { 0 };
+			inet_ntop(AF_INET, &(stClientAddr.sin_addr), clientIP, 32 - 1);
+			LOG_DEBUG("Client IP : %s, SOCKET(%d)\n", clientIP, (int)m_socketClient);
+		}
 		return true;
 	}
 

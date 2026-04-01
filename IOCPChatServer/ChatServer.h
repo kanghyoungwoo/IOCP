@@ -36,7 +36,7 @@ public:
 		//PacketInfo packet{ clientIndex_, (UINT16)PACKET_ID::SYS_USER_DISCONNECT, 0 };
 		PacketInfo packet;
 		packet.ClientIndex = clientIndex_;
-		packet.Generation = 0;  // 
+		packet.Generation = generation_;  // 
 		packet.PacketId = (UINT16)PACKET_ID::SYS_USER_DISCONNECT;
 		packet.DataSize = 0;
 

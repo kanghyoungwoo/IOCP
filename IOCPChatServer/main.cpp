@@ -19,15 +19,19 @@ BOOL WINAPI ConsoleCtrlHandler(DWORD ctrlType)
 	{
 		case CTRL_C_EVENT:			// Ctrl+c
 			LOG_DEBUG("Ctrl+c signal received\n");
+			break;
 		case CTRL_CLOSE_EVENT:		// console x button
 			LOG_DEBUG("Console close signal received\n");
+			break;
 		case CTRL_SHUTDOWN_EVENT:	// system shutdown
 			LOG_DEBUG("System shutdown signal received\n");
-			if (g_pServer)
-				g_pServer->End();
-			return TRUE;
+			break;
+		default:
+			return FALSE;
 	}
-	return FALSE;
+	if (g_pServer)
+		g_pServer->End();
+	return TRUE;
 }
 int main()
 {
