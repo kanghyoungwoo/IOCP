@@ -55,10 +55,10 @@ public:
 	//	return mSendBuf;
 	//}
 
-	UINT64 GetLatestClosedTimeSec()
-	{
-		return mLatestClosedTimeSec;
-	}
+	//UINT64 GetLatestClosedTimeSec()
+	//{
+	//	return mLatestClosedTimeSec;
+	//}
 
 
 	bool OnConnect(HANDLE iocpHandle, SOCKET socket);
@@ -81,7 +81,7 @@ public:
 
 	bool AcceptCompletion(SOCKET listenSock_);
 
-	bool PostAccept(SOCKET listenSock, const UINT64 curTimeSec);
+	//bool PostAccept(SOCKET listenSock, const UINT64 curTimeSec);
 
 	bool PostImmediateAccept(SOCKET listenSock);
 

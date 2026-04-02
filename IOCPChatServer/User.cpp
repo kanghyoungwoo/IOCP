@@ -5,8 +5,6 @@ void User::Clear()
 		std::lock_guard<std::mutex>lock(mPacketRingBuffMutex);
 
 		mUserID = "";
-		mIsconfirm = false;
-		mAuthToken = "";
 		mCurDomainState = DOMAIN_STATE::NONE;
 		mPacketDataBuffer.Clear();
 		//mGeneration++;	// 세대 카운터 증가

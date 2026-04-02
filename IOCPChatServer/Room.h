@@ -31,15 +31,15 @@ public:
 		mRoomNumber = roomNumber_;
 	}
 
-	INT32 GetMaxUserCount()
-	{
-		return mMaxUserCount;
-	}
+	//INT32 GetMaxUserCount()
+	//{
+	//	return mMaxUserCount;
+	//}
 
-	INT32 GetCurrentUserCount()
-	{
-		return mCurrentUserCount;
-	}
+	//INT32 GetCurrentUserCount()
+	//{
+	//	return mCurrentUserCount;
+	//}
 
 	INT32 GetRoomNumber()
 	{

@@ -302,40 +302,40 @@ bool ClientSession::AcceptCompletion(SOCKET listenSock_)
 	return true;
 }
 
-bool ClientSession::PostAccept(SOCKET listenSock, const UINT64 curTimeSec)
-{
-	LOG_DEBUG("PostAccept Client Index : %d\n", GetIndex());
-
-	mLatestClosedTimeSec = UINT32_MAX;
-	m_socketClient = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_IP, NULL, 0, WSA_FLAG_OVERLAPPED);
-	if (m_socketClient == INVALID_SOCKET)
-	{
-		LOG_ERROR("Client Socket Error : %d \n", GetLastError());
-		return false;
-	}
-
-	ZeroMemory(&mAcceptContext, sizeof(stOverlappedEx));
-	DWORD bytes = 0;
-	DWORD flags = 0;
-	mAcceptContext.m_wsaBuf.len = 0;
-	mAcceptContext.m_wsaBuf.buf = nullptr;
-	mAcceptContext.m_eOperation = IOOperation::ACCEPT;
-	mAcceptContext.clientSessionIndex = mIndex;
-
-	bool bRet = AcceptEx(listenSock, m_socketClient, mAcceptbuf, 0, sizeof(SOCKADDR_IN) + 16, sizeof(SOCKADDR_IN) + 16, &bytes, (LPWSAOVERLAPPED) & (mAcceptContext));
-
-	if (bRet == FALSE)
-	{
-		if (WSAGetLastError() != WSA_IO_PENDING)
-
-		{
-			LOG_ERROR("AcceptEx 실패! 에러 코드: %d\n", GetLastError());
-
-			return false;
-		}
-	}
-	return true;
-}
+//bool ClientSession::PostAccept(SOCKET listenSock, const UINT64 curTimeSec)
+//{
+//	LOG_DEBUG("PostAccept Client Index : %d\n", GetIndex());
+//
+//	mLatestClosedTimeSec = UINT32_MAX;
+//	m_socketClient = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_IP, NULL, 0, WSA_FLAG_OVERLAPPED);
+//	if (m_socketClient == INVALID_SOCKET)
+//	{
+//		LOG_ERROR("Client Socket Error : %d \n", GetLastError());
+//		return false;
+//	}
+//
+//	ZeroMemory(&mAcceptContext, sizeof(stOverlappedEx));
+//	DWORD bytes = 0;
+//	DWORD flags = 0;
+//	mAcceptContext.m_wsaBuf.len = 0;
+//	mAcceptContext.m_wsaBuf.buf = nullptr;
+//	mAcceptContext.m_eOperation = IOOperation::ACCEPT;
+//	mAcceptContext.clientSessionIndex = mIndex;
+//
+//	bool bRet = AcceptEx(listenSock, m_socketClient, mAcceptbuf, 0, sizeof(SOCKADDR_IN) + 16, sizeof(SOCKADDR_IN) + 16, &bytes, (LPWSAOVERLAPPED) & (mAcceptContext));
+//
+//	if (bRet == FALSE)
+//	{
+//		if (WSAGetLastError() != WSA_IO_PENDING)
+//
+//		{
+//			LOG_ERROR("AcceptEx 실패! 에러 코드: %d\n", GetLastError());
+//
+//			return false;
+//		}
+//	}
+//	return true;
+//}
 
 bool ClientSession::PostImmediateAccept(SOCKET listenSock)
 {
@@ -376,30 +376,30 @@ bool ClientSession::PostImmediateAccept(SOCKET listenSock)
 	return true;
 }
 
-bool ClientSession::SetSockOption()
-{
-	/*if (SOCKET_ERROR == setsockopt(mSock, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT, (char*)GIocpManager->GetListenSocket(), sizeof(SOCKET)))
-	{
-		printf_s("[DEBUG] SO_UPDATE_ACCEPT_CONTEXT error: %d\n", GetLastError());
-		return false;
-	}*/
-
-	int opt = 1;
-	if (SOCKET_ERROR == setsockopt(m_socketClient, IPPROTO_TCP, TCP_NODELAY, (const char*)&opt, sizeof(int)))
-	{
-		printf_s("[DEBUG] TCP_NODELAY error: %d\n", GetLastError());
-		return false;
-	}
-
-	opt = 0;
-	if (SOCKET_ERROR == setsockopt(m_socketClient, SOL_SOCKET, SO_RCVBUF, (const char*)&opt, sizeof(int)))
-	{
-		printf_s("[DEBUG] SO_RCVBUF change error: %d\n", GetLastError());
-		return false;
-	}
-
-	return true;
-}
+//bool ClientSession::SetSockOption()
+//{
+//	/*if (SOCKET_ERROR == setsockopt(mSock, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT, (char*)GIocpManager->GetListenSocket(), sizeof(SOCKET)))
+//	{
+//		printf_s("[DEBUG] SO_UPDATE_ACCEPT_CONTEXT error: %d\n", GetLastError());
+//		return false;
+//	}*/
+//
+//	int opt = 1;
+//	if (SOCKET_ERROR == setsockopt(m_socketClient, IPPROTO_TCP, TCP_NODELAY, (const char*)&opt, sizeof(int)))
+//	{
+//		printf_s("[DEBUG] TCP_NODELAY error: %d\n", GetLastError());
+//		return false;
+//	}
+//
+//	opt = 0;
+//	if (SOCKET_ERROR == setsockopt(m_socketClient, SOL_SOCKET, SO_RCVBUF, (const char*)&opt, sizeof(int)))
+//	{
+//		printf_s("[DEBUG] SO_RCVBUF change error: %d\n", GetLastError());
+//		return false;
+//	}
+//
+//	return true;
+//}
 
 void ClientSession::DisconnectAsync(UINT32 expectedGeneration)
 {

@@ -79,20 +79,20 @@ public:
 	}
 
 
-	size_t GetBufferSize() const
-	{
-		return mPacketDataBuffer.Size();
-	}
+	//size_t GetBufferSize() const
+	//{
+	//	return mPacketDataBuffer.Size();
+	//}
 
-	bool IsBufferEmpty() const
-	{
-		return mPacketDataBuffer.IsEmpty();
-	}
+	//bool IsBufferEmpty() const
+	//{
+	//	return mPacketDataBuffer.IsEmpty();
+	//}
 
-	bool IsBufferFull() const
-	{
-		return mPacketDataBuffer.IsFull();
-	}
+	//bool IsBufferFull() const
+	//{
+	//	return mPacketDataBuffer.IsFull();
+	//}
 
 	void IncrementGeneration()
 	{
@@ -122,11 +122,9 @@ public:
 private:
 	INT32 mIndex = -1;
 	std::string mUserID = "";
-	bool mIsconfirm = false;
 	INT32 roomIndex = -1;
 	std::atomic<UINT32> mGeneration{ 0 };
 	std::atomic<UINT32> mSessionGeneration{ 0 };
-	std::string mAuthToken = "";
 
 	//UINT32 mPacketDataBufferWritePos = 0; // 쓰기 위치
 	//UINT32 mPacketDataBufferReadPos = 0; // 읽기 위치

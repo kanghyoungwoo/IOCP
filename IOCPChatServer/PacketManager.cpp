@@ -699,129 +699,129 @@ void PacketManager::ProcessEnterRoom(UINT32 clientIndex_, UINT32 generation_, UI
 
 }
 
-void PacketManager::ProcessLeaveRoom(UINT32 clientIndex_, UINT32 generation_, UINT16 packetSize_, char* pPacket)
-{
+//void PacketManager::ProcessLeaveRoom(UINT32 clientIndex_, UINT32 generation_, UINT16 packetSize_, char* pPacket)
+//{
+//
+//	UNREFERENCED_PARAMETER(packetSize_);
+//	UNREFERENCED_PARAMETER(pPacket);
+//	//  방 퇴장 요청 패킷을 받는다.
+//	auto pRoomLeaveReqPacket = reinterpret_cast<ROOM_LEAVE_REQUEST_PACKET*>(pPacket);
+//	//	유효한 유저인지 검사한다.
+//	auto pReqUser = mUserManager->GetUserByConnIdx(clientIndex_);
+//	if (pReqUser == nullptr)
+//	{
+//		LOG_DEBUG("유효하지 않은 유저 ! . ClientIndex : %d\n", clientIndex_);
+//		return;
+//	}
+//	// 방 퇴장 전 방 정보 미리 저장
+//	// 퇴장 후에는 정보가 사라지기 때문
+//	auto roomNumber = pReqUser->GetRoomIndex();
+//	auto pRoom = mRoomManager->GetRoomByNumber(roomNumber);
+//
+//	//	응답 패킷을 생성하고
+//	ROOM_LEAVE_RESPONSE_PACKET roomLeaveResPacket;
+//	roomLeaveResPacket.PacketId = (UINT16)PACKET_ID::ROOM_LEAVE_RESPONSE;
+//	roomLeaveResPacket.PacketLength = sizeof(ROOM_LEAVE_RESPONSE_PACKET);
+//
+//	//	RoomManager 객체의 leaveUser 함수를 호출한다.
+//	roomLeaveResPacket.Result = mRoomManager->LeaveUser(roomNumber, pReqUser);
+//
+//	// 방 퇴장 성공 시 방 전체에 퇴장 알림
+//	if (roomLeaveResPacket.Result == (UINT16)ERROR_CODE::NONE)
+//	{	
+//		MySQLRoomEventReq req{};
+//		strcpy_s(req.UserID, pReqUser->GetUserID().c_str());
+//		req.RoomNumber = roomNumber;
+//		req.EventType = RoomEventType::LEAVE;
+//		req.TimeStampSec = (UINT64)time(nullptr);
+//
+//		MySQLTask task{};
+//		task.UserIndex = clientIndex_;
+//		task.TaskID = MySQLTaskID::INSERT_ROOM_EVENT;
+//		task.DataSize = sizeof(MySQLRoomEventReq);
+//		//task.pData = new char[task.DataSize];
+//		CopyMemory(task.body, &req, task.DataSize);
+//		mMySQLManager->PushTask(task);
+//
+//		if (pRoom != nullptr)
+//		{
+//			// 임시 채팅 패킷 생성
+//			ROOM_CHAT_REQUEST_PACKET tempChatPacket;
+//			tempChatPacket.PacketId = (UINT16)PACKET_ID::ROOM_CHAT_REQUEST;
+//			tempChatPacket.PacketLength = sizeof(ROOM_CHAT_REQUEST_PACKET);
+//
+//			sprintf_s(tempChatPacket.Message, "has left the room.");
+//
+//			// 방 전체에 알림
+//			pRoom->NotifyChat(clientIndex_, pReqUser->GetUserID().c_str(), (char*)&tempChatPacket);
+//		}
+//	}
+//
+//	//	해당 값의 결과를 응답 패킷의 데이터에 넣어서 전송한다.
+//	SendPacketFunc(clientIndex_, generation_, sizeof(ROOM_LEAVE_RESPONSE_PACKET), (char*)&roomLeaveResPacket);
+//	LOG_DEBUG("Leave Room Res Packet Send ! \n");
+//
+//}
 
-	UNREFERENCED_PARAMETER(packetSize_);
-	UNREFERENCED_PARAMETER(pPacket);
-	//  방 퇴장 요청 패킷을 받는다.
-	auto pRoomLeaveReqPacket = reinterpret_cast<ROOM_LEAVE_REQUEST_PACKET*>(pPacket);
-	//	유효한 유저인지 검사한다.
-	auto pReqUser = mUserManager->GetUserByConnIdx(clientIndex_);
-	if (pReqUser == nullptr)
-	{
-		LOG_DEBUG("유효하지 않은 유저 ! . ClientIndex : %d\n", clientIndex_);
-		return;
-	}
-	// 방 퇴장 전 방 정보 미리 저장
-	// 퇴장 후에는 정보가 사라지기 때문
-	auto roomNumber = pReqUser->GetRoomIndex();
-	auto pRoom = mRoomManager->GetRoomByNumber(roomNumber);
-
-	//	응답 패킷을 생성하고
-	ROOM_LEAVE_RESPONSE_PACKET roomLeaveResPacket;
-	roomLeaveResPacket.PacketId = (UINT16)PACKET_ID::ROOM_LEAVE_RESPONSE;
-	roomLeaveResPacket.PacketLength = sizeof(ROOM_LEAVE_RESPONSE_PACKET);
-
-	//	RoomManager 객체의 leaveUser 함수를 호출한다.
-	roomLeaveResPacket.Result = mRoomManager->LeaveUser(roomNumber, pReqUser);
-
-	// 방 퇴장 성공 시 방 전체에 퇴장 알림
-	if (roomLeaveResPacket.Result == (UINT16)ERROR_CODE::NONE)
-	{	
-		MySQLRoomEventReq req{};
-		strcpy_s(req.UserID, pReqUser->GetUserID().c_str());
-		req.RoomNumber = roomNumber;
-		req.EventType = RoomEventType::LEAVE;
-		req.TimeStampSec = (UINT64)time(nullptr);
-
-		MySQLTask task{};
-		task.UserIndex = clientIndex_;
-		task.TaskID = MySQLTaskID::INSERT_ROOM_EVENT;
-		task.DataSize = sizeof(MySQLRoomEventReq);
-		//task.pData = new char[task.DataSize];
-		CopyMemory(task.body, &req, task.DataSize);
-		mMySQLManager->PushTask(task);
-
-		if (pRoom != nullptr)
-		{
-			// 임시 채팅 패킷 생성
-			ROOM_CHAT_REQUEST_PACKET tempChatPacket;
-			tempChatPacket.PacketId = (UINT16)PACKET_ID::ROOM_CHAT_REQUEST;
-			tempChatPacket.PacketLength = sizeof(ROOM_CHAT_REQUEST_PACKET);
-
-			sprintf_s(tempChatPacket.Message, "has left the room.");
-
-			// 방 전체에 알림
-			pRoom->NotifyChat(clientIndex_, pReqUser->GetUserID().c_str(), (char*)&tempChatPacket);
-		}
-	}
-
-	//	해당 값의 결과를 응답 패킷의 데이터에 넣어서 전송한다.
-	SendPacketFunc(clientIndex_, generation_, sizeof(ROOM_LEAVE_RESPONSE_PACKET), (char*)&roomLeaveResPacket);
-	LOG_DEBUG("Leave Room Res Packet Send ! \n");
-
-}
-
-void PacketManager::ProcessRoomChatMessage(UINT32 clientIndex_, UINT32 generation_, UINT16 packetSize_, char* pPacket)
-{
-	UNREFERENCED_PARAMETER(packetSize_);
-	//  채팅 패킷을 받는다.
-	auto pRoomChatReqPacket = reinterpret_cast<ROOM_CHAT_REQUEST_PACKET*>(pPacket);
-	//	해당 패킷에서 클라이언트 index, userId, message 정보를 추출한다.
-	ROOM_CHAT_RESPONSE_PACKET roomChatResPacket;
-	roomChatResPacket.PacketId = (UINT16)PACKET_ID::ROOM_CHAT_RESPONSE;
-	roomChatResPacket.PacketLength = sizeof(ROOM_CHAT_RESPONSE_PACKET);
-	roomChatResPacket.Result = (UINT16)ERROR_CODE::NONE;
-	//	user 객체로 해당 정보를 전달한다.
-	auto pReqUser = mUserManager->GetUserByConnIdx(clientIndex_);
-	if (pReqUser == nullptr)
-	{
-		LOG_ERROR("유효하지 않은 유저!. ClientIndex : %d\n", clientIndex_);
-		return;
-	}
-
-	// 유저가 방에 있는지 확인, 
-	if (pReqUser->GetDomainState() != User::DOMAIN_STATE::ROOM)
-	{
-		roomChatResPacket.Result = (UINT16)ERROR_CODE::ENTER_ROOM_INVALID_USER_STATUS;
-		SendPacketFunc(clientIndex_, generation_, sizeof(ROOM_CHAT_RESPONSE_PACKET), (char*)&roomChatResPacket);
-		return;
-	}
-
-	auto roomNum = pReqUser->GetRoomIndex();
-
-	auto pRoom = mRoomManager->GetRoomByNumber(roomNum);
-
-	if (pRoom == nullptr)
-	{
-		roomChatResPacket.Result = (UINT16)ERROR_CODE::CHAT_ROOM_INVALID_ROOM_NUMBER;
-		SendPacketFunc(clientIndex_, generation_, sizeof(ROOM_CHAT_RESPONSE_PACKET), (char*)&roomChatResPacket);
-		return;
-	}
-	
-	SendPacketFunc(clientIndex_, generation_, sizeof(ROOM_CHAT_RESPONSE_PACKET), (char*)&roomChatResPacket);
-	
-	// MySQL 채팅 메세지 저장
-	MySQLChatMsgReq chatmsg{};
-	strcpy_s(chatmsg.UserID, pReqUser->GetUserID().c_str());
-	chatmsg.RoomNumber = roomNum;
-	strcpy_s(chatmsg.Message, pRoomChatReqPacket->Message);
-	chatmsg.TimeStampSec = (UINT64)time(nullptr);
-
-	MySQLTask task{};
-	task.UserIndex = clientIndex_;
-	task.TaskID = MySQLTaskID::INSERT_CHAT_MESSAGE;
-	task.DataSize = sizeof(MySQLChatMsgReq);
-	//task.pData = new char[task.DataSize];
-	CopyMemory(task.body, &chatmsg, task.DataSize);
-	mMySQLManager->PushTask(task);
-
-	//	Room 객체에서 브로드캐스트 전송을 수행한다.
-	pRoom->NotifyChat(clientIndex_, pReqUser->GetUserID().c_str(), (char*)pRoomChatReqPacket);
-
-
-}
+//void PacketManager::ProcessRoomChatMessage(UINT32 clientIndex_, UINT32 generation_, UINT16 packetSize_, char* pPacket)
+//{
+//	UNREFERENCED_PARAMETER(packetSize_);
+//	//  채팅 패킷을 받는다.
+//	auto pRoomChatReqPacket = reinterpret_cast<ROOM_CHAT_REQUEST_PACKET*>(pPacket);
+//	//	해당 패킷에서 클라이언트 index, userId, message 정보를 추출한다.
+//	ROOM_CHAT_RESPONSE_PACKET roomChatResPacket;
+//	roomChatResPacket.PacketId = (UINT16)PACKET_ID::ROOM_CHAT_RESPONSE;
+//	roomChatResPacket.PacketLength = sizeof(ROOM_CHAT_RESPONSE_PACKET);
+//	roomChatResPacket.Result = (UINT16)ERROR_CODE::NONE;
+//	//	user 객체로 해당 정보를 전달한다.
+//	auto pReqUser = mUserManager->GetUserByConnIdx(clientIndex_);
+//	if (pReqUser == nullptr)
+//	{
+//		LOG_ERROR("유효하지 않은 유저!. ClientIndex : %d\n", clientIndex_);
+//		return;
+//	}
+//
+//	// 유저가 방에 있는지 확인, 
+//	if (pReqUser->GetDomainState() != User::DOMAIN_STATE::ROOM)
+//	{
+//		roomChatResPacket.Result = (UINT16)ERROR_CODE::ENTER_ROOM_INVALID_USER_STATUS;
+//		SendPacketFunc(clientIndex_, generation_, sizeof(ROOM_CHAT_RESPONSE_PACKET), (char*)&roomChatResPacket);
+//		return;
+//	}
+//
+//	auto roomNum = pReqUser->GetRoomIndex();
+//
+//	auto pRoom = mRoomManager->GetRoomByNumber(roomNum);
+//
+//	if (pRoom == nullptr)
+//	{
+//		roomChatResPacket.Result = (UINT16)ERROR_CODE::CHAT_ROOM_INVALID_ROOM_NUMBER;
+//		SendPacketFunc(clientIndex_, generation_, sizeof(ROOM_CHAT_RESPONSE_PACKET), (char*)&roomChatResPacket);
+//		return;
+//	}
+//	
+//	SendPacketFunc(clientIndex_, generation_, sizeof(ROOM_CHAT_RESPONSE_PACKET), (char*)&roomChatResPacket);
+//	
+//	// MySQL 채팅 메세지 저장
+//	MySQLChatMsgReq chatmsg{};
+//	strcpy_s(chatmsg.UserID, pReqUser->GetUserID().c_str());
+//	chatmsg.RoomNumber = roomNum;
+//	strcpy_s(chatmsg.Message, pRoomChatReqPacket->Message);
+//	chatmsg.TimeStampSec = (UINT64)time(nullptr);
+//
+//	MySQLTask task{};
+//	task.UserIndex = clientIndex_;
+//	task.TaskID = MySQLTaskID::INSERT_CHAT_MESSAGE;
+//	task.DataSize = sizeof(MySQLChatMsgReq);
+//	//task.pData = new char[task.DataSize];
+//	CopyMemory(task.body, &chatmsg, task.DataSize);
+//	mMySQLManager->PushTask(task);
+//
+//	//	Room 객체에서 브로드캐스트 전송을 수행한다.
+//	pRoom->NotifyChat(clientIndex_, pReqUser->GetUserID().c_str(), (char*)pRoomChatReqPacket);
+//
+//
+//}
 
 void PacketManager::NotifyPacketEvent()
 {

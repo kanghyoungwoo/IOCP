@@ -24,16 +24,16 @@ void RoomManager::Init(const INT32 beginRoomNumber_, const INT32 maxRoomCount_, 
 	}
 }
 
-INT16 RoomManager::EnterUser(INT32 roomNumber_, User* user_)
-{
-	auto room = GetRoomByNumber(roomNumber_);
-	if (room == nullptr)
-	{
-		return (INT16)ERROR_CODE::ROOM_INVALID_INDEX;
-	}
-
-	return room->EnterUser(user_);
-}
+//INT16 RoomManager::EnterUser(INT32 roomNumber_, User* user_)
+//{
+//	auto room = GetRoomByNumber(roomNumber_);
+//	if (room == nullptr)
+//	{
+//		return (INT16)ERROR_CODE::ROOM_INVALID_INDEX;
+//	}
+//
+//	return room->EnterUser(user_);
+//}
 
 INT16 RoomManager::LeaveUser(INT32 roomNumber_, User* user_)
 {
