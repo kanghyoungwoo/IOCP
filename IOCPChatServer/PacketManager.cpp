@@ -281,6 +281,13 @@ void PacketManager::ProcessPacket()
 					if (pUser->GetDomainState() == User::DOMAIN_STATE::ROOM)
 					{
 						auto pRoom = mRoomManager->GetRoomByNumber(pUser->GetRoomIndex());
+						if (pRoom == nullptr)
+						{
+							LOG_ERROR("client %d의 방이 유효하지 않음.\n", task.clientIndex);
+							pUser->SetDomainState(User::DOMAIN_STATE::LOGIN);
+							pUser->ResetRoom();
+							return; 
+						}
 						m_strandProcessor.EnqueueJob(pRoom, task.clientIndex, pRoom->GetGeneration(), packetData.PacketId, packetData.DataSize, packetData.pDataPtr);
 					}
 					else
@@ -605,6 +612,12 @@ void PacketManager::ClearConnectionInfo(INT32 clientIndex_)
 
 		pReqUser->SetDisconnecting(); // flag만 세우고 DOMAINSTATE는 ROOM유지
 		auto pRoom = mRoomManager->GetRoomByNumber(pReqUser->GetRoomIndex());
+		if (pRoom == nullptr)
+		{
+			LOG_ERROR("클라이언트 %d의 방이 유효하지 않음. 유저 상태 초기화.\n", clientIndex_);
+			mUserManager->DeleteUserInfo(pReqUser);
+			return;
+		}
 		// roomIndex를 정상적으로 읽을 수 있음
 		m_strandProcessor.EnqueueJob(pRoom, clientIndex_, pRoom->GetGeneration(), (UINT16)PACKET_ID::SYS_USER_DISCONNECT, 0, nullptr);
 

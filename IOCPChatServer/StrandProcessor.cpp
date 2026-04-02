@@ -47,6 +47,11 @@ void StrandProcessor::EnqueueJob(Room* pRoom, uint32_t clientIndex, uint32_t tar
         return;
     }
     User* pUser = mUserManager->GetUserByConnIdx(clientIndex);
+    if (pUser == nullptr)
+    {
+        LOG_DEBUG("유저%d의 접속이 끊겼습니다.", clientIndex);
+        return; // 크래시 방지 및 조기 종료
+    }
     pJob->clientIndex = clientIndex;
     //pJob->roomIndex = pRoom->GetRoomNumber();
     pJob->targetGeneration = targetGeneration;
@@ -127,7 +132,8 @@ void StrandProcessor::ProcessRoom(Room* pRoom)
                 if (pJob->packetId == (uint16_t)PACKET_ID::SYS_USER_DISCONNECT)
                 {
                     // 1. 방 내부 정리 (유저 삭제, 퇴장 알림 브로드캐스트)
-                    pRoom->LeaveUser(pUser);
+                    std::string leaverID = pUser->GetUserID();
+                    pRoom->LeaveUser(pUser); // 여기서 mUserList에서 제거
 
                     // 임시 채팅 패킷 생성 (크기와 동일)
                     ROOM_CHAT_REQUEST_PACKET tempChatPacket;
@@ -136,7 +142,7 @@ void StrandProcessor::ProcessRoom(Room* pRoom)
                     memset(tempChatPacket.Message, 0, sizeof(tempChatPacket.Message));
                     strcpy_s(tempChatPacket.Message, sizeof(tempChatPacket.Message), "has left the room.");
 
-                    pRoom->NotifyChat(pJob->clientIndex, pUser->GetUserID().c_str(), (char*)&tempChatPacket);
+                    pRoom->NotifyChat(pJob->clientIndex, leaverID.c_str(), (char*)&tempChatPacket);
 
 
 
@@ -193,6 +199,7 @@ void StrandProcessor::ProcessRoom(Room* pRoom)
                     // 퇴장 처리
 
                     // 방에서 유저 삭제 알림
+                    std::string leaverID = pUser->GetUserID();
                     pRoom->LeaveUser(pUser);
 
                     ROOM_CHAT_REQUEST_PACKET tempChatPacket;
@@ -201,7 +208,7 @@ void StrandProcessor::ProcessRoom(Room* pRoom)
                     memset(tempChatPacket.Message, 0, sizeof(tempChatPacket.Message));
                     strcpy_s(tempChatPacket.Message, sizeof(tempChatPacket.Message), "has left the room.");
 
-                    pRoom->NotifyChat(pJob->clientIndex, pUser->GetUserID().c_str(), (char*)&tempChatPacket);
+                    pRoom->NotifyChat(pJob->clientIndex, leaverID.c_str(), (char*)&tempChatPacket);
 
                     // 클라이언트에 퇴장 응답 전송
                     ROOM_LEAVE_RESPONSE_PACKET resPacket;

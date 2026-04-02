@@ -52,8 +52,8 @@ private:
 	void ProcessLogin(UINT32 clientIndex_, UINT32 generation_, UINT16 packetSize_, char* pPacket_); // 최대 접속자 수, 중복 로그인 확인
 	void ProcessLoginDBResult(UINT32 clientIndex_, UINT32 generation_, UINT16 packetSize_, char* pPacket_);
 	void ProcessEnterRoom(UINT32 clientIndex_, UINT32 generation_, UINT16 packetSize_, char* pPacket_);
-	void ProcessLeaveRoom(UINT32 clientIndex_, UINT32 generation_, UINT16 packetSize_, char* pPacket_);
-	void ProcessRoomChatMessage(UINT32 clientIndex_, UINT32 generation_, UINT16 packetSize_, char* pPacket_);
+	//void ProcessLeaveRoom(UINT32 clientIndex_, UINT32 generation_, UINT16 packetSize_, char* pPacket_);
+	//void ProcessRoomChatMessage(UINT32 clientIndex_, UINT32 generation_, UINT16 packetSize_, char* pPacket_);
 
 	void NotifyPacketEvent();
 
@@ -70,7 +70,7 @@ private:
 
 	StrandProcessor m_strandProcessor;
 
-	std::function<void(int, char*)>mSendMQDataFunc;
+	//std::function<void(int, char*)>mSendMQDataFunc;
 
 	bool mIsRunProcessThread = false;
 	std::thread mProcessThead;

@@ -74,6 +74,10 @@ public:
 		return roomIndex;
 	}
 
+	void ResetRoom()
+	{
+		roomIndex = -1;
+	}
 
 	//size_t GetBufferSize() const
 	//{
@@ -110,6 +114,8 @@ public:
 	{
 		return mSessionGeneration.load(std::memory_order_acquire);
 	}
+
+
 
 private:
 	INT32 mIndex = -1;
