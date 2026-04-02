@@ -79,6 +79,7 @@ void PacketManager::CreateComponent(const UINT32 maxClient_)
 	mRoomManager->Init(startRoomNumber, maxRoomCount, maxRoomUserCount);
 
 	m_strandProcessor.Init(config.JobPoolSize, config.CallbackPoolSize, config.MaxRoomCount);
+	m_strandProcessor.SetUserManager(mUserManager.get());
 }
 
 
@@ -331,7 +332,35 @@ void PacketManager::ProcessPacket()
 					pUser->SetDomainState(User::DOMAIN_STATE::LOGIN);
 				break;
 			}
+			case StrandCallbackType::USER_ENTERED_ROOM:
+			{
+				if (cb->result == (UINT16)ERROR_CODE::NONE)
+				{
+					auto pUser = mUserManager->GetUserByConnIdx(cb->clientIndex);
+					if (pUser)
+					{
+						// DomainState만 변경, room 접근x
+						pUser->SetDomainState(User::DOMAIN_STATE::ROOM);
+
+						// MySQL 로그
+						MySQLRoomEventReq req{};
+						strcpy_s(req.UserID, pUser->GetUserID().c_str());
+						req.RoomNumber = cb->roomNumber;
+						req.EventType = RoomEventType::ENTER;
+						req.TimeStampSec = (UINT64)time(nullptr);
+
+						MySQLTask task{};
+						task.UserIndex = cb->clientIndex;
+						task.TaskID = MySQLTaskID::INSERT_ROOM_EVENT;
+						task.DataSize = sizeof(MySQLRoomEventReq);
+						task.pData = new char[task.DataSize];
+						CopyMemory(task.pData, &req, task.DataSize);
+						mMySQLManager->PushTask(task);
+					}
+				}
+				break;
 			}
+			}// switch의 }
 			m_strandProcessor.FreeCallback(cb);
 		}
 
@@ -586,7 +615,6 @@ void PacketManager::ProcessEnterRoom(UINT32 clientIndex_, UINT32 generation_, UI
 
 	//  방 입장 요청 패킷을 받는다.
 	auto pRoomEnterReqPacket = reinterpret_cast<ROOM_ENTER_REQUEST_PACKET*>(pPacket);
-
 	//	유효한 유저인지 검사한다.
 	auto pReqUser = mUserManager->GetUserByConnIdx(clientIndex_);
 	if (pReqUser == nullptr)
@@ -607,52 +635,67 @@ void PacketManager::ProcessEnterRoom(UINT32 clientIndex_, UINT32 generation_, UI
 		
 	}
 
-	//	응답 패킷을 생성하고
-	ROOM_ENTER_RESPONSE_PACKET roomEnterResPacket;
-	roomEnterResPacket.PacketId = (UINT16)PACKET_ID::ROOM_ENTER_RESPONSE;
-	roomEnterResPacket.PacketLength = sizeof(ROOM_ENTER_RESPONSE_PACKET);
-	//	RoomManager 객체의 EnterUser 함수를 호출한다.
-	
-	roomEnterResPacket.Result = mRoomManager->EnterUser(pRoomEnterReqPacket->RoomNumber, pReqUser);
-	
-	// 방 입장 성공 시 방 전체에 입장 알림
-	if (roomEnterResPacket.Result == (UINT16)ERROR_CODE::NONE)
+	// 방 존재 여부 확인
+	auto pRoom = mRoomManager->GetRoomByNumber(pRoomEnterReqPacket->RoomNumber);
+	if (pRoom == nullptr)
 	{
-		// MySQL : 방 입장 로그
-		MySQLRoomEventReq req{};
-		strcpy_s(req.UserID, pReqUser->GetUserID().c_str());
-		req.RoomNumber = pRoomEnterReqPacket->RoomNumber;
-		req.EventType = RoomEventType::ENTER;
-		req.TimeStampSec = (UINT64)time(nullptr);
-
-		MySQLTask task{};
-		task.UserIndex = clientIndex_;
-		task.TaskID = MySQLTaskID::INSERT_ROOM_EVENT;
-		task.DataSize = sizeof(MySQLRoomEventReq);
-
-		task.pData = new char[task.DataSize];
-		CopyMemory(task.pData, &req, task.DataSize);
-		mMySQLManager->PushTask(task);
-
-		auto pRoom = mRoomManager->GetRoomByNumber(pRoomEnterReqPacket->RoomNumber);
-		if (pRoom != nullptr)
-		{
-			// 임시 채팅 패킷 생성
-			ROOM_CHAT_REQUEST_PACKET tempChatPacket;
-			tempChatPacket.PacketId = (UINT16)PACKET_ID::ROOM_CHAT_REQUEST;
-			tempChatPacket.PacketLength = sizeof(ROOM_CHAT_REQUEST_PACKET);
-
-			sprintf_s(tempChatPacket.Message, "entered the room.");
-
-			// 방 전체에 알림
-			pRoom->NotifyChat(clientIndex_, pReqUser->GetUserID().c_str(), (char*)&tempChatPacket);
-		}
+		ROOM_ENTER_RESPONSE_PACKET errorPacket;
+		errorPacket.PacketId = (UINT16)PACKET_ID::ROOM_ENTER_RESPONSE;
+		errorPacket.PacketLength = sizeof(ROOM_ENTER_RESPONSE_PACKET);
+		errorPacket.Result = (UINT16)ERROR_CODE::ROOM_INVALID_INDEX;
+		SendPacketFunc(clientIndex_, generation_, sizeof(ROOM_ENTER_RESPONSE_PACKET), (char*)&errorPacket);
+		return;
 	}
 
-	
-	//	해당 값의 결과를 응답 패킷의 데이터에 넣어서 전송한다.
-	SendPacketFunc(clientIndex_, generation_, sizeof(ROOM_ENTER_RESPONSE_PACKET), (char*)&roomEnterResPacket);
-	LOG_DEBUG("Enter Room Res Packet Send ! \n");
+	// 실제 입장 Strand에 넘김
+	m_strandProcessor.EnqueueJob(pRoom, clientIndex_, pRoom->GetGeneration(), (UINT16)PACKET_ID::ROOM_ENTER_REQUEST, packetSize_, pPacket);
+
+	////	응답 패킷을 생성하고
+	//ROOM_ENTER_RESPONSE_PACKET roomEnterResPacket;
+	//roomEnterResPacket.PacketId = (UINT16)PACKET_ID::ROOM_ENTER_RESPONSE;
+	//roomEnterResPacket.PacketLength = sizeof(ROOM_ENTER_RESPONSE_PACKET);
+	////	RoomManager 객체의 EnterUser 함수를 호출한다.
+	//
+	//roomEnterResPacket.Result = mRoomManager->EnterUser(pRoomEnterReqPacket->RoomNumber, pReqUser);
+	//
+	//// 방 입장 성공 시 방 전체에 입장 알림
+	//if (roomEnterResPacket.Result == (UINT16)ERROR_CODE::NONE)
+	//{
+	//	// MySQL : 방 입장 로그
+	//	MySQLRoomEventReq req{};
+	//	strcpy_s(req.UserID, pReqUser->GetUserID().c_str());
+	//	req.RoomNumber = pRoomEnterReqPacket->RoomNumber;
+	//	req.EventType = RoomEventType::ENTER;
+	//	req.TimeStampSec = (UINT64)time(nullptr);
+
+	//	MySQLTask task{};
+	//	task.UserIndex = clientIndex_;
+	//	task.TaskID = MySQLTaskID::INSERT_ROOM_EVENT;
+	//	task.DataSize = sizeof(MySQLRoomEventReq);
+
+	//	task.pData = new char[task.DataSize];
+	//	CopyMemory(task.pData, &req, task.DataSize);
+	//	mMySQLManager->PushTask(task);
+
+	//	auto pRoom = mRoomManager->GetRoomByNumber(pRoomEnterReqPacket->RoomNumber);
+	//	if (pRoom != nullptr)
+	//	{
+	//		// 임시 채팅 패킷 생성
+	//		ROOM_CHAT_REQUEST_PACKET tempChatPacket;
+	//		tempChatPacket.PacketId = (UINT16)PACKET_ID::ROOM_CHAT_REQUEST;
+	//		tempChatPacket.PacketLength = sizeof(ROOM_CHAT_REQUEST_PACKET);
+
+	//		sprintf_s(tempChatPacket.Message, "entered the room.");
+
+	//		// 방 전체에 알림
+	//		pRoom->NotifyChat(clientIndex_, pReqUser->GetUserID().c_str(), (char*)&tempChatPacket);
+	//	}
+	//}
+
+	//
+	////	해당 값의 결과를 응답 패킷의 데이터에 넣어서 전송한다.
+	//SendPacketFunc(clientIndex_, generation_, sizeof(ROOM_ENTER_RESPONSE_PACKET), (char*)&roomEnterResPacket);
+	//LOG_DEBUG("Enter Room Res Packet Send ! \n");
 
 }
 

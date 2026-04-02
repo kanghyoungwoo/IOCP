@@ -17,6 +17,8 @@
     using GlobalQueue = GlobalQueue_MutexCV;
 #endif
 
+class UserManager;
+
 class StrandProcessor
 {
 public:
@@ -27,6 +29,11 @@ public:
     }
 
     void Init(uint32_t jobPoolSize, uint32_t callbackPoolSize, uint32_t maxRoomCount);
+    
+    void SetUserManager(UserManager* pUserManager)
+    {
+        mUserManager = pUserManager; 
+    };
 
     void Start(int threadCount);
     void Stop();
@@ -70,6 +77,7 @@ public:
     uint64_t GetAllocTotalCount() const { return mAllocTotalCount.load(std::memory_order_relaxed); }
 
 private:
+    UserManager* mUserManager = nullptr;
     void WorkerThreadMain();
 
     void ProcessRoom(Room* pRoom);

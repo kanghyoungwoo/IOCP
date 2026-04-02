@@ -17,6 +17,7 @@ enum class RedisTaskID : UINT16
 	REQUEST_DELETE_SESSION = 1104,
 };
 
+static constexpr UINT16 MAX_REDIS_BODY_SIZE = 128;
 
 struct RedisTask
 {
@@ -24,16 +25,18 @@ struct RedisTask
 	UINT32 Generation = 0;
 	RedisTaskID TaskID = RedisTaskID::INVALID;
 	UINT16 DataSize = 0;
-	char* pData = nullptr;
+	char body[MAX_REDIS_BODY_SIZE] = {};
+	//char* pData = nullptr;
 
-	void release()
-	{
-		if (pData != nullptr)
-		{
-			delete[] pData;
-			pData = nullptr;
-		}
-	}
+
+	//void release()
+	//{
+	//	if (pData != nullptr)
+	//	{
+	//		delete[] pData;
+	//		pData = nullptr;
+	//	}
+	//}
 };
 
 #pragma pack(push,1)

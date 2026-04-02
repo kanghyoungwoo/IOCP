@@ -6,6 +6,7 @@
 #include "ErrorCode.h"
 #include "Packet.h"
 
+
 enum class MySQLTaskID : UINT16
 {
 	INVALID = 0,
@@ -31,22 +32,24 @@ enum class MySQLTaskID : UINT16
 	INSERT_CHAT_MESSAGE = 2003,	//
 };
 
+static constexpr UINT16 MAX_MYSQL_BODY_SIZE = 512;
 
 struct MySQLTask
 {
 	UINT32 UserIndex = 0;
 	MySQLTaskID TaskID = MySQLTaskID::INVALID;
 	UINT16 DataSize = 0;
-	char* pData = nullptr;
+	//char* pData = nullptr;
+	char body[MAX_MYSQL_BODY_SIZE] = {};
 
-	void release()
-	{
-		if (pData != nullptr)
-		{
-			delete[] pData;
-			pData = nullptr;
-		}
-	}
+	//void release()
+	//{
+	//	if (pData != nullptr)
+	//	{
+	//		delete[] pData;
+	//		pData = nullptr;
+	//	}
+	//}
 };
 
 #pragma pack(push,1)

@@ -46,9 +46,11 @@ void StrandProcessor::EnqueueJob(Room* pRoom, uint32_t clientIndex, uint32_t tar
         LOG_ERROR_ONCE("Job Pool 소진. packet drop.\n");
         return;
     }
+    User* pUser = mUserManager->GetUserByConnIdx(clientIndex);
     pJob->clientIndex = clientIndex;
     pJob->roomIndex = pRoom->GetRoomNumber();
     pJob->targetGeneration = targetGeneration;
+    pJob->sessionGeneration = pUser->GetSessionGeneration();
     pJob->packetId = packetId;
     pJob->dataSize = dataSize;
 
@@ -220,6 +222,64 @@ void StrandProcessor::ProcessRoom(Room* pRoom)
                     mCallbackQueue.Push(cb);
 
                 }
+
+            }
+            // 입장 처리
+            else if (pJob->packetId == (uint16_t)PACKET_ID::ROOM_ENTER_REQUEST)
+            {
+                // UserManager에서 유저 포인터 획득
+                User* pEnterUser = mUserManager->GetUserByConnIdx(pJob->clientIndex);
+
+                // ABA방지, 큐 대기중 접속이 끊겼거나 유저가 바뀐 경우 즉시 드랍
+                if (pEnterUser == nullptr || pEnterUser->GetSessionGeneration() != pJob->sessionGeneration)
+                {
+                    mJobPool.Free(pJob);
+                    continue;
+                }
+
+                ROOM_ENTER_RESPONSE_PACKET resPacket;
+                resPacket.PacketId = (UINT16)PACKET_ID::ROOM_ENTER_RESPONSE;
+                resPacket.PacketLength = sizeof(ROOM_ENTER_RESPONSE_PACKET);
+
+                if (pRoom->FindUserByClientIndex(pJob->clientIndex) != nullptr)
+                {
+                    resPacket.Result = (UINT16)ERROR_CODE::ENTER_ROOM_ALREADY_ENTERED;
+                }
+                else
+                {
+                    // Strand 안에서 안전하게 입ㅈ아
+                    resPacket.Result = pRoom->EnterUser(pEnterUser);
+                }
+
+                // 입장 성공시 알림
+                if (resPacket.Result == (UINT16)ERROR_CODE::NONE)
+                {
+                    ROOM_CHAT_REQUEST_PACKET tempChatPacket;
+                    tempChatPacket.PacketId = (UINT16)PACKET_ID::ROOM_CHAT_REQUEST;
+                    tempChatPacket.PacketLength = sizeof(ROOM_CHAT_REQUEST_PACKET);
+                    memset(tempChatPacket.Message, 0, sizeof(tempChatPacket.Message));
+
+                    sprintf_s(tempChatPacket.Message, sizeof(tempChatPacket.Message), "[%s] entered the room.", pEnterUser->GetUserID().c_str());
+                    pRoom->NotifyChat(pJob->clientIndex, pEnterUser->GetUserID().c_str(), (char*)&tempChatPacket);
+                }
+
+                // 응답 전송
+                pRoom->SendPacketFunc(pJob->clientIndex, pEnterUser->GetSessionGeneration(), sizeof(ROOM_ENTER_RESPONSE_PACKET), (char*)&resPacket);
+
+                // 콜백 : PacketManager에서 DomainState 변경
+                StrandCallback* cb = mCallbackPool.Alloc();
+                if (cb == nullptr)
+                {
+                    LOG_ERROR_ONCE("Callback Pool 소진! callback drop.\n");
+                    mJobPool.Free(pJob);
+                    continue;
+                }
+
+                cb->type = StrandCallbackType::USER_ENTERED_ROOM;
+                cb->clientIndex = pJob->clientIndex;
+                cb->roomNumber = pRoom->GetRoomNumber();
+                cb->result = resPacket.Result;
+                mCallbackQueue.Push(cb);
             }
 
         }
