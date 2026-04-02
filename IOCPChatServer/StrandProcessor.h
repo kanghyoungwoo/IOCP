@@ -56,6 +56,8 @@ public:
     {
         // 재사용을 위해 내부 상태를 초기화하고 반납
         pCallback->clientIndex = 0;
+        pCallback->roomNumber = -1;
+        pCallback->result = 0;
         pCallback->mpscNext.store(nullptr, std::memory_order_relaxed);
 
         mCallbackPool.Free(pCallback);
