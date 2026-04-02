@@ -129,13 +129,13 @@ private:
 
 			if (task.TaskID == RedisTaskID::INVALID)
 			{
-				task.release();
+				//task.release();
 				continue;
 			}
 
 			if (task.TaskID == RedisTaskID::REQUEST_LOGIN)
 			{
-				auto pRequest = (RedisLoginReq*)task.pData;
+				auto pRequest = (RedisLoginReq*)task.body;
 
 				RedisLoginRes bodyData;
 				bodyData.Result = (UINT16)ERROR_CODE::LOGIN_USER_INVALID_PW;
@@ -160,13 +160,13 @@ private:
 				resTask.Generation = task.Generation;
 				resTask.TaskID = RedisTaskID::RESPONSE_LOGIN;
 				resTask.DataSize = sizeof(RedisLoginRes);
-				resTask.pData = new char[resTask.DataSize];
-				CopyMemory(resTask.pData, (char*)&bodyData, resTask.DataSize);
+				//resTask.pData = new char[resTask.DataSize];
+				CopyMemory(resTask.body, (char*)&bodyData, resTask.DataSize);
 
 				PushResponse(resTask);
 			}
 
-			task.release();
+			//task.release();
 
 			//bool isIdle = true;
 			//// 요청용 queue를 통해서 작업을 넣고빼기 mRequestTask

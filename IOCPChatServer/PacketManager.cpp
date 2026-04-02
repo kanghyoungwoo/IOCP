@@ -313,8 +313,8 @@ void PacketManager::ProcessPacket()
 			if (task.TaskID == RedisTaskID::INVALID)
 				break;
 
-			ProcessRecvPacket(task.UserIndex, task.Generation, (UINT16)task.TaskID, task.DataSize, task.pData);
-			task.release();
+			ProcessRecvPacket(task.UserIndex, task.Generation, (UINT16)task.TaskID, task.DataSize, task.body);
+			//task.release();
 		}
 
 		while (auto* cb = m_strandProcessor.PopCallback())
@@ -353,8 +353,8 @@ void PacketManager::ProcessPacket()
 						task.UserIndex = cb->clientIndex;
 						task.TaskID = MySQLTaskID::INSERT_ROOM_EVENT;
 						task.DataSize = sizeof(MySQLRoomEventReq);
-						task.pData = new char[task.DataSize];
-						CopyMemory(task.pData, &req, task.DataSize);
+						//task.pData = new char[task.DataSize];
+						CopyMemory(task.body, &req, task.DataSize);
 						mMySQLManager->PushTask(task);
 					}
 				}
@@ -511,8 +511,8 @@ void PacketManager::ProcessLogin(UINT32 clientIndex_, UINT32 generation_,  UINT1
 	redistask.TaskID = RedisTaskID::REQUEST_LOGIN;
 	redistask.DataSize = sizeof(RedisLoginReq);
 
-	redistask.pData = new char[redistask.DataSize];
-	CopyMemory(redistask.pData, (char*)&redisReq, redistask.DataSize);
+	//redistask.pData = new char[redistask.DataSize];
+	CopyMemory(redistask.body, (char*)&redisReq, redistask.DataSize);
 	mRedisManager->PushTask(redistask);
 
 	LOG_DEBUG("Login To Redis USER ID : %s\n", pUserID);
@@ -552,8 +552,8 @@ void PacketManager::ProcessLoginDBResult(UINT32 clientIndex_, UINT32 generation_
 			mysqlTask.TaskID = MySQLTaskID::INSERT_LOGIN_EVENT;
 			mysqlTask.DataSize = sizeof(MySQLLoginEventReq);
 
-			mysqlTask.pData = new char[mysqlTask.DataSize];
-			CopyMemory(mysqlTask.pData, &mysqlReq, mysqlTask.DataSize);
+			//mysqlTask.pData = new char[mysqlTask.DataSize];
+			CopyMemory(mysqlTask.body, &mysqlReq, mysqlTask.DataSize);
 			mMySQLManager->PushTask(mysqlTask);
 		}
 	}
@@ -739,8 +739,8 @@ void PacketManager::ProcessLeaveRoom(UINT32 clientIndex_, UINT32 generation_, UI
 		task.UserIndex = clientIndex_;
 		task.TaskID = MySQLTaskID::INSERT_ROOM_EVENT;
 		task.DataSize = sizeof(MySQLRoomEventReq);
-		task.pData = new char[task.DataSize];
-		CopyMemory(task.pData, &req, task.DataSize);
+		//task.pData = new char[task.DataSize];
+		CopyMemory(task.body, &req, task.DataSize);
 		mMySQLManager->PushTask(task);
 
 		if (pRoom != nullptr)
@@ -813,8 +813,8 @@ void PacketManager::ProcessRoomChatMessage(UINT32 clientIndex_, UINT32 generatio
 	task.UserIndex = clientIndex_;
 	task.TaskID = MySQLTaskID::INSERT_CHAT_MESSAGE;
 	task.DataSize = sizeof(MySQLChatMsgReq);
-	task.pData = new char[task.DataSize];
-	CopyMemory(task.pData, &chatmsg, task.DataSize);
+	//task.pData = new char[task.DataSize];
+	CopyMemory(task.body, &chatmsg, task.DataSize);
 	mMySQLManager->PushTask(task);
 
 	//	Room 객체에서 브로드캐스트 전송을 수행한다.

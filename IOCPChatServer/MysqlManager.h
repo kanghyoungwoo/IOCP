@@ -294,7 +294,7 @@ private:
 			// lock 해제
 			if (task.TaskID == MySQLTaskID::INVALID)
 			{
-				task.release();
+				//task.release();
 				continue;
 			}
 
@@ -302,7 +302,7 @@ private:
 			if (!EnsureConnection(myConn))
 			{
 				LOG_ERROR("MySQL ensure connection failed: %s\n", mysql_error(myConn.connection));
-				task.release();
+				//task.release();
 				continue;
 			}
 
@@ -320,7 +320,7 @@ private:
 				default:
 					break;
 			}
-			task.release();
+			//task.release();
 		}
 		CleanupStatements(myConn);
 		CloseConnection(myConn);
@@ -329,7 +329,7 @@ private:
 	// 실제 insert 수행
 	void HandleInsertLogin(MySQLConnection& conn, const MySQLTask& task)
 	{
-		auto pLoginReqPacket = reinterpret_cast<const MySQLLoginEventReq*>(task.pData);
+		auto pLoginReqPacket = reinterpret_cast<const MySQLLoginEventReq*>(task.body);
 
 		// mysql_bind: mysql_stmt_prepare의 ? 자리에 값을 채움 바인딩
 		MYSQL_BIND bind[2] = {};
@@ -358,7 +358,7 @@ private:
 
 	void HandleInsertRoom(MySQLConnection& conn, const MySQLTask& task)
 	{
-		auto pRoomEventReqPacket = reinterpret_cast<const MySQLRoomEventReq*>(task.pData);
+		auto pRoomEventReqPacket = reinterpret_cast<const MySQLRoomEventReq*>(task.body);
 		MYSQL_BIND bind[4] = {};
 
 		unsigned long useridLen = (unsigned long)strnlen(pRoomEventReqPacket->UserID, sizeof(pRoomEventReqPacket->UserID));
@@ -391,7 +391,7 @@ private:
 
 	void HandleInsertChat(MySQLConnection& conn, const MySQLTask& task)
 	{
-		auto pChatMessageReqPacket = reinterpret_cast<const MySQLChatMsgReq*>(task.pData);
+		auto pChatMessageReqPacket = reinterpret_cast<const MySQLChatMsgReq*>(task.body);
 		MYSQL_BIND bind[4] = {};
 
 		unsigned long useridLen = (unsigned long)strnlen(pChatMessageReqPacket->UserID, sizeof(pChatMessageReqPacket->UserID));
