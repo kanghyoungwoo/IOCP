@@ -73,7 +73,7 @@ void ClientSession::Clear()
 
 	// 버퍼 초기화
 	ZeroMemory(mRecvBuf, sizeof(mRecvBuf));
-	ZeroMemory(mSendBuf, sizeof(mSendBuf));
+	//ZeroMemory(mSendBuf, sizeof(mSendBuf));
 
 }
 

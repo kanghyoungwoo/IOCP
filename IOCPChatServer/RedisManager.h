@@ -267,17 +267,17 @@ private:
 		}
 	}
 
-	RedisTask TakeRequestTask()
-	{
-		std::lock_guard<std::mutex> guard(mReqLock);
-		if (mRequestTask.empty())
-		{
-			return RedisTask();
-		}
-		auto task = mRequestTask.front();
-		mRequestTask.pop_front();
-		return task;
-	}
+	//RedisTask TakeRequestTask()
+	//{
+	//	std::lock_guard<std::mutex> guard(mReqLock);
+	//	if (mRequestTask.empty())
+	//	{
+	//		return RedisTask();
+	//	}
+	//	auto task = mRequestTask.front();
+	//	mRequestTask.pop_front();
+	//	return task;
+	//}
 
 	std::vector<std::thread> mTaskThreads;
 

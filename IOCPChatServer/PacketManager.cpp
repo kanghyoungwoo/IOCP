@@ -223,7 +223,8 @@ void PacketManager::ProcessPacket()
 			auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - lastQueueLog).count();
 			if (elapsed >= 5)
 			{
-				LOG_DEBUG("[QueueDepth] batch_size=%zu  sys_batch=%zu\n", mReadBuffer.size(), mSystemReadBuffer.size());lastQueueLog = now;
+				LOG_DEBUG("[QueueDepth] batch_size=%zu  sys_batch=%zu\n", mReadBuffer.size(), mSystemReadBuffer.size());
+				lastQueueLog = now;
 			}
 		 }
 

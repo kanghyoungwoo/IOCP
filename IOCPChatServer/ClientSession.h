@@ -50,10 +50,10 @@ public:
 		return mRecvBuf;
 	}
 
-	char* SendBuff()
-	{
-		return mSendBuf;
-	}
+	//char* SendBuff()
+	//{
+	//	return mSendBuf;
+	//}
 
 	UINT64 GetLatestClosedTimeSec()
 	{
@@ -148,8 +148,8 @@ private:
 	UINT32			mIndex = 0;				// Client의 index
 	SOCKET			m_socketClient;			// Client와 연결되는 소켓
 	stOverlappedEx	m_stRecvOverlappedEx;	// RECV Overlapped I/O 작업을 위한 변수
-	stOverlappedEx	m_stSendOverlappedEx;	// SEND Overlapped I/O 작업을 위한 변수
-	stOverlappedEx	m_stAcceptOverlappedEx;	// Accept를 요청하고 IOCP 컴플리션에서 완료를 확인하기 위한 구조체
+	//stOverlappedEx	m_stSendOverlappedEx;	// SEND Overlapped I/O 작업을 위한 변수 // -> send가 풀 기반으로 변경됨
+	//stOverlappedEx	m_stAcceptOverlappedEx;	// Accept를 요청하고 IOCP 컴플리션에서 완료를 확인하기 위한 구조체, mAcceptContext가 대체
 	stOverlappedEx mAcceptContext;
 	std::mutex mSendLock;
 	bool mIsSending = false;
@@ -159,8 +159,8 @@ private:
 	//bool mAcceptPending = false;
 
 	char mRecvBuf[MAX_SOCKBUF];	// 수신용 버퍼
-	char mSendBuf[MAX_SOCKBUF]; // 송신용 버퍼
-	char mSendingBuf[MAX_SOCK_SENDBUF];
+	//char mSendBuf[MAX_SOCKBUF]; // 송신용 버퍼 // 풀 기반 전송으로 대체
+	//char mSendingBuf[MAX_SOCK_SENDBUF];	// 1-send 방식 미사용
 	//std::queue<stOverlappedEx*> mSendDataqueue;
 	std::queue<SendOverlappedEx*> mSendDataqueue;
 	//bool mIsConnected = false;			// Client의 접속 요청을 했는지 확인하는 변수

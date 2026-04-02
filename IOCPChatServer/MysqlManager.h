@@ -423,17 +423,17 @@ private:
 		mysql_stmt_reset(conn.stmtChat);
 	}
 
-	MySQLTask TakeRequestTask()
-	{
-		std::lock_guard<std::mutex> guard(mReqLock);
-		if (mRequestTask.empty())
-		{
-			return MySQLTask();
-		}
-		auto task = mRequestTask.front();
-		mRequestTask.pop_front();
-		return task;
-	}
+	//MySQLTask TakeRequestTask()
+	//{
+	//	std::lock_guard<std::mutex> guard(mReqLock);
+	//	if (mRequestTask.empty())
+	//	{
+	//		return MySQLTask();
+	//	}
+	//	auto task = mRequestTask.front();
+	//	mRequestTask.pop_front();
+	//	return task;
+	//}
 
 
 	std::vector<std::thread> mTaskThreads;

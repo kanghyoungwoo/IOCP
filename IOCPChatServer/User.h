@@ -128,8 +128,8 @@ private:
 	std::atomic<UINT32> mSessionGeneration{ 0 };
 	std::string mAuthToken = "";
 
-	UINT32 mPacketDataBufferWritePos = 0; // 쓰기 위치
-	UINT32 mPacketDataBufferReadPos = 0; // 읽기 위치
+	//UINT32 mPacketDataBufferWritePos = 0; // 쓰기 위치
+	//UINT32 mPacketDataBufferReadPos = 0; // 읽기 위치
 
 	// ringbuffer로 패킷 데이터 교체
 	RingBuffer<MAX_PACKET_DATA_BUFFER_SIZE> mPacketDataBuffer;
