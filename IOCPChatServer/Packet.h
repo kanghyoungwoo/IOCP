@@ -5,46 +5,46 @@
 #include <ws2tcpip.h>
 #include <windows.h>
 // 패킷의 ID로 클라이언트가 어떤 요청을 했는지 알아냄
-typedef struct _RawPacketData
-{
-	UINT32 ClientSessionIndex = 0;
-	UINT32 DataSize = 0;
-	char* pPacketData = nullptr;
-
-	void Set(_RawPacketData& value)
-	{
-		ClientSessionIndex = value.ClientSessionIndex;
-		DataSize = value.DataSize;
-		pPacketData = new char[value.DataSize];
-		CopyMemory(pPacketData, value.pPacketData, value.DataSize);
-		//memcpy(pPacketData, value.pPacketData, value.DataSize);
-	}
-
-	void Set(UINT32 ClientSessionIndex_, UINT32 DataSize_, char *pData_)
-	{
-		ClientSessionIndex = ClientSessionIndex_;
-		DataSize = DataSize_;
-
-		if (pPacketData != nullptr)
-		{
-			delete[] pPacketData;
-			pPacketData = nullptr;
-		}
-		pPacketData = new char[DataSize_];
-		CopyMemory(pPacketData, pData_, DataSize_);
-
-		//memcpy(pPacketData, pData_, DataSize_);
-	}
-
-	void Release()
-	{
-		delete[] pPacketData;
-		pPacketData = nullptr;
-
-	}
-
-
-}RawPacketData;
+//typedef struct _RawPacketData
+//{
+//	UINT32 ClientSessionIndex = 0;
+//	UINT32 DataSize = 0;
+//	char* pPacketData = nullptr;
+//
+//	void Set(_RawPacketData& value)
+//	{
+//		ClientSessionIndex = value.ClientSessionIndex;
+//		DataSize = value.DataSize;
+//		pPacketData = new char[value.DataSize];
+//		CopyMemory(pPacketData, value.pPacketData, value.DataSize);
+//		//memcpy(pPacketData, value.pPacketData, value.DataSize);
+//	}
+//
+//	void Set(UINT32 ClientSessionIndex_, UINT32 DataSize_, char *pData_)
+//	{
+//		ClientSessionIndex = ClientSessionIndex_;
+//		DataSize = DataSize_;
+//
+//		if (pPacketData != nullptr)
+//		{
+//			delete[] pPacketData;
+//			pPacketData = nullptr;
+//		}
+//		pPacketData = new char[DataSize_];
+//		CopyMemory(pPacketData, pData_, DataSize_);
+//
+//		//memcpy(pPacketData, pData_, DataSize_);
+//	}
+//
+//	void Release()
+//	{
+//		delete[] pPacketData;
+//		pPacketData = nullptr;
+//
+//	}
+//
+//
+//}RawPacketData;
 
 
 
