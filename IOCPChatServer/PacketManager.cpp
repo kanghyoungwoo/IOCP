@@ -348,8 +348,7 @@ void PacketManager::ProcessPacket()
 			{
 				if (cb->result == (UINT16)ERROR_CODE::NONE)
 				{
-					// DomainState만 변경, room 접근x
-					pUser->SetDomainState(User::DOMAIN_STATE::ROOM);
+					pUser->EnterRoom(cb->roomNumber);
 
 					// MySQL 로그
 					MySQLRoomEventReq req{};
