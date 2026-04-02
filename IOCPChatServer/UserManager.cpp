@@ -58,16 +58,14 @@ void UserManager::DeleteUserInfo(User* user_)
 
 INT32 UserManager::FindUserIndexByID(char* userID_)
 {
-	std::string userIDStr = userID_; // char*를 string으로 변환
-
 	//std::lock_guard<std::mutex>lock(mUserDictMutex);
 
-	auto res = mUserIDDictionary.find(userIDStr);
+	auto res = mUserIDDictionary.find(userID_);
 
 	//auto res = mUserIDDictionary.find(userID_);
 	if (res != mUserIDDictionary.end())
 	{
-		return (*res).second;
+		return res->second;
 	}
 	return -1;
 }

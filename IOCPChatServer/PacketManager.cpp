@@ -319,7 +319,7 @@ void PacketManager::ProcessPacket()
 
 		while (auto* cb = m_strandProcessor.PopCallback())
 		{
-			auto pUser = mUserManager->GetUserByConnIdx(cb->sessionGeneration);
+			auto pUser = mUserManager->GetUserByConnIdx(cb->clientIndex);
 
 			// 유저 없음 or 세대 불일치
 			if (!pUser || pUser->GetSessionGeneration() != cb->sessionGeneration)
@@ -481,6 +481,15 @@ void PacketManager::ProcessLogin(UINT32 clientIndex_, UINT32 generation_,  UINT1
 	// 디버깅
 	auto existingIndex = mUserManager->FindUserIndexByID(pUserID);
 	LOG_DEBUG("기존 사용자 검색 : UserID = %s -> Index = %d\n", pUserID, existingIndex);
+
+	// 기존 접속 유저 찾은 경우(중복 로그인)
+	if (existingIndex != -1)
+	{
+		LOG_DEBUG("중복 로그인 차단! UserID = %s\n", pUserID);
+		loginResPacket.Result = (UINT16)ERROR_CODE::LOGIN_USER_ALREADY;
+		SendPacketFunc(clientIndex_, generation_, sizeof(LOGIN_RESPONSE_PACKET), (char*)&loginResPacket);
+		return; // 중복이므로 차단
+	}
 
 	if (existingIndex == -1)
 	{
