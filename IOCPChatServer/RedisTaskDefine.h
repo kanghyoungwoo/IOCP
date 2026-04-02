@@ -53,12 +53,14 @@ struct RedisLoginRes
 	char UserID[MAX_USER_ID_LENGTH + 1]; // UserID 추가
 };
 
+// 멀티서버 확장시 필요 
 struct RedisLoginFlagReq
 {
 	char UserID[MAX_USER_ID_LENGTH + 1];
 	UINT32 TTLSeconds; // 0일시 만료 없음
 };
 
+// 멀티서버 확장시 필요 
 // 세션 정보 저장
 struct RedisSessionReq
 {

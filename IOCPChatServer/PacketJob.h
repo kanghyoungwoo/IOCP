@@ -8,7 +8,7 @@ struct PacketJob
 {
 	// 라우팅 정보
 	uint32_t clientIndex = 0;
-	uint32_t roomIndex = 0;
+	//uint32_t roomIndex = 0;
 	uint32_t targetGeneration = 0;	// 목표 세대값(room generation)
 	uint32_t sessionGeneration = 0;	// ABA방지
 

@@ -152,8 +152,8 @@ private:
 	//stOverlappedEx	m_stAcceptOverlappedEx;	// Accept를 요청하고 IOCP 컴플리션에서 완료를 확인하기 위한 구조체, mAcceptContext가 대체
 	stOverlappedEx mAcceptContext;
 	std::mutex mSendLock;
-	bool mIsSending = false;
-	UINT64 mSendPos = 0; // SendBuffer의 쓰기위치 관리 변수
+	//bool mIsSending = false;
+	//UINT64 mSendPos = 0; // SendBuffer의 쓰기위치 관리 변수
 	HANDLE mIOCPHandle = INVALID_HANDLE_VALUE;
 	ObjectPool<SendOverlappedEx>* mSendPool = nullptr;
 	//bool mAcceptPending = false;

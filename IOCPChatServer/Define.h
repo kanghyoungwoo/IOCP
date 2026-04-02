@@ -53,7 +53,7 @@ struct SendOverlappedEx
 	WSAOVERLAPPED	wsaOverlapped;
 	WSABUF			wsaBuf;
 	IOOperation		operation;
-	UINT32			sessionIndex = 0;
+	//UINT32			sessionIndex = 0;
 	UINT32			generation = 0;			// 추가
 	char			buffer[MAX_SOCKBUF];	// 고정 크기 내장 버퍼
 	//SendOverlappedEx* poolNext = nullptr;

@@ -48,7 +48,7 @@ void StrandProcessor::EnqueueJob(Room* pRoom, uint32_t clientIndex, uint32_t tar
     }
     User* pUser = mUserManager->GetUserByConnIdx(clientIndex);
     pJob->clientIndex = clientIndex;
-    pJob->roomIndex = pRoom->GetRoomNumber();
+    //pJob->roomIndex = pRoom->GetRoomNumber();
     pJob->targetGeneration = targetGeneration;
     pJob->sessionGeneration = pUser->GetSessionGeneration();
     pJob->packetId = packetId;

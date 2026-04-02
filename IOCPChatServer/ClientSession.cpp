@@ -68,8 +68,8 @@ void ClientSession::Clear()
 		mSendDataqueue.pop();
 	}
 
-	mSendPos = 0;
-	mIsSending = false;
+	//mSendPos = 0;
+	//mIsSending = false;
 
 	// 버퍼 초기화
 	ZeroMemory(mRecvBuf, sizeof(mRecvBuf));
