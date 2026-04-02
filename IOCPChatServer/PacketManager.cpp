@@ -319,45 +319,47 @@ void PacketManager::ProcessPacket()
 
 		while (auto* cb = m_strandProcessor.PopCallback())
 		{
+			auto pUser = mUserManager->GetUserByConnIdx(cb->sessionGeneration);
+
+			// 유저 없음 or 세대 불일치
+			if (!pUser || pUser->GetSessionGeneration() != cb->sessionGeneration)
+			{
+				m_strandProcessor.FreeCallback(cb);
+				continue;
+			}
 			switch (cb->type)
 			{
 			case StrandCallbackType::FREE_USER:
-				mUserManager->DeleteUserInfo(
-					mUserManager->GetUserByConnIdx(cb->clientIndex));
+				mUserManager->DeleteUserInfo(pUser);
 				break;
 			case StrandCallbackType::USER_LEFT_ROOM:
 			{
-				auto pUser = mUserManager->GetUserByConnIdx(cb->clientIndex);
-				if (pUser)
-					pUser->SetDomainState(User::DOMAIN_STATE::LOGIN);
+				pUser->SetDomainState(User::DOMAIN_STATE::LOGIN);
 				break;
 			}
 			case StrandCallbackType::USER_ENTERED_ROOM:
 			{
 				if (cb->result == (UINT16)ERROR_CODE::NONE)
 				{
-					auto pUser = mUserManager->GetUserByConnIdx(cb->clientIndex);
-					if (pUser)
-					{
-						// DomainState만 변경, room 접근x
-						pUser->SetDomainState(User::DOMAIN_STATE::ROOM);
+					// DomainState만 변경, room 접근x
+					pUser->SetDomainState(User::DOMAIN_STATE::ROOM);
 
-						// MySQL 로그
-						MySQLRoomEventReq req{};
-						strcpy_s(req.UserID, pUser->GetUserID().c_str());
-						req.RoomNumber = cb->roomNumber;
-						req.EventType = RoomEventType::ENTER;
-						req.TimeStampSec = (UINT64)time(nullptr);
+					// MySQL 로그
+					MySQLRoomEventReq req{};
+					strcpy_s(req.UserID, pUser->GetUserID().c_str());
+					req.RoomNumber = cb->roomNumber;
+					req.EventType = RoomEventType::ENTER;
+					req.TimeStampSec = (UINT64)time(nullptr);
 
-						MySQLTask task{};
-						task.UserIndex = cb->clientIndex;
-						task.TaskID = MySQLTaskID::INSERT_ROOM_EVENT;
-						task.DataSize = sizeof(MySQLRoomEventReq);
-						//task.pData = new char[task.DataSize];
-						CopyMemory(task.body, &req, task.DataSize);
-						mMySQLManager->PushTask(task);
-					}
+					MySQLTask task{};
+					task.UserIndex = cb->clientIndex;
+					task.TaskID = MySQLTaskID::INSERT_ROOM_EVENT;
+					task.DataSize = sizeof(MySQLRoomEventReq);
+					//task.pData = new char[task.DataSize];
+					CopyMemory(task.body, &req, task.DataSize);
+					mMySQLManager->PushTask(task);
 				}
+				
 				break;
 			}
 			}// switch의 }

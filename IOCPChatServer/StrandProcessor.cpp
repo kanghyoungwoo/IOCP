@@ -150,6 +150,7 @@ void StrandProcessor::ProcessRoom(Room* pRoom)
                     }
                     cb->type = StrandCallbackType::FREE_USER; 
                     cb->clientIndex = pJob->clientIndex;
+                    cb->sessionGeneration = pJob->sessionGeneration;
                     mCallbackQueue.Push(cb);
                 }
                 // 방 채팅
@@ -219,6 +220,7 @@ void StrandProcessor::ProcessRoom(Room* pRoom)
                     }
                     cb->type = StrandCallbackType::USER_LEFT_ROOM;
                     cb->clientIndex = pJob->clientIndex;
+                    cb->sessionGeneration = pJob->sessionGeneration;
                     mCallbackQueue.Push(cb);
 
                 }
@@ -279,6 +281,7 @@ void StrandProcessor::ProcessRoom(Room* pRoom)
                 cb->clientIndex = pJob->clientIndex;
                 cb->roomNumber = pRoom->GetRoomNumber();
                 cb->result = resPacket.Result;
+                cb->sessionGeneration = pJob->sessionGeneration;
                 mCallbackQueue.Push(cb);
             }
 

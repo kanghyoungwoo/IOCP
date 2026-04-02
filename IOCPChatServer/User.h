@@ -49,10 +49,6 @@ public:
 		return mIndex;
 	}
 
-	UINT32 GetGeneration() const
-	{
-		return mGeneration;
-	}
 
 	DOMAIN_STATE GetDomainState()
 	{
@@ -94,10 +90,6 @@ public:
 	//	return mPacketDataBuffer.IsFull();
 	//}
 
-	void IncrementGeneration()
-	{
-		mGeneration++;
-	}
 
 	bool IsDisconnecting() const
 	{
@@ -123,7 +115,6 @@ private:
 	INT32 mIndex = -1;
 	std::string mUserID = "";
 	INT32 roomIndex = -1;
-	std::atomic<UINT32> mGeneration{ 0 };
 	std::atomic<UINT32> mSessionGeneration{ 0 };
 
 	//UINT32 mPacketDataBufferWritePos = 0; // 쓰기 위치

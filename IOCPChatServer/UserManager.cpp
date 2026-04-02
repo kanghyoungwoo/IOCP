@@ -52,7 +52,6 @@ void UserManager::DeleteUserInfo(User* user_)
 	LOG_DEBUG("User info deleted : %s\n", user_->GetUserID().c_str());
 	mUserIDDictionary.erase(user_->GetUserID());
 	user_->Clear();
-	user_->IncrementGeneration();
 	DecreaseUserCnt();
 }
 
