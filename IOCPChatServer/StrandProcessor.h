@@ -50,7 +50,7 @@ public:
         return v;
     }
 
-    void EnqueueJob(Room* pRoom, uint32_t clientIndex, uint32_t targetGeneration, uint16_t packetId, uint16_t dataSize, const char* data);
+    void EnqueueJob(Room* pRoom, uint32_t clientIndex, uint32_t targetGeneration, UINT32 sessionGeneration, uint16_t packetId, uint16_t dataSize, const char* data);
 
     // 로직 스레드가 완료한 콜백 작업 꺼내기
     StrandCallback* PopCallback()

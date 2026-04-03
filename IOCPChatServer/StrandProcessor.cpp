@@ -35,7 +35,7 @@ void StrandProcessor::Stop()
     LOG_DEBUG("StrandProcessor: 모든 Logic Thread 종료하고 Stop 완료\n");
 }
 
-void StrandProcessor::EnqueueJob(Room* pRoom, uint32_t clientIndex, uint32_t targetGeneration, uint16_t packetId, uint16_t dataSize, const char* data)
+void StrandProcessor::EnqueueJob(Room* pRoom, uint32_t clientIndex, uint32_t targetGeneration,UINT32 sessionGeneration, uint16_t packetId, uint16_t dataSize, const char* data)
 {
     mAllocTotalCount.fetch_add(1, std::memory_order_relaxed);
     PacketJob* pJob = mJobPool.Alloc();
@@ -46,16 +46,11 @@ void StrandProcessor::EnqueueJob(Room* pRoom, uint32_t clientIndex, uint32_t tar
         LOG_ERROR_ONCE("Job Pool 소진. packet drop.\n");
         return;
     }
-    User* pUser = mUserManager->GetUserByConnIdx(clientIndex);
-    if (pUser == nullptr)
-    {
-        LOG_DEBUG("유저%d의 접속이 끊겼습니다.", clientIndex);
-        return; // 크래시 방지 및 조기 종료
-    }
+
     pJob->clientIndex = clientIndex;
     //pJob->roomIndex = pRoom->GetRoomNumber();
     pJob->targetGeneration = targetGeneration;
-    pJob->sessionGeneration = pUser->GetSessionGeneration();
+    pJob->sessionGeneration = sessionGeneration;
     pJob->packetId = packetId;
     pJob->dataSize = dataSize;
 
@@ -250,6 +245,8 @@ void StrandProcessor::ProcessRoom(Room* pRoom)
                 resPacket.PacketId = (UINT16)PACKET_ID::ROOM_ENTER_RESPONSE;
                 resPacket.PacketLength = sizeof(ROOM_ENTER_RESPONSE_PACKET);
 
+                // 여기서 콜백 미리 할당?
+
                 if (pRoom->FindUserByClientIndex(pJob->clientIndex) != nullptr)
                 {
                     resPacket.Result = (UINT16)ERROR_CODE::ENTER_ROOM_ALREADY_ENTERED;
@@ -275,7 +272,7 @@ void StrandProcessor::ProcessRoom(Room* pRoom)
                 // 응답 전송
                 pRoom->SendPacketFunc(pJob->clientIndex, pEnterUser->GetSessionGeneration(), sizeof(ROOM_ENTER_RESPONSE_PACKET), (char*)&resPacket);
 
-                // 콜백 : PacketManager에서 DomainState 변경
+                // 콜백 미리 할당
                 StrandCallback* cb = mCallbackPool.Alloc();
                 if (cb == nullptr)
                 {

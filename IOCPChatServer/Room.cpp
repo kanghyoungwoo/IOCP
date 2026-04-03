@@ -1,22 +1,20 @@
-#include "Room.h"
+ï»¿#include "Room.h"
 #include "Packet.h"
 
 UINT16 Room::EnterUser(User* user_)
 {
 	//std::lock_guard<std::mutex> lock(mUserListMutex);
 
-	// ÇöÀç ÀÎ¿øÀÌ maxº¸´Ù Å©¸é ÀÔÀå ºÒ°¡
+	// í˜„ì¬ ì¸ì›ì´ maxë³´ë‹¤ í¬ë©´ ì…ì¥ ë¶ˆê°€
 	if (mCurrentUserCount >= mMaxUserCount)
 	{
 		LOG_DEBUG("Room is full. Cannot Enter the roomnum : %d\n", mRoomNumber);
 		return (UINT16)ERROR_CODE::ENTER_ROOM_FULL_USER;
 	}
-	// À¯Àú ¸®½ºÆ®¿¡ Ãß°¡ÇÏ°í count Áõ°¡
+	// ìœ ì € ë¦¬ìŠ¤íŠ¸ì— ì¶”ê°€í•˜ê³  count ì¦ê°€
 	mUserList.push_back(user_);
 	++mCurrentUserCount;
 
-	// À¯Àú °´Ã¼¿¡ ÀÔÀåÇÑ ¹æ ¼³Á¤
-	user_->EnterRoom(mRoomNumber);
 
 	return (UINT16)ERROR_CODE::NONE;
 }
@@ -29,7 +27,7 @@ void Room::LeaveUser(User* leaveUser_)
 	mUserList.remove(leaveUser_);
 
 	//mUserList.remove_if([leaveUser_](std::shared_ptr<User> pUser) {
-	//	return leaveUser_.get() == pUser.get();  // Æ÷ÀÎÅÍ ÁÖ¼Ò ºñ±³
+	//	return leaveUser_.get() == pUser.get();  // í¬ì¸í„° ì£¼ì†Œ ë¹„êµ
 	//	});
 
 	--mCurrentUserCount;
@@ -41,7 +39,7 @@ void Room::NotifyChat(INT32 clientIndex_, const char* userID_, const char* msg_)
 	roomChatNotifyPacket.PacketId = (UINT16)PACKET_ID::ROOM_CHAT_NOTIFY;
 	roomChatNotifyPacket.PacketLength = sizeof(roomChatNotifyPacket);
 
-	// ¸Ş¸ğ¸®¸¦ ¸ÕÀú ÃÊ±âÈ­
+	// ë©”ëª¨ë¦¬ë¥¼ ë¨¼ì € ì´ˆê¸°í™”
 	memset(roomChatNotifyPacket.Message, 0, sizeof(roomChatNotifyPacket.Message));
 	memset(roomChatNotifyPacket.UserID, 0, sizeof(roomChatNotifyPacket.UserID));
 
@@ -50,14 +48,14 @@ void Room::NotifyChat(INT32 clientIndex_, const char* userID_, const char* msg_)
 
 
 
-	// ¹®ÀÚ¿­ ¾ÈÀü º¹»ç (¹æ¹ı 1 - strcpy_s »ç¿ë)
+	// ë¬¸ìì—´ ì•ˆì „ ë³µì‚¬ (ë°©ë²• 1 - strcpy_s ì‚¬ìš©)
 	strcpy_s(roomChatNotifyPacket.UserID, sizeof(roomChatNotifyPacket.UserID), userID_);
 
-	// msg_´Â ROOM_CHAT_REQUEST_PACKET Æ÷¸ËÀÌ¹Ç·Î Message ÇÊµå¸¦ ÃßÃâÇØ¾ß ÇÔ
+	// msg_ëŠ” ROOM_CHAT_REQUEST_PACKET í¬ë§·ì´ë¯€ë¡œ Message í•„ë“œë¥¼ ì¶”ì¶œí•´ì•¼ í•¨
 	auto pChatReqPacket = reinterpret_cast<const ROOM_CHAT_REQUEST_PACKET*>(msg_);
 	strcpy_s(roomChatNotifyPacket.Message, sizeof(roomChatNotifyPacket.Message), pChatReqPacket->Message);
 
-	// µğ¹ö±× ·Î±×
+	// ë””ë²„ê·¸ ë¡œê·¸
 	LOG_DEBUG("Chat Notify: UserID='%s', Message='%s'\n", roomChatNotifyPacket.UserID, roomChatNotifyPacket.Message);
 
 	SendToAllUser(sizeof(roomChatNotifyPacket), (char*)&roomChatNotifyPacket, clientIndex_, false);
@@ -66,26 +64,26 @@ void Room::NotifyChat(INT32 clientIndex_, const char* userID_, const char* msg_)
 	CopyMemory(roomChatNotifyPacket.UserID, userID_, sizeof(roomChatNotifyPacket.UserID));
 
 	SendToAllUser(sizeof(roomChatNotifyPacket), (char*)&roomChatNotifyPacket, clientIndex_, false);
-	printf("Ã¤ÆÃ ¾Ë¸²: UserID='%s', Message='%s'\n", roomChatNotifyPacket.UserID, roomChatNotifyPacket.Message);
-	printf("¸Ş¼¼Áö°¡ Àü¼ÛµÇ¾ú½À´Ï´Ù !\n");*/
+	printf("ì±„íŒ… ì•Œë¦¼: UserID='%s', Message='%s'\n", roomChatNotifyPacket.UserID, roomChatNotifyPacket.Message);
+	printf("ë©”ì„¸ì§€ê°€ ì „ì†¡ë˜ì—ˆìŠµë‹ˆë‹¤ !\n");*/
 }
 
 
 void Room::Reset(INT32 roomNumber_, INT32 maxUserCount_)
 {
-	// ¹æ Á¤º¸ ÃÊ±âÈ­
+	// ë°© ì •ë³´ ì´ˆê¸°í™”
 	mRoomNumber = roomNumber_;
 	mMaxUserCount = maxUserCount_;
 	mCurrentUserCount = 0;
 	mUserList.clear();
 
-	// Strand »óÅÂ ÃÊ±âÈ­
+	// Strand ìƒíƒœ ì´ˆê¸°í™”
 	mMsgCount.store(0, std::memory_order_relaxed);
-	mGeneration.fetch_add(1, std::memory_order_release);	// generation Áõ°¡
+	mGeneration.fetch_add(1, std::memory_order_release);	// generation ì¦ê°€
 	mIsBroken.store(false, std::memory_order_relaxed);
 
-	// localQueue¿¡ ³²Àº ÀÜ¿© Job drain
-	// ³ªÁß¿¡ ObjectPool<PacketJob>ÀÌ ÁØºñµÇ¸é ¿©±â¼­ Free
+	// localQueueì— ë‚¨ì€ ì”ì—¬ Job drain
+	// ë‚˜ì¤‘ì— ObjectPool<PacketJob>ì´ ì¤€ë¹„ë˜ë©´ ì—¬ê¸°ì„œ Free
 	while (mLocalQueue.Pop() != nullptr)
 	{
 
@@ -94,17 +92,17 @@ void Room::Reset(INT32 roomNumber_, INT32 maxUserCount_)
 
 Room::EnqueueResult Room::EnqueueJob(PacketJob* pJob)
 {
-	// °íÀå ½Ã Áï½Ã °ÅÀı
+	// ê³ ì¥ ì‹œ ì¦‰ì‹œ ê±°ì ˆ
 	if (mIsBroken.load(std::memory_order_acquire))
 		return EnqueueResult::FAILED_DROPPED;
 
 	if (pJob->targetGeneration != mGeneration.load(std::memory_order_acquire))
 		return EnqueueResult::FAILED_DROPPED;
 
-	// Å¥¿¡ »ğÀÔ
+	// íì— ì‚½ì…
 	mLocalQueue.Push(pJob);
 
-	// Ä«¿îÅÍ·Î Ã¹¹øÂ° ¿©ºÎ ÆÇº°
+	// ì¹´ìš´í„°ë¡œ ì²«ë²ˆì§¸ ì—¬ë¶€ íŒë³„
 	if (mMsgCount.fetch_add(1, std::memory_order_acq_rel) == 0)
 	{
 		return EnqueueResult::SUCCESS_FIRST;
@@ -125,10 +123,10 @@ User* Room::FindUserByClientIndex(uint32_t clientIndex)
 
 void Room::SendToAllUser(const UINT16 dataSize_, char* data_, const INT32 skipUserIndex_, bool skip_)
 {
-	// 1. Room °´Ã¼ÀÇ ¸ğµç À¯ÀúÀÇ ¼¼¼Ç ¸®½ºÆ®¸¦ °¡Á®
-	// 2. ÇØ´ç ¸®½ºÆ®¸¦ ¹İº¹À» ÅëÇØ Send ¿äÃ»À» ÁøÇàÇÒ °Í
-	// 3. ¿©±â¼­ Æ¯ÀÌÇÑ Á¡Àº ÆĞÅ¶ ¸Å´ÏÀúÀÇ ÇÔ¼ö¸¦ ÇÔ¼ö Æ÷ÀÎÅÍ·Î ¹Ş¾Æ ¹æÀÇ °´Ã¼¿¡ ÀúÀåÇÑ °Í
-	// 4. ÀÌ ÇÔ¼ö Æ÷ÀÎÅÍ¸¦ »ç¿ëÇÏ¿© ÆĞÅ¶ ¸Å´ÏÀúÀÇ ÇÔ¼ö¸¦ È£ÃâÇÏ¿© µ¥ÀÌÅÍ Àü¼Û
+	// 1. Room ê°ì²´ì˜ ëª¨ë“  ìœ ì €ì˜ ì„¸ì…˜ ë¦¬ìŠ¤íŠ¸ë¥¼ ê°€ì ¸
+	// 2. í•´ë‹¹ ë¦¬ìŠ¤íŠ¸ë¥¼ ë°˜ë³µì„ í†µí•´ Send ìš”ì²­ì„ ì§„í–‰í•  ê²ƒ
+	// 3. ì—¬ê¸°ì„œ íŠ¹ì´í•œ ì ì€ íŒ¨í‚· ë§¤ë‹ˆì €ì˜ í•¨ìˆ˜ë¥¼ í•¨ìˆ˜ í¬ì¸í„°ë¡œ ë°›ì•„ ë°©ì˜ ê°ì²´ì— ì €ì¥í•œ ê²ƒ
+	// 4. ì´ í•¨ìˆ˜ í¬ì¸í„°ë¥¼ ì‚¬ìš©í•˜ì—¬ íŒ¨í‚· ë§¤ë‹ˆì €ì˜ í•¨ìˆ˜ë¥¼ í˜¸ì¶œí•˜ì—¬ ë°ì´í„° ì „ì†¡
 
 	//std::lock_guard<std::mutex> lock(mUserListMutex);
 

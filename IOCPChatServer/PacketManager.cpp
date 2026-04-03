@@ -248,7 +248,11 @@ void PacketManager::ProcessPacket()
 			if (pUser->IsDisconnecting())
 			{
 				// 링버퍼에 남은 데이터 전부 소진(drain)
-				while (pUser->GetPacket().PacketId != 0) {}
+				if (pUser->IsDisconnecting())
+				{
+					pUser->ClearPacketBuffer();  // 링버퍼 한방에 초기화
+					continue;
+				}
 				continue;
 			}
 
@@ -288,7 +292,7 @@ void PacketManager::ProcessPacket()
 							pUser->ResetRoom();
 							return; 
 						}
-						m_strandProcessor.EnqueueJob(pRoom, task.clientIndex, pRoom->GetGeneration(), packetData.PacketId, packetData.DataSize, packetData.pDataPtr);
+						m_strandProcessor.EnqueueJob(pRoom, task.clientIndex, pRoom->GetGeneration(),pUser->GetSessionGeneration(), packetData.PacketId, packetData.DataSize, packetData.pDataPtr);
 					}
 					else
 					{
@@ -337,11 +341,14 @@ void PacketManager::ProcessPacket()
 			switch (cb->type)
 			{
 			case StrandCallbackType::FREE_USER:
+			{
 				mUserManager->DeleteUserInfo(pUser);
 				break;
+			}
 			case StrandCallbackType::USER_LEFT_ROOM:
 			{
 				pUser->SetDomainState(User::DOMAIN_STATE::LOGIN);
+				pUser->ResetRoom();
 				break;
 			}
 			case StrandCallbackType::USER_ENTERED_ROOM:
@@ -462,17 +469,22 @@ void PacketManager::ProcessLogin(UINT32 clientIndex_, UINT32 generation_,  UINT1
 	{
 		// usermanager에 사용자 추가
 		auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
-		pUser->SetLogin(pUserID);
-		pUser->SetSessionGeneration(generation_);
-		mUserManager->Adduser(pUserID, clientIndex_);
 
 		LOGIN_RESPONSE_PACKET loginResPacket;
 		loginResPacket.PacketId = (UINT16)PACKET_ID::LOGIN_RESPONSE;
 		loginResPacket.PacketLength = sizeof(loginResPacket);
-		loginResPacket.Result = (UINT16)ERROR_CODE::NONE;
-		SendPacketFunc(clientIndex_, generation_, sizeof(LOGIN_RESPONSE_PACKET), (char*)&loginResPacket);
 
-		LOG_DEBUG("[Load Test] Dummy login Success: %s\n", pUserID);
+		auto result = mUserManager->Adduser(pUserID, clientIndex_);
+		loginResPacket.Result = (UINT16)result;  // 성공이면 NONE, 실패면 에러코드
+
+		if (result == ERROR_CODE::NONE)
+		{
+			pUser->SetSessionGeneration(generation_);
+			mUserManager->IncreaseUserCnt();
+			LOG_DEBUG("[Load Test] Dummy login Success: %s\n", pUserID);
+		}
+
+		SendPacketFunc(clientIndex_, generation_, sizeof(LOGIN_RESPONSE_PACKET), (char*)&loginResPacket);
 		
 		return;
 	}
@@ -497,12 +509,9 @@ void PacketManager::ProcessLogin(UINT32 clientIndex_, UINT32 generation_,  UINT1
 		return; // 중복이므로 차단
 	}
 
-	if (existingIndex == -1)
-	{
-		LOG_DEBUG("새로운 사용자 - Redis로 전송\n");
-		// Redis 요청
-		LOG_DEBUG("Login To Redis USER ID : %s\n", pUserID);
-	}
+
+	LOG_DEBUG("Login To Redis USER ID : %s\n", pUserID);
+	
 
 
 	// 접속자 수가 최대수인지 확인
@@ -618,7 +627,7 @@ void PacketManager::ClearConnectionInfo(INT32 clientIndex_)
 			return;
 		}
 		// roomIndex를 정상적으로 읽을 수 있음
-		m_strandProcessor.EnqueueJob(pRoom, clientIndex_, pRoom->GetGeneration(), (UINT16)PACKET_ID::SYS_USER_DISCONNECT, 0, nullptr);
+		m_strandProcessor.EnqueueJob(pRoom, clientIndex_, pRoom->GetGeneration(),pReqUser->GetSessionGeneration(), (UINT16)PACKET_ID::SYS_USER_DISCONNECT, 0, nullptr);
 
 	}
 	else
@@ -671,7 +680,7 @@ void PacketManager::ProcessEnterRoom(UINT32 clientIndex_, UINT32 generation_, UI
 	}
 
 	// 실제 입장 Strand에 넘김
-	m_strandProcessor.EnqueueJob(pRoom, clientIndex_, pRoom->GetGeneration(), (UINT16)PACKET_ID::ROOM_ENTER_REQUEST, packetSize_, pPacket);
+	m_strandProcessor.EnqueueJob(pRoom, clientIndex_, pRoom->GetGeneration(),pReqUser->GetSessionGeneration(), (UINT16)PACKET_ID::ROOM_ENTER_REQUEST, packetSize_, pPacket);
 
 	////	응답 패킷을 생성하고
 	//ROOM_ENTER_RESPONSE_PACKET roomEnterResPacket;
@@ -722,129 +731,7 @@ void PacketManager::ProcessEnterRoom(UINT32 clientIndex_, UINT32 generation_, UI
 
 }
 
-//void PacketManager::ProcessLeaveRoom(UINT32 clientIndex_, UINT32 generation_, UINT16 packetSize_, char* pPacket)
-//{
-//
-//	UNREFERENCED_PARAMETER(packetSize_);
-//	UNREFERENCED_PARAMETER(pPacket);
-//	//  방 퇴장 요청 패킷을 받는다.
-//	auto pRoomLeaveReqPacket = reinterpret_cast<ROOM_LEAVE_REQUEST_PACKET*>(pPacket);
-//	//	유효한 유저인지 검사한다.
-//	auto pReqUser = mUserManager->GetUserByConnIdx(clientIndex_);
-//	if (pReqUser == nullptr)
-//	{
-//		LOG_DEBUG("유효하지 않은 유저 ! . ClientIndex : %d\n", clientIndex_);
-//		return;
-//	}
-//	// 방 퇴장 전 방 정보 미리 저장
-//	// 퇴장 후에는 정보가 사라지기 때문
-//	auto roomNumber = pReqUser->GetRoomIndex();
-//	auto pRoom = mRoomManager->GetRoomByNumber(roomNumber);
-//
-//	//	응답 패킷을 생성하고
-//	ROOM_LEAVE_RESPONSE_PACKET roomLeaveResPacket;
-//	roomLeaveResPacket.PacketId = (UINT16)PACKET_ID::ROOM_LEAVE_RESPONSE;
-//	roomLeaveResPacket.PacketLength = sizeof(ROOM_LEAVE_RESPONSE_PACKET);
-//
-//	//	RoomManager 객체의 leaveUser 함수를 호출한다.
-//	roomLeaveResPacket.Result = mRoomManager->LeaveUser(roomNumber, pReqUser);
-//
-//	// 방 퇴장 성공 시 방 전체에 퇴장 알림
-//	if (roomLeaveResPacket.Result == (UINT16)ERROR_CODE::NONE)
-//	{	
-//		MySQLRoomEventReq req{};
-//		strcpy_s(req.UserID, pReqUser->GetUserID().c_str());
-//		req.RoomNumber = roomNumber;
-//		req.EventType = RoomEventType::LEAVE;
-//		req.TimeStampSec = (UINT64)time(nullptr);
-//
-//		MySQLTask task{};
-//		task.UserIndex = clientIndex_;
-//		task.TaskID = MySQLTaskID::INSERT_ROOM_EVENT;
-//		task.DataSize = sizeof(MySQLRoomEventReq);
-//		//task.pData = new char[task.DataSize];
-//		CopyMemory(task.body, &req, task.DataSize);
-//		mMySQLManager->PushTask(task);
-//
-//		if (pRoom != nullptr)
-//		{
-//			// 임시 채팅 패킷 생성
-//			ROOM_CHAT_REQUEST_PACKET tempChatPacket;
-//			tempChatPacket.PacketId = (UINT16)PACKET_ID::ROOM_CHAT_REQUEST;
-//			tempChatPacket.PacketLength = sizeof(ROOM_CHAT_REQUEST_PACKET);
-//
-//			sprintf_s(tempChatPacket.Message, "has left the room.");
-//
-//			// 방 전체에 알림
-//			pRoom->NotifyChat(clientIndex_, pReqUser->GetUserID().c_str(), (char*)&tempChatPacket);
-//		}
-//	}
-//
-//	//	해당 값의 결과를 응답 패킷의 데이터에 넣어서 전송한다.
-//	SendPacketFunc(clientIndex_, generation_, sizeof(ROOM_LEAVE_RESPONSE_PACKET), (char*)&roomLeaveResPacket);
-//	LOG_DEBUG("Leave Room Res Packet Send ! \n");
-//
-//}
 
-//void PacketManager::ProcessRoomChatMessage(UINT32 clientIndex_, UINT32 generation_, UINT16 packetSize_, char* pPacket)
-//{
-//	UNREFERENCED_PARAMETER(packetSize_);
-//	//  채팅 패킷을 받는다.
-//	auto pRoomChatReqPacket = reinterpret_cast<ROOM_CHAT_REQUEST_PACKET*>(pPacket);
-//	//	해당 패킷에서 클라이언트 index, userId, message 정보를 추출한다.
-//	ROOM_CHAT_RESPONSE_PACKET roomChatResPacket;
-//	roomChatResPacket.PacketId = (UINT16)PACKET_ID::ROOM_CHAT_RESPONSE;
-//	roomChatResPacket.PacketLength = sizeof(ROOM_CHAT_RESPONSE_PACKET);
-//	roomChatResPacket.Result = (UINT16)ERROR_CODE::NONE;
-//	//	user 객체로 해당 정보를 전달한다.
-//	auto pReqUser = mUserManager->GetUserByConnIdx(clientIndex_);
-//	if (pReqUser == nullptr)
-//	{
-//		LOG_ERROR("유효하지 않은 유저!. ClientIndex : %d\n", clientIndex_);
-//		return;
-//	}
-//
-//	// 유저가 방에 있는지 확인, 
-//	if (pReqUser->GetDomainState() != User::DOMAIN_STATE::ROOM)
-//	{
-//		roomChatResPacket.Result = (UINT16)ERROR_CODE::ENTER_ROOM_INVALID_USER_STATUS;
-//		SendPacketFunc(clientIndex_, generation_, sizeof(ROOM_CHAT_RESPONSE_PACKET), (char*)&roomChatResPacket);
-//		return;
-//	}
-//
-//	auto roomNum = pReqUser->GetRoomIndex();
-//
-//	auto pRoom = mRoomManager->GetRoomByNumber(roomNum);
-//
-//	if (pRoom == nullptr)
-//	{
-//		roomChatResPacket.Result = (UINT16)ERROR_CODE::CHAT_ROOM_INVALID_ROOM_NUMBER;
-//		SendPacketFunc(clientIndex_, generation_, sizeof(ROOM_CHAT_RESPONSE_PACKET), (char*)&roomChatResPacket);
-//		return;
-//	}
-//	
-//	SendPacketFunc(clientIndex_, generation_, sizeof(ROOM_CHAT_RESPONSE_PACKET), (char*)&roomChatResPacket);
-//	
-//	// MySQL 채팅 메세지 저장
-//	MySQLChatMsgReq chatmsg{};
-//	strcpy_s(chatmsg.UserID, pReqUser->GetUserID().c_str());
-//	chatmsg.RoomNumber = roomNum;
-//	strcpy_s(chatmsg.Message, pRoomChatReqPacket->Message);
-//	chatmsg.TimeStampSec = (UINT64)time(nullptr);
-//
-//	MySQLTask task{};
-//	task.UserIndex = clientIndex_;
-//	task.TaskID = MySQLTaskID::INSERT_CHAT_MESSAGE;
-//	task.DataSize = sizeof(MySQLChatMsgReq);
-//	//task.pData = new char[task.DataSize];
-//	CopyMemory(task.body, &chatmsg, task.DataSize);
-//	mMySQLManager->PushTask(task);
-//
-//	//	Room 객체에서 브로드캐스트 전송을 수행한다.
-//	pRoom->NotifyChat(clientIndex_, pReqUser->GetUserID().c_str(), (char*)pRoomChatReqPacket);
-//
-//
-//}
 
 void PacketManager::NotifyPacketEvent()
 {

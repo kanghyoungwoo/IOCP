@@ -1,4 +1,4 @@
-#include "User.h"
+ï»¿#include "User.h"
 
 void User::Clear()
 {
@@ -7,8 +7,8 @@ void User::Clear()
 		mUserID = "";
 		mCurDomainState = DOMAIN_STATE::NONE;
 		mPacketDataBuffer.Clear();
-		//mGeneration++;	// ¼¼´ë Ä«¿îÅÍ Áõ°¡
-
+		//mGeneration++;	// ì„¸ëŒ€ ì¹´ìš´í„° ì¦ê°€
+		roomIndex = -1;
 		mIsDisconnecting.store(false);
 
 		mSessionGeneration = 0;
@@ -31,11 +31,11 @@ bool User::SetPacketData(const UINT32 dataSize_, char* pData_)
 	std::lock_guard<std::mutex>lock(mPacketRingBuffMutex);
 	size_t written = mPacketDataBuffer.Write(pData_, dataSize_);
 
-	// ¸µ¹öÆÛ¿¡ ¾µ ¼ö ¾ø´Â °æ¿ì ¿¡·¯
+	// ë§ë²„í¼ì— ì“¸ ìˆ˜ ì—†ëŠ” ê²½ìš° ì—ëŸ¬
 	if (written < dataSize_)
 	{
 		LOG_ERROR("%zu bytes out of %u bytes to packet buffer\n", written, dataSize_);
-		return false; // overflow ¹ß»ı
+		return false; // overflow ë°œìƒ
 	}
 	return true;
 }
@@ -68,23 +68,23 @@ PacketInfo User::GetPacket()
 
 	auto pHeader = (PACKET_HEADER*)headerBuffer;
 
-	// ÆĞÅ¶ Å©±â À¯È¿¼º °ËÁõ
+	// íŒ¨í‚· í¬ê¸° ìœ íš¨ì„± ê²€ì¦
 	if (pHeader->PacketLength < PACKET_HEADER_LENGTH || pHeader->PacketLength > MAX_PACKET_DATA_BUFFER_SIZE)
 	{
-		LOG_ERROR("Invalid PacketLength: %d (valid: %u~%zd) ¡æ ¹öÆÛ ÃÊ±âÈ­\n",
+		LOG_ERROR("Invalid PacketLength: %d (valid: %u~%zd) â†’ ë²„í¼ ì´ˆê¸°í™”\n",
 			pHeader->PacketLength, PACKET_HEADER_LENGTH, MAX_PACKET_DATA_BUFFER_SIZE);
-		mPacketDataBuffer.Clear();  // ¿À¿°µÈ ¹öÆÛ Æó±â
+		mPacketDataBuffer.Clear();  // ì˜¤ì—¼ëœ ë²„í¼ íê¸°
 		return PacketInfo();
 	}
 
-	// ÀüÃ¼ ÆĞÅ¶ Å©±â¸¸Å­ µ¥ÀÌÅÍ°¡ ÀÖ´ÂÁö È®ÀÎ
+	// ì „ì²´ íŒ¨í‚· í¬ê¸°ë§Œí¼ ë°ì´í„°ê°€ ìˆëŠ”ì§€ í™•ì¸
 	if (pHeader->PacketLength > mPacketDataBuffer.Size())
 	{
 		LOG_DEBUG("Packet data insufficient - need(%d) : have(%zu)\n", pHeader->PacketLength, mPacketDataBuffer.Size());
 		return PacketInfo();
 	}
 
-	// ÆĞÅ¶ µ¥ÀÌÅÍ¸¦ ÀÓ½Ã ¹öÆÛ¿¡ ÀĞ¾î¿À±â
+	// íŒ¨í‚· ë°ì´í„°ë¥¼ ì„ì‹œ ë²„í¼ì— ì½ì–´ì˜¤ê¸°
 	//static char tempPacketBuffer[MAX_PACKET_DATA_BUFFER_SIZE];
 
 	size_t readBytes = mPacketDataBuffer.Read(m_tempPacketBuffer, pHeader->PacketLength);

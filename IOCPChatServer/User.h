@@ -30,6 +30,11 @@ public:
 
 	void Clear();
 
+	void ClearPacketBuffer()
+	{
+		std::lock_guard<std::mutex> lock(mPacketRingBuffMutex);
+		mPacketDataBuffer.Clear();
+	}
 
 	std::string GetUserID() const
 	{
