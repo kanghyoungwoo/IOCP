@@ -1,0 +1,24 @@
+{
+    "engine": {
+        "serverHost": "127.0.0.1",
+        "serverPort": 11021,
+        "totalBots": 100,
+        "ioWorkerThreads": 4,
+        "connectBatchSize": 50,
+        "connectIntervalMs": 100
+    },
+    "proxy": {
+        "enabled": true,
+        "listenPort": 12021,
+        "targetHost": "127.0.0.1",
+        "targetPort": 11021,
+        "fragmentEnabled": false,
+        "delayEnabled": true,
+        "dropEnabled": false,
+        "reorderEnabled": false
+    },
+    "scenario": {
+        "type": 0,
+        "maxCycles": 0
+    }
+}
