@@ -19,6 +19,9 @@
     },
     "scenario": {
         "type": 0,
-        "maxCycles": 0
+        "reconnectCycleCount": 70000,
+        "repeatCount": 1000,
+        "zombieBotCount": 200,
+        "durationSec": 60
     }
 }

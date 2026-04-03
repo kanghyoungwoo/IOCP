@@ -32,9 +32,6 @@
     <ClInclude Include="ClientSession.h">
       <Filter>ServerNetwork</Filter>
     </ClInclude>
-    <ClInclude Include="GlobalQueue_LockFree.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
     <ClInclude Include="Define.h">
       <Filter>Common</Filter>
     </ClInclude>
@@ -107,6 +104,12 @@
     <ClInclude Include="ConfigManager.h">
       <Filter>Common</Filter>
     </ClInclude>
+    <ClInclude Include="GlobalQueue_LockFree.h">
+      <Filter>Concurrency</Filter>
+    </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -115,5 +118,32 @@
     <ClCompile Include="PacketManager.cpp">
       <Filter>Contents</Filter>
     </ClCompile>
+    <ClCompile Include="GlobalQueue_LockFree.cpp">
+      <Filter>Concurrency</Filter>
+    </ClCompile>
+    <ClCompile Include="User.cpp">
+      <Filter>Contents</Filter>
+    </ClCompile>
+    <ClCompile Include="Room.cpp">
+      <Filter>Contents</Filter>
+    </ClCompile>
+    <ClCompile Include="UserManager.cpp">
+      <Filter>Contents</Filter>
+    </ClCompile>
+    <ClCompile Include="RoomManager.cpp">
+      <Filter>Contents</Filter>
+    </ClCompile>
+    <ClCompile Include="ClientSession.cpp">
+      <Filter>ServerNetwork</Filter>
+    </ClCompile>
+    <ClCompile Include="StrandProcessor.cpp">
+      <Filter>Concurrency</Filter>
+    </ClCompile>
+    <ClCompile Include="IOCP.cpp">
+      <Filter>ServerNetwork</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="IOCPChatServer.rc" />
   </ItemGroup>
 </Project>

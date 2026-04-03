@@ -54,6 +54,12 @@ bool LoadConfig(const std::string& filename, ChaosConfig& config)
             auto& s = j["scenario"];
             int type = s.value("type", 1);
             config.scenario.type = static_cast<ScenarioType>(type);
+
+            // 시나리오별 세부 설정 읽기
+            config.scenario.scenarioA.reconnectCycleCount = s.value("reconnectCycleCount", 70000);
+            config.scenario.scenarioB.repeatCount = s.value("repeatCount", 1000);
+            config.scenario.scenarioC.zombieBotCount = s.value("zombieBotCount", 200);
+            config.scenario.durationSec = s.value("durationSec", 60);
         }
     }
     catch (const std::exception& e)
