@@ -35,9 +35,9 @@ void BotClient::Init(uint32_t botIndex, BotEngine* pEngine)
     mRecvPos = 0;
     mCycleCount = 0;
 
-    // 유저 ID 생성: "chaos_XXXX" 형태
+    // 유저 ID 생성: "test_user_XXXX" 형태
     char id[MAX_USER_ID_LENGTH + 1];
-    snprintf(id, sizeof(id), "chaos_%05u", botIndex);
+    snprintf(id, sizeof(id), "test_user_%05u", botIndex);
     mUserId = id;
 }
 
