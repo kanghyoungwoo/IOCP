@@ -82,7 +82,7 @@ bool ClientSession::SendMsg(const UINT32 dataSize, char* pMsg)
 		return false;
 
 	// 악성 패킷 / 버퍼 오버플로우 차단
-	if (dataSize == 0 || dataSize > sizeof(SendOverlappedEx::buffer))
+	if (dataSize == 0 || dataSize > MAX_SOCKBUF)
 	{
 		LOG_ERROR("비정상적인 패킷 크기 감지 (Buffer Overflow 시도)! Size: %d\n", dataSize);
 
@@ -264,33 +264,31 @@ bool ClientSession::SendIO()
 
 void ClientSession::SendComplete(SendOverlappedEx* pCompletedOvl)
 {
-	// 메모리 해제 전 gen 저장
+	// 1. 메모리 해제 전 gen 저장
 	const uint32_t completedGen = pCompletedOvl->generation;
 
 	std::lock_guard<std::mutex> guard(mSendLock);
 
-	// 큐에서 먼저 제거
+	// 2. 큐에서 먼저 제거
 	if (!mSendDataqueue.empty())
 		mSendDataqueue.pop();
 
-	LOG_DEBUG("[송신 완료] bytes : %d\n", pCompletedOvl->wsaBuf.len);
-	// 큐에서 안전하게 분리된 객체를 비로소 풀에 반납
+	// 3. 큐에서 분리된 객체를 풀에 반납
 	mSendPool->Free(pCompletedOvl);
 
-	// Stale  검사(이전 유저의 찌꺼기 여기서 탈출)
+	// 4. Stale 검사
 	if (completedGen != GetGeneration())
 		return;
 
 	if (!IsConnected())
 		return;
 
-	// 항상 정상 유저라면 다음 전송 시작
+	// 5. 다음 데이터 전송
 	if (!mSendDataqueue.empty())
 	{
 		if (!SendIO())
 			DisconnectAsync(GetGeneration());
 	}
-
 
 }
 

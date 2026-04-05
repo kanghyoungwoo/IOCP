@@ -260,6 +260,15 @@ void PacketManager::ProcessPacket()
 			if (packetData.PacketId == 0)
 				continue;
 
+			if (packetData.DataSize == 0 || packetData.DataSize > MAX_SOCKBUF)
+			{
+				LOG_ERROR("비정상적인 패킷 크기 수신 (해킹 시도)! Size: %d\n", packetData.DataSize);
+				pUser->SetDisconnecting();
+				// 악성 유저이므로 연결을 끊어버림 (Strand를 통해 안전하게 종료 처리)
+				m_strandProcessor.EnqueueJob(nullptr, task.clientIndex, 0, pUser->GetSessionGeneration(), (UINT16)PACKET_ID::SYS_USER_DISCONNECT, 0, nullptr);
+				continue;
+			}
+
 			// 완전한 패킷이 조립되었으므로 활동 시간 갱신
 			if (UpdateActivityFunc)
 				UpdateActivityFunc(task.clientIndex);

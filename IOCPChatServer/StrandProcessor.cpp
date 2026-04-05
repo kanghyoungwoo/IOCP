@@ -37,6 +37,7 @@ void StrandProcessor::Stop()
 
 void StrandProcessor::EnqueueJob(Room* pRoom, uint32_t clientIndex, uint32_t targetGeneration,UINT32 sessionGeneration, uint16_t packetId, uint16_t dataSize, const char* data)
 {
+    
     mAllocTotalCount.fetch_add(1, std::memory_order_relaxed);
     PacketJob* pJob = mJobPool.Alloc();
     if (pJob == nullptr)
@@ -53,6 +54,12 @@ void StrandProcessor::EnqueueJob(Room* pRoom, uint32_t clientIndex, uint32_t tar
     pJob->sessionGeneration = sessionGeneration;
     pJob->packetId = packetId;
     pJob->dataSize = dataSize;
+
+    if (dataSize == 0 || dataSize > MAX_SOCKBUF)
+    {
+        LOG_ERROR("비정상적인 패킷 크기 수신 (해킹 시도)! Size: %d\n", dataSize);
+        return;
+    }
 
     if (dataSize > 0 && data != nullptr)
     {
