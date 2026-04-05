@@ -78,9 +78,19 @@ void ClientSession::Clear()
 // WSASend Overlapped I/O 작업을 수행
 bool ClientSession::SendMsg(const UINT32 dataSize, char* pMsg)
 {
-	// 
 	if (!IsConnected())
 		return false;
+
+	// 악성 패킷 / 버퍼 오버플로우 차단
+	if (dataSize == 0 || dataSize > sizeof(SendOverlappedEx::buffer))
+	{
+		LOG_ERROR("비정상적인 패킷 크기 감지 (Buffer Overflow 시도)! Size: %d\n", dataSize);
+
+		// 해킹을 시도한 악성 유저이므로 연결 끊어버림
+		DisconnectAsync(GetGeneration());
+		return false;
+	}
+
 	// 풀에서 SendOverlappedEx 하나를 가져옴 (힙 할당 제거)
 	auto pSendOvl = mSendPool->Alloc();
 	if (pSendOvl == nullptr)
