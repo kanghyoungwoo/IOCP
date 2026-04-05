@@ -86,6 +86,7 @@ void SetupDefaultConfig(ChaosConfig& config)
 
 int main()
 {
+    SetConsoleOutputCP(65001); // utf-8 출력설정
     LOG_UI("=============================================================\n");
     LOG_UI("        CHAOS BOT SYSTEM - Starting Destruction Phase        \n");
     LOG_UI("=============================================================\n");
@@ -114,11 +115,21 @@ int main()
     runner.RunScenario(config);
 
     LOG_UI("\n[Main] Running... Press 'ESC' to stop, 'S' for Summary.\n");
-
+    auto startTime = std::chrono::steady_clock::now();
     while (true)
     {
         GetStats().PrintLiveLine();
 
+        // durationSec 경과 시 자동 종료
+        if (config.scenario.durationSec > 0)
+        {
+            auto elapsed = std::chrono::steady_clock::now() - startTime;
+            if (elapsed >= std::chrono::seconds(config.scenario.durationSec))
+            {
+                LOG_UI("\n[MAIN] Duration %u 초 달성. 자동 종료...\n", config.scenario.durationSec);
+                break;
+            }
+        }
         if (_kbhit())
         {
             int ch = _getch();
