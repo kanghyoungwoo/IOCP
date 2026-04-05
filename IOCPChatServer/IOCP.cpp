@@ -559,7 +559,7 @@ void IOCompletionPort::WorkerThread()
 
 				// Stale 여부 상관없이 무조건 SendComplete로 넘김
 				// 메모리 해제 + 큐 정리는 항상 다음 전송만 조건부
-				pClientSession->SendComplete(dwIoSize, pSendOvl);
+				pClientSession->SendComplete(pSendOvl);
 
 				if (pClientSession->ReleaseRef())
 				{

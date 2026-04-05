@@ -48,10 +48,7 @@ void ClientSession::Closed(bool bIsForced)
 
 	// 소켓 연결을 닫기
 	closesocket(m_socketClient);
-
 	m_socketClient = INVALID_SOCKET;
-
-	Clear();
 }
 
 void ClientSession::Clear()
@@ -255,22 +252,25 @@ bool ClientSession::SendIO()
 	return true;
 }
 
-void ClientSession::SendComplete(const UINT32 dataSize_, SendOverlappedEx* pCompletedOvl)
+void ClientSession::SendComplete(SendOverlappedEx* pCompletedOvl)
 {
-	// OS가 돌려준 메모리를 무조건 먼저 해제
-	mSendPool->Free(pCompletedOvl);
-
-	// gen 불일치시 즉시 탈출 (이전 유저의 찌꺼기 + 큐 절대 안건듦)
-	if (pCompletedOvl->generation != GetGeneration())
-		return;
+	// 메모리 해제 전 gen 저장
+	const uint32_t completedGen = pCompletedOvl->generation;
 
 	std::lock_guard<std::mutex> guard(mSendLock);
 
-	// 내 세대의 IO가 확실, 큐에서 제거
+	// 큐에서 먼저 제거
 	if (!mSendDataqueue.empty())
 		mSendDataqueue.pop();
 
-	// 끊기는 중이라면 다음 전송 안함
+	LOG_DEBUG("[송신 완료] bytes : %d\n", pCompletedOvl->wsaBuf.len);
+	// 큐에서 안전하게 분리된 객체를 비로소 풀에 반납
+	mSendPool->Free(pCompletedOvl);
+
+	// Stale  검사(이전 유저의 찌꺼기 여기서 탈출)
+	if (completedGen != GetGeneration())
+		return;
+
 	if (!IsConnected())
 		return;
 
@@ -281,7 +281,6 @@ void ClientSession::SendComplete(const UINT32 dataSize_, SendOverlappedEx* pComp
 			DisconnectAsync(GetGeneration());
 	}
 
-	LOG_DEBUG("[송신 완료] bytes : %d\n", dataSize_);
 
 }
 

@@ -77,7 +77,7 @@ public:
 
 	bool SendIO();
 
-	void SendComplete(const UINT32 dataSize_, SendOverlappedEx* pCompletedOvl);
+	void SendComplete(SendOverlappedEx* pCompletedOvl);
 
 	bool AcceptCompletion(SOCKET listenSock_);
 
@@ -126,7 +126,12 @@ public:
 	// true면 내가 마지막 스레드 -> 세션 반납 책임
 	bool ReleaseRef()
 	{
-		return mRefCount.fetch_sub(1, std::memory_order_acq_rel) == 1;
+		if (mRefCount.fetch_sub(1, std::memory_order_acq_rel) == 1)
+		{
+			Clear();
+			return true;
+		}
+		return false;
 	}
 
 	int GetRefCount() const
