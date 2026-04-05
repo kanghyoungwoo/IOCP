@@ -75,26 +75,6 @@ private:
 	// Overlapped I/O 작업에 대한 완료 통보를 받아 그에 해당하는 처리를 하는 함수
 	void WorkerThread();
 
-	// 접속요청을 스레드에서 받는 스레드
-	//void AccepterThread()
-	//{
-	//	while (mIsAccepterRun)
-	//	{
-	//		for (auto& client : mClientInfos)
-	//		{
-	//			if (client->IsConnected())
-	//				continue;
-	//			// 대기 시간 없이 바로 AccpetEx
-	//			client->PostImmediateAccept(mListenSocket);
-
-	//			// 최소대기시간
-	//			std::this_thread::sleep_for(std::chrono::milliseconds(1));
-	//		}
-	//	}
-
-	//}
-
-
 	// 소켓의 연결을 종료
 	void CloseSocket(ClientSession* pClientSession, bool bIsForce = false);
 

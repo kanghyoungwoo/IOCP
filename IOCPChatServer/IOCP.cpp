@@ -1,4 +1,4 @@
-#include "IOCP.h"
+ï»¿#include "IOCP.h"
 #include "ConfigManager.h"
 
 bool IOCompletionPort::Init(const UINT32 Max_IO_Worker_Threads_Count)
@@ -8,22 +8,22 @@ bool IOCompletionPort::Init(const UINT32 Max_IO_Worker_Threads_Count)
 	int nRet = WSAStartup(MAKEWORD(2, 2), &wsaData);
 	if (nRet != 0)
 	{
-		LOG_ERROR("WSAStartup() ½ÇÆĞ : %d\n", WSAGetLastError());
+		LOG_ERROR("WSAStartup() ì‹¤íŒ¨ : %d\n", WSAGetLastError());
 		return false;
 	}
 
-	// TCP, Overlapped I/O ¼ÒÄÏÀ» »ı¼º
+	// TCP, Overlapped I/O ì†Œì¼“ì„ ìƒì„±
 	mListenSocket = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, NULL, WSA_FLAG_OVERLAPPED);
 
 	if (mListenSocket == INVALID_SOCKET)
 	{
-		LOG_ERROR("socket() ½ÇÆĞ : %d\n", WSAGetLastError());
+		LOG_ERROR("socket() ì‹¤íŒ¨ : %d\n", WSAGetLastError());
 		return false;
 	}
 
 	MaxIOWorkerThreadCount = Max_IO_Worker_Threads_Count;
 
-	LOG_DEBUG("SOCKET ÃÊ±âÈ­ ¼º°ø\n");
+	LOG_DEBUG("SOCKET ì´ˆê¸°í™” ì„±ê³µ\n");
 	return true;
 }
 
@@ -31,34 +31,34 @@ bool IOCompletionPort::BindandListen(int nBindPort)
 {
 	SOCKADDR_IN stServerAddr;
 	stServerAddr.sin_family = AF_INET;
-	stServerAddr.sin_port = htons(nBindPort);	// ¼­¹ö Æ÷Æ®¸¦ ¼³Á¤
-	// ¾î¶² ÁÖ¼Ò¿¡¼­ ¿À´Â Á¢¼ÓÀÌ¶óµµ ¹Ş°Ú´Ù ÇÏ´Âµ¥ ½ÇÁ¦ ¼­¹ö¿¡¼­´Â ÀÌ·¸°Ô ¼³Á¤
+	stServerAddr.sin_port = htons(nBindPort);	// ì„œë²„ í¬íŠ¸ë¥¼ ì„¤ì •
+	// ì–´ë–¤ ì£¼ì†Œì—ì„œ ì˜¤ëŠ” ì ‘ì†ì´ë¼ë„ ë°›ê² ë‹¤ í•˜ëŠ”ë° ì‹¤ì œ ì„œë²„ì—ì„œëŠ” ì´ë ‡ê²Œ ì„¤ì •
 	stServerAddr.sin_addr.s_addr = htonl(INADDR_ANY);
 
-	// ÁöÁ¤ÇÑ ¼ÒÄÏÀÇ ·ÎÄÃ ÁÖ¼Ò Á¤º¸¸¦ cIOCompletionPort ¼ÒÄÏ¿¡ ¿¬°á
+	// ì§€ì •í•œ ì†Œì¼“ì˜ ë¡œì»¬ ì£¼ì†Œ ì •ë³´ë¥¼ cIOCompletionPort ì†Œì¼“ì— ì—°ê²°
 	int nRet = bind(mListenSocket, (SOCKADDR*)&stServerAddr, sizeof(SOCKADDR_IN));
 
 	if (nRet != 0)
 	{
-		LOG_ERROR("bind() ½ÇÆĞ : %d\n", WSAGetLastError());
+		LOG_ERROR("bind() ì‹¤íŒ¨ : %d\n", WSAGetLastError());
 		return false;
 	}
 
-	// Á¢¼Ó´ë±âÅ¥ 5°³ ¼³Á¤
+	// ì ‘ì†ëŒ€ê¸°í 5ê°œ ì„¤ì •
 	nRet = listen(mListenSocket, 5);
 
 	if (nRet != 0)
 	{
-		LOG_ERROR("listen() ½ÇÆĞ : %d\n", WSAGetLastError());
+		LOG_ERROR("listen() ì‹¤íŒ¨ : %d\n", WSAGetLastError());
 		return false;
 	}
 
-	// Ã³À½ IOCP QUEUE¸¸µé¶§´Â ÇÚµé NULL, µ¿½Ã½ÇÇà¼ö 0ÀÌ¸é OS¿¡ ¸Ã±è
+	// ì²˜ìŒ IOCP QUEUEë§Œë“¤ë•ŒëŠ” í•¸ë“¤ NULL, ë™ì‹œì‹¤í–‰ìˆ˜ 0ì´ë©´ OSì— ë§¡ê¹€
 	mIOCPHandle = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, NULL, MaxIOWorkerThreadCount);
 
 	if (mIOCPHandle == NULL)
 	{
-		LOG_ERROR("CreateIoCompletionPort() ½ÇÆĞ: %d\n", GetLastError());
+		LOG_ERROR("CreateIoCompletionPort() ì‹¤íŒ¨: %d\n", GetLastError());
 		return false;
 	}
 
@@ -66,11 +66,11 @@ bool IOCompletionPort::BindandListen(int nBindPort)
 
 	if (hIOCPHandle == nullptr)
 	{
-		LOG_ERROR("listen socket IOCP bind ½ÇÆĞ : %d\n", WSAGetLastError());
+		LOG_ERROR("listen socket IOCP bind ì‹¤íŒ¨ : %d\n", WSAGetLastError());
 		return false;
 	}
 
-	LOG_DEBUG("¼­¹ö µî·Ï ¼º°ø ! \n");
+	LOG_DEBUG("ì„œë²„ ë“±ë¡ ì„±ê³µ ! \n");
 	return true;
 }
 
@@ -88,14 +88,14 @@ bool IOCompletionPort::StartServer(const int maxClientCount)
 
 	const auto& config = ConfigManager::GetInstance().Get();
 
-	// ÃÊ±â AcceptEx 100°³ °É¾î³õ±â
+	// ì´ˆê¸° AcceptEx 100ê°œ ê±¸ì–´ë†“ê¸°
 	for (UINT32 i = 0; i < config.MaxPendingAccept;++i)
 	{
-		// popÀ¸·Î ºó ÀÎµ¦½º °¡Á®¿È
+		// popìœ¼ë¡œ ë¹ˆ ì¸ë±ìŠ¤ ê°€ì ¸ì˜´
 		UINT32 emptyIndex = PopFreeSessionIndex();
 		if (emptyIndex != UINT32_MAX)
 		{
-			// ÇØ´ç ¼¼¼Ç¿¡ postImmediate È£Ãâ
+			// í•´ë‹¹ ì„¸ì…˜ì— postImmediate í˜¸ì¶œ
 			auto pClient = GetClientInfo(emptyIndex);
 			if (pClient->PostImmediateAccept(mListenSocket))
 			{
@@ -118,50 +118,50 @@ bool IOCompletionPort::StartServer(const int maxClientCount)
 
 	//CreateSendThread();
 
-	LOG_DEBUG("¼­¹ö ½ÃÀÛ \n");
+	LOG_DEBUG("ì„œë²„ ì‹œì‘ \n");
 	return true;
 }
 
-// »ı¼ºµÇ¾î ÀÖ´Â ½º·¹µå¸¦ ÆÄ±«ÇÑ´Ù
+// ìƒì„±ë˜ì–´ ìˆëŠ” ìŠ¤ë ˆë“œë¥¼ íŒŒê´´í•œë‹¤
 void IOCompletionPort::DestroyThread()
 {
 
 	mIsTimeoutRun = false;
 	if (mTimeoutThread.joinable())
 		mTimeoutThread.join();
-	LOG_DEBUG("TimeoutThread Á¾·á ¿Ï·á\n");
+	LOG_DEBUG("TimeoutThread ì¢…ë£Œ ì™„ë£Œ\n");
 
-	//Todo: GracefulShutDown ±¸ÇöÇÏ±â
+	//Todo: GracefulShutDown êµ¬í˜„í•˜ê¸°
 
-	// step1. Accept ÁßÁö
+	// step1. Accept ì¤‘ì§€
 	//mIsAccepterRun = false;
-	closesocket(mListenSocket);		// AcceptEx ´ë±â ÇØÁ¦
+	closesocket(mListenSocket);		// AcceptEx ëŒ€ê¸° í•´ì œ
 	mListenSocket = INVALID_SOCKET;
 	//if (mAccepterThread.joinable())
 	//	mAccepterThread.join();
-	LOG_DEBUG("step1 Accept Á¾·á ¿Ï·á\n");
+	LOG_DEBUG("step1 Accept ì¢…ë£Œ ì™„ë£Œ\n");
 
-	// step2. Å¬¶óÀÌ¾ğÆ® °­Á¦Á¾·á + IO Ãë¼Ò
+	// step2. í´ë¼ì´ì–¸íŠ¸ ê°•ì œì¢…ë£Œ + IO ì·¨ì†Œ
 	for (auto& client : mClientInfos)
 	{
-		// 1. ¼ÒÄÏÀÌ ¾ÆÁ÷ »ì¾ÆÀÖ´Ù¸é, °É·ÁÀÖ´Â ºñµ¿±â I/OµéÀ» °­Á¦·Î Ãë¼Ò
-		// ÀÌÈÄ ¿öÄ¿ ½º·¹µå¿¡¼­ dwIoSize == 0 ¶Ç´Â ERROR_OPERATION_ABORTED ·Î ¹ñ¾î³¿
+		// 1. ì†Œì¼“ì´ ì•„ì§ ì‚´ì•„ìˆë‹¤ë©´, ê±¸ë ¤ìˆëŠ” ë¹„ë™ê¸° I/Oë“¤ì„ ê°•ì œë¡œ ì·¨ì†Œ
+		// ì´í›„ ì›Œì»¤ ìŠ¤ë ˆë“œì—ì„œ dwIoSize == 0 ë˜ëŠ” ERROR_OPERATION_ABORTED ë¡œ ë±‰ì–´ëƒ„
 		if (client->GetSocket() != INVALID_SOCKET)
 		{
 			CancelIoEx((HANDLE)client->GetSocket(), NULL);
 		}
 
-		// 2. Base Ref ÇØÁ¦ ¹× µŞÁ¤¸®
+		// 2. Base Ref í•´ì œ ë° ë’·ì •ë¦¬
 		CloseSocket(client.get(), true);
 	}
-	LOG_DEBUG("step2 ¸ğµç Å¬¶óÀÌ¾ğÆ® °­Á¦ Á¾·á ¿Ï·á\n");
+	LOG_DEBUG("step2 ëª¨ë“  í´ë¼ì´ì–¸íŠ¸ ê°•ì œ ì¢…ë£Œ ì™„ë£Œ\n");
 
 
-	// step3. ÀÜ¿© IO Draining
-	// ÀÌ¹Ì Ä¿³Î¿¡¼­ OS ÇÑ ÀÜ¿© ¿Ï·á ½ÅÈ£°¡ IOCP queue¿¡ µµÂø
-	// ÂªÀº ´ë±â ÈÄ Ã³¸® ½Ã°£ÁÜ
+	// step3. ì”ì—¬ IO Draining
+	// ì´ë¯¸ ì»¤ë„ì—ì„œ OS í•œ ì”ì—¬ ì™„ë£Œ ì‹ í˜¸ê°€ IOCP queueì— ë„ì°©
+	// ì§§ì€ ëŒ€ê¸° í›„ ì²˜ë¦¬ ì‹œê°„ì¤Œ
 	//std::this_thread::sleep_for(std::chrono::milliseconds(500));
-	LOG_DEBUG("step3: ÀÜ¿© IO Draining ¿Ï·á\n");
+	LOG_DEBUG("step3: ì”ì—¬ IO Draining ì™„ë£Œ\n");
 
 	const int MAX_DRAIN_WAIT_MS = 5000;
 	bool allDrained = false;
@@ -183,9 +183,9 @@ void IOCompletionPort::DestroyThread()
 		elapsed += 10;
 	}
 	if (!allDrained)
-		LOG_ERROR("step3: IO Draining Å¸ÀÓ¾Æ¿ô\n");
+		LOG_ERROR("step3: IO Draining íƒ€ì„ì•„ì›ƒ\n");
 
-	// step4. ¿öÄ¿ ½º·¹µå Á¾·á - PQCS·Î ½ÅÈ£
+	// step4. ì›Œì»¤ ìŠ¤ë ˆë“œ ì¢…ë£Œ - PQCSë¡œ ì‹ í˜¸
 	mIsWorkerRun = false;
 	for (size_t i = 0;i < mIOWorkerThreads.size();++i)
 	{
@@ -196,14 +196,14 @@ void IOCompletionPort::DestroyThread()
 		if (th.joinable())
 			th.join();
 	}
-	LOG_DEBUG("step4: worker thread Á¾·á ¿Ï·á\n");
-	// step5. IOCP Handle ´İ±â
+	LOG_DEBUG("step4: worker thread ì¢…ë£Œ ì™„ë£Œ\n");
+	// step5. IOCP Handle ë‹«ê¸°
 	CloseHandle(mIOCPHandle);
 	mIOCPHandle = INVALID_HANDLE_VALUE;
-	LOG_DEBUG("step5: ÀÚ¿ø Á¤¸® ¿Ï·á\n");
+	LOG_DEBUG("step5: ìì› ì •ë¦¬ ì™„ë£Œ\n");
 
 
-	// ±âÁ¸ Á¾·á ¹æ½Ä
+	// ê¸°ì¡´ ì¢…ë£Œ ë°©ì‹
 	//mIsWorkerRun = false;
 
 	//CloseHandle(mIOCPHandle);
@@ -224,13 +224,13 @@ void IOCompletionPort::DestroyThread()
 	//}
 }
 
-// Å¬¶óÀÌ¾ğÆ®ÀÇ µ¥ÀÌÅÍ¸¦ ¹Ş¾Æ¼­
-// Å¬¶óÀÌ¾ğÆ®¿¡°Ô ¸Ş½ÃÁö¸¦ sendÇÏ´Â ÇÔ¼ö
+// í´ë¼ì´ì–¸íŠ¸ì˜ ë°ì´í„°ë¥¼ ë°›ì•„ì„œ
+// í´ë¼ì´ì–¸íŠ¸ì—ê²Œ ë©”ì‹œì§€ë¥¼ sendí•˜ëŠ” í•¨ìˆ˜
 bool IOCompletionPort::SendMsg(const UINT32 ClientSessionIndex_, UINT32 generation_, const UINT32 dataSize_, char* pMsg_)
 {
 	auto pClient = GetClientInfo(ClientSessionIndex_);
 	if (pClient->GetGeneration() != generation_)
-		return false;	// ¼¼´ë ºÒÀÏÄ¡-> ´Ù¸¥»ç¶÷
+		return false;	// ì„¸ëŒ€ ë¶ˆì¼ì¹˜-> ë‹¤ë¥¸ì‚¬ëŒ
 	return pClient->SendMsg(dataSize_, pMsg_);
 }
 
@@ -239,9 +239,9 @@ void IOCompletionPort::DisconnectClient(const UINT32 clientIndex)
 	auto pClient = GetClientInfo(clientIndex);
 	if (pClient && pClient->IsConnected())
 	{
-		LOG_ERROR("[DisconnectClient] Client(%d) °­Á¦ ¿¬°á ÇØÁ¦\n", clientIndex);
-		UINT32 gen = pClient->GetGeneration();	// gen Ä¸ÃÄ
-		pClient->DisconnectAsync(gen);  // shutdown(SD_BOTH) ¡æ WorkerThread°¡ ÀÚ¿¬½º·´°Ô CloseSocket È£Ãâ
+		LOG_ERROR("[DisconnectClient] Client(%d) ê°•ì œ ì—°ê²° í•´ì œ\n", clientIndex);
+		UINT32 gen = pClient->GetGeneration();	// gen ìº¡ì³
+		pClient->DisconnectAsync(gen);  // shutdown(SD_BOTH) â†’ WorkerThreadê°€ ìì—°ìŠ¤ëŸ½ê²Œ CloseSocket í˜¸ì¶œ
 	}
 }
 
@@ -280,7 +280,7 @@ void IOCompletionPort::TryPostAcceptEx()
 
 void IOCompletionPort::CreateClient(const int maxClientCount)
 {
-	mSendBufferPool.Init(maxClientCount * 10); // maxclient 2000ÀÏ¶§ 2000, 10000ÀÌ¸é 400
+	mSendBufferPool.Init(maxClientCount * 10); // maxclient 2000ì¼ë•Œ 2000, 10000ì´ë©´ 400
 
 	for (int i = 0;i < maxClientCount;++i)
 	{
@@ -289,10 +289,10 @@ void IOCompletionPort::CreateClient(const int maxClientCount)
 		mClientInfos.emplace_back(std::move(client));
 	}
 
-	// ÃÖÀûÈ­..ÀçÇÒ´ç ¹æÁö¸¦ À§ÇØ ¸Ş¸ğ¸® °ø°£À» ¹Ì¸® È®º¸ (Capacity = maxCount)
+	// ìµœì í™”..ì¬í• ë‹¹ ë°©ì§€ë¥¼ ìœ„í•´ ë©”ëª¨ë¦¬ ê³µê°„ì„ ë¯¸ë¦¬ í™•ë³´ (Capacity = maxCount)
 	mFreeSessionList.reserve(maxClientCount);
 
-	// ¿ª¼øÀ¸·Î ½ºÅÃ¿¡ Ã¤¿ö³Ö±â)
+	// ì—­ìˆœìœ¼ë¡œ ìŠ¤íƒì— ì±„ì›Œë„£ê¸°)
 	for (UINT32 i = maxClientCount; i > 0; --i)
 	{
 		mFreeSessionList.push_back(i - 1);
@@ -303,35 +303,35 @@ void IOCompletionPort::CreateClient(const int maxClientCount)
 	//	client->Init(i, mIOCPHandle);
 	//	mClientInfos.emplace_back(std::move(client));
 
-	//	//auto client = new ClientSession(); // ¸Ş¸ğ¸® ´©¼ö °¡´É¼º
+	//	//auto client = new ClientSession(); // ë©”ëª¨ë¦¬ ëˆ„ìˆ˜ ê°€ëŠ¥ì„±
 	//	//client->Init(i,mIOCPHandle);
 	//	//mClientInfos.emplace_back(client);
 
 	//}
 }
 
-// WaitingThread Queue¿¡¼­ ´ë±âÇÒ ½º·¹µåµéÀ» »ı¼º
+// WaitingThread Queueì—ì„œ ëŒ€ê¸°í•  ìŠ¤ë ˆë“œë“¤ì„ ìƒì„±
 bool IOCompletionPort::CreateWorkerThread()
 {
 	const auto& config = ConfigManager::GetInstance().Get();
 
 	mIsWorkerRun = true;
-	// WaitingThread Queue¿¡ ´ë±â »óÅÂ·Î ¸¸µé ½º·¹µåµé, ±ÇÀå°¹¼ö´Â (cpuÄÚ¾î * 2) + 1
+	// WaitingThread Queueì— ëŒ€ê¸° ìƒíƒœë¡œ ë§Œë“¤ ìŠ¤ë ˆë“œë“¤, ê¶Œì¥ê°¯ìˆ˜ëŠ” (cpuì½”ì–´ * 2) + 1
 	for (int i = 0;i < config.MaxWorkerThread;i++)
 	{
 		mIOWorkerThreads.emplace_back([this]() {WorkerThread();});
 	}
 
-	LOG_DEBUG("WorkerThread ½ÃÀÛ \n");
+	LOG_DEBUG("WorkerThread ì‹œì‘ \n");
 	return true;
 }
 
 void IOCompletionPort::TimeoutCheckThread()
 {
 	const auto& config = ConfigManager::GetInstance().Get();
-	const ULONGLONG TIMEOUT_MS = config.TimeoutMs; // 60ÃÊ µ¿¾È ¹«ÀÀ´ä ½Ã ¿¬°á Á¾·á
-	const ULONGLONG PING_INTERVAL_MS = config.PingIntervalMs; // 30ÃÊ µ¿¾È ¹«ÀÀ´äÀÌ¸é PING
-	const ULONGLONG CHECK_INTERVAL_MS = config.CheckIntervalMs; // 10ÃÊ ¼øÈ¸ÁÖ±â
+	const ULONGLONG TIMEOUT_MS = config.TimeoutMs; // 60ì´ˆ ë™ì•ˆ ë¬´ì‘ë‹µ ì‹œ ì—°ê²° ì¢…ë£Œ
+	const ULONGLONG PING_INTERVAL_MS = config.PingIntervalMs; // 30ì´ˆ ë™ì•ˆ ë¬´ì‘ë‹µì´ë©´ PING
+	const ULONGLONG CHECK_INTERVAL_MS = config.CheckIntervalMs; // 10ì´ˆ ìˆœíšŒì£¼ê¸°
 	while (mIsTimeoutRun)
 	{
 		ULONGLONG now = GetTickCount64();
@@ -340,88 +340,88 @@ void IOCompletionPort::TimeoutCheckThread()
 		{
 			ClientSession* pSession = GetClientInfo(i);
 
-			// ¿¬°áÀÌ ¾ÈµÇ¾úÀ¸¸é °Ç³Ê¶Ü
+			// ì—°ê²°ì´ ì•ˆë˜ì—ˆìœ¼ë©´ ê±´ë„ˆëœ€
 			if (pSession == nullptr || !pSession->IsConnected())
 				continue;
 
-			UINT32 genBefore = pSession->GetGeneration();	// gen Ä¸ÃÄ
+			UINT32 genBefore = pSession->GetGeneration();	// gen ìº¡ì³
 
 			ULONGLONG lastActivity = pSession->GetLastActivityTime();
 			ULONGLONG elapsed = now - lastActivity;
 
 			if (elapsed >= config.TimeoutMs)
 			{
-				// 60ÃÊµ¿¾È ¹«ÀÀ´ä ½Ã Disconnect È£ÃâÇÏ¿© ²÷±â
-				LOG_DEBUG("[TimeoutThread] Client Index(%d) Å¸ÀÓ¾Æ¿ô! (60ÃÊ ¹«ÀÀ´ä) -> ¿¬°á Á¾·á ¿äÃ»\n", pSession->GetIndex());
-				// ¿¬°á Á¾·á
+				// 60ì´ˆë™ì•ˆ ë¬´ì‘ë‹µ ì‹œ Disconnect í˜¸ì¶œí•˜ì—¬ ëŠê¸°
+				LOG_DEBUG("[TimeoutThread] Client Index(%d) íƒ€ì„ì•„ì›ƒ! (60ì´ˆ ë¬´ì‘ë‹µ) -> ì—°ê²° ì¢…ë£Œ ìš”ì²­\n", pSession->GetIndex());
+				// ì—°ê²° ì¢…ë£Œ
 				//CloseSocket(pSession, true);
-				pSession->DisconnectAsync(genBefore); // Ä¸ÃÄÇÑ gen Àü´Ş
+				pSession->DisconnectAsync(genBefore); // shutdown + CancelIoEx
 			}
-			else if (elapsed >= config.PingIntervalMs) // 30ÃÊ
+			else if (elapsed >= config.PingIntervalMs) // 30ì´ˆ
 			{
 				ULONGLONG lastping = pSession->GetLastPingTime();
 				if (now - lastping >= config.PingIntervalMs)
 				{
 					pSession->SetLastPingTime(now);
 
-					// ÃÖ¼ÒÇÑ 30ÃÊ µ¿¾ÈÀº »ì¾Æ ÀÖ´ÂÁö È®ÀÎÇÏ°í PING ¹ß¼Û
-					LOG_DEBUG("[TimeoutThread] Client Index(%d)¿¡°Ô PING ¹ß¼Û (¹«ÀÀ´ä %llu ms)\n", pSession->GetIndex(), elapsed);
-					// ÇÎ Àü¼Û
+					// ìµœì†Œí•œ 30ì´ˆ ë™ì•ˆì€ ì‚´ì•„ ìˆëŠ”ì§€ í™•ì¸í•˜ê³  PING ë°œì†¡
+					LOG_DEBUG("[TimeoutThread] Client Index(%d)ì—ê²Œ PING ë°œì†¡ (ë¬´ì‘ë‹µ %llu ms)\n", pSession->GetIndex(), elapsed);
+					// í•‘ ì „ì†¡
 					PACKET_HEADER pingHeader;
-					pingHeader.PacketLength = sizeof(PACKET_HEADER); // ÆĞÅ¶ ÀüÃ¼ ±æÀÌ
+					pingHeader.PacketLength = sizeof(PACKET_HEADER); // íŒ¨í‚· ì „ì²´ ê¸¸ì´
 					pingHeader.PacketId = (UINT16)PACKET_ID::SYS_PING;
 					pingHeader.PacketType = 0;
 					pSession->SendMsg(pingHeader.PacketLength, (char*)&pingHeader);
 				}
 			}
 
-			// ÃÖ±Ù È°µ¿ÀÌ ÀÖÀ¸¸é ¾Æ¹«°Íµµ ÇÏÁö ¾Ê°í ³Ñ¾î°¨
+			// ìµœê·¼ í™œë™ì´ ìˆìœ¼ë©´ ì•„ë¬´ê²ƒë„ í•˜ì§€ ì•Šê³  ë„˜ì–´ê°
 		}
-		Sleep(config.CheckIntervalMs); // 10ÃÊ
+		Sleep(config.CheckIntervalMs); // 10ì´ˆ
 	}
 }
 
 
-// Overlapped I/O ÀÛ¾÷¿¡ ´ëÇÑ ¿Ï·á Åëº¸¸¦ ¹Ş¾Æ ±×¿¡ ÇØ´çÇÏ´Â Ã³¸®¸¦ ÇÏ´Â ÇÔ¼ö
+// Overlapped I/O ì‘ì—…ì— ëŒ€í•œ ì™„ë£Œ í†µë³´ë¥¼ ë°›ì•„ ê·¸ì— í•´ë‹¹í•˜ëŠ” ì²˜ë¦¬ë¥¼ í•˜ëŠ” í•¨ìˆ˜
 void IOCompletionPort::WorkerThread()
 {
-	// ¿Ï·á Ç×¸ñ ¼ö½Å ¹è¿­
+	// ì™„ë£Œ í•­ëª© ìˆ˜ì‹  ë°°ì—´
 	OVERLAPPED_ENTRY completionEntries[MAX_COMPLETION_ENTRIES];
 	ULONG numEntriesRemoved = 0;
 
-	//// CompletionKey¸¦ ÅëÇÑ Å¬¶óÀÌ¾ğÆ® Á¤º¸
+	//// CompletionKeyë¥¼ í†µí•œ í´ë¼ì´ì–¸íŠ¸ ì •ë³´
 	//ClientSession* pClientSession = nullptr;
-	//// ÇÔ¼ö È£Ãâ ¼º°ø ¿©ºÎ
+	//// í•¨ìˆ˜ í˜¸ì¶œ ì„±ê³µ ì—¬ë¶€
 	BOOL bSuccess = TRUE;
-	//// Overlapped I/O ÀÛ¾÷¿¡¼­ Àü¼ÛµÈ µ¥ÀÌÅÍÀÇ Å©±â
+	//// Overlapped I/O ì‘ì—…ì—ì„œ ì „ì†¡ëœ ë°ì´í„°ì˜ í¬ê¸°
 	//DWORD dwIoSize = 0;
-	//// I/O ÀÛ¾÷À» À§ÇØ ¿äÃ»µÈ Overlapped ±¸Á¶Ã¼¸¦ °¡Á®¿Ã Æ÷ÀÎÅÍ
+	//// I/O ì‘ì—…ì„ ìœ„í•´ ìš”ì²­ëœ Overlapped êµ¬ì¡°ì²´ë¥¼ ê°€ì ¸ì˜¬ í¬ì¸í„°
 	//LPOVERLAPPED lpOverlapped = NULL;
 
 	while (mIsWorkerRun)
 	{
 		////////////////////////////////////
-		// ÀÌ ÇÔ¼ö¸¦ ÅëÇØ ½º·¹µåµéÀº WaitingThread Queue¿¡ ´ë±â »óÅÂ·Î µÊ
-		// ¿Ï·áµÈ Overlapped I/O ÀÛ¾÷ÀÌ ¹ß»ıÇÏ¸é IOCP Queue¿¡¼­ ¿Ï·áµÈ ÀÛ¾÷À» °¡Á®¿Í Ã³¸®
-		// ±×¸®°í PostQueueCompletionStatus()¿¡ ÀÇÇØ »ç¿ëÀÚ ¸Ş½ÃÁö°¡ °Ô½ÃµÇ¸é °Ô½ÃµÈ ³»¿ë
+		// ì´ í•¨ìˆ˜ë¥¼ í†µí•´ ìŠ¤ë ˆë“œë“¤ì€ WaitingThread Queueì— ëŒ€ê¸° ìƒíƒœë¡œ ë¨
+		// ì™„ë£Œëœ Overlapped I/O ì‘ì—…ì´ ë°œìƒí•˜ë©´ IOCP Queueì—ì„œ ì™„ë£Œëœ ì‘ì—…ì„ ê°€ì ¸ì™€ ì²˜ë¦¬
+		// ê·¸ë¦¬ê³  PostQueueCompletionStatus()ì— ì˜í•´ ì‚¬ìš©ì ë©”ì‹œì§€ê°€ ê²Œì‹œë˜ë©´ ê²Œì‹œëœ ë‚´ìš©
 		////////////////////////////////////
-		//printf("[DEBUG] GQCS ´ë±â: bSuccess=%d, dwIoSize=%d, lpOverlapped=%p\n", bSuccess, dwIoSize, lpOverlapped);
+		//printf("[DEBUG] GQCS ëŒ€ê¸°: bSuccess=%d, dwIoSize=%d, lpOverlapped=%p\n", bSuccess, dwIoSize, lpOverlapped);
 
 		//bSuccess = GetQueuedCompletionStatus(
-		//	mIOCPHandle,				// dequeueÇÒ IOCP ÇÚµé
-		//	&dwIoSize,					// ½ÇÁ¦ Àü¼ÛµÈ ¹ÙÀÌÆ®
+		//	mIOCPHandle,				// dequeueí•  IOCP í•¸ë“¤
+		//	&dwIoSize,					// ì‹¤ì œ ì „ì†¡ëœ ë°”ì´íŠ¸
 		//	(PULONG_PTR)&pClientSession,	// CompletionKey
-		//	&lpOverlapped,				// Overlapped IO °´Ã¼
-		//	INFINITE);					// ´ë±âÇÒ ½Ã°£
+		//	&lpOverlapped,				// Overlapped IO ê°ì²´
+		//	INFINITE);					// ëŒ€ê¸°í•  ì‹œê°„
 
 		bSuccess = GetQueuedCompletionStatusEx(
-			mIOCPHandle,				// dequeueÇÒ IOCP ÇÚµé
-			completionEntries,			// ¿Ï·á Ç×¸ñ ¹è¿­
-			MAX_COMPLETION_ENTRIES,		// ¿Ï·á Ç×¸ñ ¹è¿­ Å©±â
-			&numEntriesRemoved,			// Á¦°ÅµÈ Ç×¸ñ ¼ö
-			INFINITE,					// ´ë±âÇÒ ½Ã°£
-			FALSE);						// ¾ó·¯ÅÍºí Ã³¸®
-		//printf("[DEBUG] GetQueuedCompletionStatusEx °á°ú: bSuccess=%d, numEntries=%d, LastError=%d\n",bSuccess, numEntriesRemoved, GetLastError());
+			mIOCPHandle,				// dequeueí•  IOCP í•¸ë“¤
+			completionEntries,			// ì™„ë£Œ í•­ëª© ë°°ì—´
+			MAX_COMPLETION_ENTRIES,		// ì™„ë£Œ í•­ëª© ë°°ì—´ í¬ê¸°
+			&numEntriesRemoved,			// ì œê±°ëœ í•­ëª© ìˆ˜
+			INFINITE,					// ëŒ€ê¸°í•  ì‹œê°„
+			FALSE);						// ì–¼ëŸ¬í„°ë¸” ì²˜ë¦¬
+		//printf("[DEBUG] GetQueuedCompletionStatusEx ê²°ê³¼: bSuccess=%d, numEntries=%d, LastError=%d\n",bSuccess, numEntriesRemoved, GetLastError());
 		if (!bSuccess)
 		{
 			DWORD error = GetLastError();
@@ -432,29 +432,29 @@ void IOCompletionPort::WorkerThread()
 			}
 			else if (error == ERROR_ABANDONED_WAIT_0)
 			{
-				// IOCP ÇÚµéÀÌ ´İÈû - Á¾·á ÁøÇà
+				// IOCP í•¸ë“¤ì´ ë‹«í˜ - ì¢…ë£Œ ì§„í–‰
 				mIsWorkerRun = false;
 				break;
 			}
 			else
 			{
-				LOG_ERROR("GetQueuedCompletionStatusEx() ½ÇÆĞ : %d\n", error);
+				LOG_ERROR("GetQueuedCompletionStatusEx() ì‹¤íŒ¨ : %d\n", error);
 				continue;
 			}
 		}
-		//printf("[DEBUG] %d°³ ¿Ï·á ÀÌº¥Æ® Ã³¸® ½ÃÀÛ\n", numEntriesRemoved);
+		//printf("[DEBUG] %dê°œ ì™„ë£Œ ì´ë²¤íŠ¸ ì²˜ë¦¬ ì‹œì‘\n", numEntriesRemoved);
 		for (ULONG i = 0; i < numEntriesRemoved; ++i)
 		{
 			auto& entry = completionEntries[i];
-			// ¿©±â¼­ ÀÌ¹Ì ÇØÁ¦µÈ ¸Ş¸ğ¸®¸¦ °¡¸®Å°°Ô µÈ´Ù¸é..?
-			// pClientSessionÀÌ ÀÌ¹Ì ÇØÁ¦µÈ ¸Ş¸ğ¸®¸¦ °¡¸®Å´ -> crash ¹ß»ı (Dangling pointer)
+			// ì—¬ê¸°ì„œ ì´ë¯¸ í•´ì œëœ ë©”ëª¨ë¦¬ë¥¼ ê°€ë¦¬í‚¤ê²Œ ëœë‹¤ë©´..?
+			// pClientSessionì´ ì´ë¯¸ í•´ì œëœ ë©”ëª¨ë¦¬ë¥¼ ê°€ë¦¬í‚´ -> crash ë°œìƒ (Dangling pointer)
 
 			ClientSession* pClientSession = reinterpret_cast<ClientSession*>(entry.lpCompletionKey);
 
 			DWORD dwIoSize = entry.dwNumberOfBytesTransferred;
 			LPOVERLAPPED lpOverlapped = entry.lpOverlapped;
 
-			// »ç¿ëÀÚ Á¤ÀÇ Á¾·á ¸Ş½ÃÁö Ã³¸®
+			// ì‚¬ìš©ì ì •ì˜ ì¢…ë£Œ ë©”ì‹œì§€ ì²˜ë¦¬
 			if (dwIoSize == 0 && lpOverlapped == NULL)
 			{
 				mIsWorkerRun = false;
@@ -467,7 +467,7 @@ void IOCompletionPort::WorkerThread()
 			}
 
 			auto pOverlappedEx = (stOverlappedEx*)lpOverlapped;
-			// clientÀÇ Á¢¼ÓÀÌ ²÷¾îÁ³À»¶§(0¹ÙÀÌÆ® ¼ö½Å(¿¬°áÁ¾·á)
+			// clientì˜ ì ‘ì†ì´ ëŠì–´ì¡Œì„ë•Œ(0ë°”ì´íŠ¸ ìˆ˜ì‹ (ì—°ê²°ì¢…ë£Œ)
 			if (dwIoSize == 0 && pOverlappedEx->m_eOperation != IOOperation::ACCEPT)
 			{
 				CloseSocket(pClientSession);
@@ -488,14 +488,14 @@ void IOCompletionPort::WorkerThread()
 
 				if (pClientSession->AcceptCompletion(mListenSocket))
 				{
-					// ¿©·¯ ½º·¹µå°¡ µ¿½Ã¿¡ È£ÃâÇØµµ ¾ÈÀüÇÏ°Ô atomic Ã³¸®
+					// ì—¬ëŸ¬ ìŠ¤ë ˆë“œê°€ ë™ì‹œì— í˜¸ì¶œí•´ë„ ì•ˆì „í•˜ê²Œ atomic ì²˜ë¦¬
 					++mClientCnt;
 					OnConnect(pClientSession->GetIndex(), pClientSession->GetGeneration());
-					LOG_DEBUG("######################################### Á¢¼ÓµÊ #################################\n");
+					LOG_DEBUG("######################################### ì ‘ì†ë¨ #################################\n");
 				}
 				else
 				{
-					// Accept ½ÇÆĞ, ¼ÒÄÏ Á¤¸® + ÀÎµ¦½º ¹İ³³
+					// Accept ì‹¤íŒ¨, ì†Œì¼“ ì •ë¦¬ + ì¸ë±ìŠ¤ ë°˜ë‚©
 					if (pClientSession->IsConnected())
 					{
 						pClientSession->TryMarkDisconnected();
@@ -506,25 +506,25 @@ void IOCompletionPort::WorkerThread()
 						pClientSession->CloseAcceptSocket();
 					}
 
-					// Accept IOÀÇ ReleaseRef (PostImmediateAccept¿¡¼­ AddRefÇÑ °Í)
-					// ½ÇÆĞÇßÀ¸¹Ç·Î OnConnectÀÇ store(1)Àº ¾È ÀÏ¾î³² ¡æ Á¤»óÀûÀ¸·Î ÇØÁ¦
+					// Accept IOì˜ ReleaseRef (PostImmediateAcceptì—ì„œ AddRefí•œ ê²ƒ)
+					// ì‹¤íŒ¨í–ˆìœ¼ë¯€ë¡œ OnConnectì˜ store(1)ì€ ì•ˆ ì¼ì–´ë‚¨ â†’ ì •ìƒì ìœ¼ë¡œ í•´ì œ
 					pClientSession->ReleaseRef();
 					PushFreeSessionIndex(pOverlappedEx->clientSessionIndex);
 
 				}
 
-				// AcceptEx Àçµî·ÏÇÏ±â
+				// AcceptEx ì¬ë“±ë¡í•˜ê¸°
 				TryPostAcceptEx();
 			}
 
-			// Overlapped I/O Recv ÀÛ¾÷ ¿Ï·á ½Ã Ã³¸®
-			// workerthread accept Ã³¸®
+			// Overlapped I/O Recv ì‘ì—… ì™„ë£Œ ì‹œ ì²˜ë¦¬
+			// workerthread accept ì²˜ë¦¬
 			else if (IOOperation::RECV == pOverlappedEx->m_eOperation)
 			{
-				// Stale I/O ¹æÁö
+				// Stale I/O ë°©ì§€
 				if (pOverlappedEx->generation != pClientSession->GetGeneration())
 				{
-					LOG_DEBUG("[Stale I/O] RECV ¹«½Ã - gen: %d vs %d\n",
+					LOG_DEBUG("[Stale I/O] RECV ë¬´ì‹œ - gen: %d vs %d\n",
 						pOverlappedEx->generation, pClientSession->GetGeneration());
 					if (pClientSession->ReleaseRef())
 					{
@@ -534,17 +534,17 @@ void IOCompletionPort::WorkerThread()
 					continue;
 				}
 
-				//// Å¸ÀÓ¾Æ¿ô È®ÀÎ À§ÇÑ °»½Å
+				//// íƒ€ì„ì•„ì›ƒ í™•ì¸ ìœ„í•œ ê°±ì‹ 
 				//pClientSession->UpdateActivity();
 
 				OnReceive(pClientSession->GetIndex(), pClientSession->GetGeneration(), dwIoSize, pClientSession->RecvBuff());
-				// »õ recv µî·Ï
+				// ìƒˆ recv ë“±ë¡
 				if (!pClientSession->BindRecv())
 				{
 					CloseSocket(pClientSession, true);
 				}
 
-				// ÀÌ Recv ¿Ï·á¿¡ ´ëÇÑ ReleaseRef
+				// ì´ Recv ì™„ë£Œì— ëŒ€í•œ ReleaseRef
 				if (pClientSession->ReleaseRef())
 				{
 					PushFreeSessionIndex(pClientSession->GetIndex());
@@ -553,24 +553,33 @@ void IOCompletionPort::WorkerThread()
 
 			}
 
-			else if (IOOperation::SEND == pOverlappedEx->m_eOperation) // ¼Û½ÅÀÌ ¿Ï·áµÇ¸é
+			else if (IOOperation::SEND == pOverlappedEx->m_eOperation) // ì†¡ì‹ ì´ ì™„ë£Œë˜ë©´
 			{
-				// Stale I/O ¹æÁö
 				auto pSendOvl = (SendOverlappedEx*)lpOverlapped;
+
+				// Stale ì—¬ë¶€ ìƒê´€ì—†ì´ ë¬´ì¡°ê±´ SendCompleteë¡œ ë„˜ê¹€
+				// ë©”ëª¨ë¦¬ í•´ì œ + í ì •ë¦¬ëŠ” í•­ìƒ ë‹¤ìŒ ì „ì†¡ë§Œ ì¡°ê±´ë¶€
+				pClientSession->SendComplete(dwIoSize, pSendOvl);
+
+				if (pClientSession->ReleaseRef())
+				{
+					PushFreeSessionIndex(pClientSession->GetIndex());
+					TryPostAcceptEx();
+				}
 				if (pSendOvl->generation != pClientSession->GetGeneration())
 				{
-					LOG_DEBUG("[Stale I/O] SEND ¹«½Ã - gen: %d vs %d\n",
+					LOG_DEBUG("[Stale I/O] SEND ë¬´ì‹œ - gen: %d vs %d\n",
 						pSendOvl->generation, pClientSession->GetGeneration());
-					// Clear()°¡ ÀÌ¹Ì Ç®¿¡ ¹İ³³ÇßÀ¸¹Ç·Î Free ¾ÈÇØµµµÊ
+					// Clear()ê°€ ì´ë¯¸ í’€ì— ë°˜ë‚©í–ˆìœ¼ë¯€ë¡œ Free ì•ˆí•´ë„ë¨
 					if (pClientSession->ReleaseRef())
 					{
 						PushFreeSessionIndex(pClientSession->GetIndex());
 						TryPostAcceptEx();
 					}
-					//mSendBufferPool.Free(pSendOvl);  // Ç®·Î ¹İ³³
+					//mSendBufferPool.Free(pSendOvl);  // í’€ë¡œ ë°˜ë‚©
 					continue;
 				}
-				pClientSession->SendComplete(dwIoSize);
+				pClientSession->SendComplete(dwIoSize, pSendOvl);
 				if (pClientSession->ReleaseRef())
 				{
 					PushFreeSessionIndex(pClientSession->GetIndex());
@@ -579,17 +588,17 @@ void IOCompletionPort::WorkerThread()
 			}
 
 
-			// ¿¹¿Ü
+			// ì˜ˆì™¸
 			else
 			{
-				LOG_DEBUG("Client Index : (%d)¿¡¼­ ¿¹¿Ü\n", pClientSession->GetIndex());
+				LOG_DEBUG("Client Index : (%d)ì—ì„œ ì˜ˆì™¸\n", pClientSession->GetIndex());
 			}
 
 		}
 	}
 }
 
-// ¼ÒÄÏÀÇ ¿¬°áÀ» Á¾·á
+// ì†Œì¼“ì˜ ì—°ê²°ì„ ì¢…ë£Œ
 void IOCompletionPort::CloseSocket(ClientSession* pClientSession, bool bIsForce)
 {
 	//if (pClientSession->IsConnected() == false)
@@ -598,7 +607,7 @@ void IOCompletionPort::CloseSocket(ClientSession* pClientSession, bool bIsForce)
 	//}
 	if (pClientSession->TryMarkDisconnected() == false)
 	{
-		// ÀÌ¹Ì ´Ù¸¥ ¾²·¹µå°¡ ´İ¾ÒÀ¸¹Ç·Î ¹«½ÃÇÏ°í µ¹¾Æ°¨
+		// ì´ë¯¸ ë‹¤ë¥¸ ì“°ë ˆë“œê°€ ë‹«ì•˜ìœ¼ë¯€ë¡œ ë¬´ì‹œí•˜ê³  ëŒì•„ê°
 		return;
 	}
 
@@ -607,24 +616,24 @@ void IOCompletionPort::CloseSocket(ClientSession* pClientSession, bool bIsForce)
 	OnClose(ClientIndex, pClientSession->GetGeneration());
 	--mClientCnt;
 
-	// Base Ref(1) ÇØÁ¦
+	// Base Ref(1) í•´ì œ
 	if (pClientSession->ReleaseRef())
 	{
-		// ÀÜ¿© IO¾øÀ¸¹Ç·Î Áï½Ã ¹İ³³
+		// ì”ì—¬ IOì—†ìœ¼ë¯€ë¡œ ì¦‰ì‹œ ë°˜ë‚©
 		PushFreeSessionIndex(ClientIndex);
 		TryPostAcceptEx();
 	}
-	// else: ÀÜ¿© IOÀÖÀ¸¹Ç·Î workerThreadÀÇ ¸¶Áü°¡ ReleaseRef°¡ ¹İ³³
+	// else: ì”ì—¬ IOìˆìœ¼ë¯€ë¡œ workerThreadì˜ ë§ˆì§ê°€ ReleaseRefê°€ ë°˜ë‚©
 	// 
 }
 
-// ºó ¼¼¼Ç ÇÏ³ª °¡Á®¿À´Â ÇÔ¼ö
+// ë¹ˆ ì„¸ì…˜ í•˜ë‚˜ ê°€ì ¸ì˜¤ëŠ” í•¨ìˆ˜
 UINT32 IOCompletionPort::PopFreeSessionIndex()
 {
-	// Àá±İ
+	// ì ê¸ˆ
 	std::lock_guard<std::mutex> lock(mFreeListLock);
 
-	// Å¥°¡ ºñ¾îÀÖ´ÂÁö È®ÀÎ (ºó°Å¸é ´õ ÁÙ ¼ö ¾øÀ½ )
+	// íê°€ ë¹„ì–´ìˆëŠ”ì§€ í™•ì¸ (ë¹ˆê±°ë©´ ë” ì¤„ ìˆ˜ ì—†ìŒ )
 	if (mFreeSessionList.empty())
 	{
 		return UINT32_MAX;
@@ -634,12 +643,12 @@ UINT32 IOCompletionPort::PopFreeSessionIndex()
 	return index;
 }
 
-// ¼¼¼Ç ¹İ³³ ÇÔ¼ö
+// ì„¸ì…˜ ë°˜ë‚© í•¨ìˆ˜
 void IOCompletionPort::PushFreeSessionIndex(const UINT32 index)
 {
-	// Àá±İ
+	// ì ê¸ˆ
 	std::lock_guard<std::mutex>lock(mFreeListLock);
 
-	// ºó Ä­ ¹İ³³
+	// ë¹ˆ ì¹¸ ë°˜ë‚©
 	mFreeSessionList.push_back(index);
 }

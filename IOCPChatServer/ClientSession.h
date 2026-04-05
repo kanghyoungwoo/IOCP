@@ -77,7 +77,7 @@ public:
 
 	bool SendIO();
 
-	void SendComplete(const UINT32 dataSize_);
+	void SendComplete(const UINT32 dataSize_, SendOverlappedEx* pCompletedOvl);
 
 	bool AcceptCompletion(SOCKET listenSock_);
 

@@ -1,4 +1,4 @@
-#include "ClientSession.h"
+ï»¿#include "ClientSession.h"
 
 bool ClientSession::OnConnect(HANDLE iocpHandle, SOCKET socket)
 {
@@ -7,46 +7,46 @@ bool ClientSession::OnConnect(HANDLE iocpHandle, SOCKET socket)
 	mGeneration.fetch_add(1, std::memory_order_acq_rel);
 
 
-	// Á¢¼Ó Á÷ÈÄ Å¸ÀÓ¾Æ¿ô ÆÇÁ¤À» À§ÇÑ ½Ã°£ ±â·Ï
+	// ì ‘ì† ì§í›„ íƒ€ì„ì•„ì›ƒ íŒì •ì„ ìœ„í•œ ì‹œê°„ ê¸°ë¡
 	UpdateActivity();
 
 	Clear();
-	// ¸ğµç ÁØºñ°¡ ³¡³­ ÈÄ ¹® ¿®(ÀÌÈÄ ºÎÅÏ CloseSocketÀ¸·Î¸¸ ´İ¾Æ¾ßÇÔ)
+	// ëª¨ë“  ì¤€ë¹„ê°€ ëë‚œ í›„ ë¬¸ ì—¶(ì´í›„ ë¶€í„´ CloseSocketìœ¼ë¡œë§Œ ë‹«ì•„ì•¼í•¨)
 	mIsConnected.store(true, std::memory_order_release);
 
-	// IOCPµî·Ï ¹× Recv´ë±â
+	// IOCPë“±ë¡ ë° RecvëŒ€ê¸°
 	if (BindIOCompletionPort(iocpHandle) == false)
 	{
 		return false;
 	}
 
-	// BindRecv()°¡ ½ÇÆĞÇÒ¶§µµ ¾Ë¾Æ¼­ CloseSocket()ÀÌ ºÒ¸²
-	// BindRecv ³»ºÎ¿¡¼­ AddRef-> RefCount = 2
+	// BindRecv()ê°€ ì‹¤íŒ¨í• ë•Œë„ ì•Œì•„ì„œ CloseSocket()ì´ ë¶ˆë¦¼
+	// BindRecv ë‚´ë¶€ì—ì„œ AddRef-> RefCount = 2
 	return BindRecv();
 }
 
 void ClientSession::Closed(bool bIsForced)
 {
-	// SO_LINGER¸¦ »ç¿ëÇÏ¸é ¼ÒÄÏÀÇ close ÀÌÀü¿¡ Àü¼ÛµÇÁö ¾ÊÀº µ¥ÀÌÅÍ¸¦ ¸ğµÎ Ã³¸®ÇÒ ½Ã°£À» Á¦°ø
-	struct linger stLinger = { 0,0 };	// SO_DONTLINGER·Î ¼³Á¤
+	// SO_LINGERë¥¼ ì‚¬ìš©í•˜ë©´ ì†Œì¼“ì˜ close ì´ì „ì— ì „ì†¡ë˜ì§€ ì•Šì€ ë°ì´í„°ë¥¼ ëª¨ë‘ ì²˜ë¦¬í•  ì‹œê°„ì„ ì œê³µ
+	struct linger stLinger = { 0,0 };	// SO_DONTLINGERë¡œ ì„¤ì •
 
-	// bIsForce°¡ true¸é SO_LINGER, timeout = 0À¸·Î ¼³Á¤ÇÏ¿© Áï½Ã ´İÈ÷°Ô ÇÔ
+	// bIsForceê°€ trueë©´ SO_LINGER, timeout = 0ìœ¼ë¡œ ì„¤ì •í•˜ì—¬ ì¦‰ì‹œ ë‹«íˆê²Œ í•¨
 	if (bIsForced == true)
 	{
 		stLinger.l_onoff = 1;
 	}
 
-	// socketClose ÀÌÀü¿¡ ¼Û¼ö½ÅÀÌ ¸ğµÎ Áß´Ü
+	// socketClose ì´ì „ì— ì†¡ìˆ˜ì‹ ì´ ëª¨ë‘ ì¤‘ë‹¨
 	shutdown(m_socketClient, SD_BOTH);
 
-	// ¼ÒÄÏ ¿É¼ÇÀ» ¼³Á¤
+	// ì†Œì¼“ ì˜µì…˜ì„ ì„¤ì •
 	setsockopt(m_socketClient, SOL_SOCKET, SO_LINGER, (char*)&stLinger, sizeof(stLinger));
 
-	//mIsConnected = false;// TryMarkDisconnect°¡ ´ë½ÅÇÔ
+	//mIsConnected = false;// TryMarkDisconnectê°€ ëŒ€ì‹ í•¨
 
 	mLatestClosedTimeSec = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
 
-	// ¼ÒÄÏ ¿¬°áÀ» ´İ±â
+	// ì†Œì¼“ ì—°ê²°ì„ ë‹«ê¸°
 	closesocket(m_socketClient);
 
 	m_socketClient = INVALID_SOCKET;
@@ -56,7 +56,9 @@ void ClientSession::Closed(bool bIsForced)
 
 void ClientSession::Clear()
 {
-	// ¼Û½Å Å¥ Á¤¸®
+	std::lock_guard<std::mutex> guard(mSendLock);
+	// RefCount == 0 ë³´ì¥ â†’ OSê°€ ì¥ê³  ìˆëŠ” ë©”ëª¨ë¦¬ ì—†ìŒ
+	// íì— ë‚¨ì€ ê²ƒì€ SendIO()ë¥¼ íƒ€ì§€ ëª»í•œ ìˆœìˆ˜ ëŒ€ê¸°ì—´
 	std::lock_guard<std::mutex> gurad(mSendLock);
 
 	while (!mSendDataqueue.empty())
@@ -64,37 +66,37 @@ void ClientSession::Clear()
 		//delete[] mSendDataqueue.front()->m_wsaBuf.buf;
 		//delete mSendDataqueue.front();
 		//mSendDataqueue.pop();
-		mSendPool->Free(mSendDataqueue.front());	// Ç®¿¡ ¹İ³³
+		mSendPool->Free(mSendDataqueue.front());	// í’€ì— ë°˜ë‚©
 		mSendDataqueue.pop();
 	}
 
 	//mSendPos = 0;
 	//mIsSending = false;
 
-	// ¹öÆÛ ÃÊ±âÈ­
+	// ë²„í¼ ì´ˆê¸°í™”
 	ZeroMemory(mRecvBuf, sizeof(mRecvBuf));
 	//ZeroMemory(mSendBuf, sizeof(mSendBuf));
 
 }
 
-// WSASend Overlapped I/O ÀÛ¾÷À» ¼öÇà
+// WSASend Overlapped I/O ì‘ì—…ì„ ìˆ˜í–‰
 bool ClientSession::SendMsg(const UINT32 dataSize, char* pMsg)
 {
 	// 
 	if (!IsConnected())
 		return false;
-	// Ç®¿¡¼­ SendOverlappedEx ÇÏ³ª¸¦ °¡Á®¿È (Èü ÇÒ´ç Á¦°Å)
+	// í’€ì—ì„œ SendOverlappedEx í•˜ë‚˜ë¥¼ ê°€ì ¸ì˜´ (í™ í• ë‹¹ ì œê±°)
 	auto pSendOvl = mSendPool->Alloc();
 	if (pSendOvl == nullptr)
 	{
-		// Ç® ¼ÒÁø
+		// í’€ ì†Œì§„
 		mSendPool->IncrementAllocFail();
-		LOG_ERROR_ONCE("SendPool ¼ÒÁø! dataSize=%d\n", dataSize);
+		LOG_ERROR_ONCE("SendPool ì†Œì§„! dataSize=%d\n", dataSize);
 		return false;
 	}
 	ZeroMemory(&pSendOvl->wsaOverlapped, sizeof(WSAOVERLAPPED));
 	pSendOvl->wsaBuf.len = dataSize;
-	pSendOvl->wsaBuf.buf = pSendOvl->buffer;	// ³»ºÎ ¹öÆÛ¸¦ °¡¸®Å´
+	pSendOvl->wsaBuf.buf = pSendOvl->buffer;	// ë‚´ë¶€ ë²„í¼ë¥¼ ê°€ë¦¬í‚´
 	CopyMemory(pSendOvl->buffer, pMsg, dataSize);
 	pSendOvl->operation = IOOperation::SEND;
 	//pSendOvl->generation = mGeneration;
@@ -102,7 +104,7 @@ bool ClientSession::SendMsg(const UINT32 dataSize, char* pMsg)
 	std::lock_guard<std::mutex> guard(mSendLock);
 	mSendDataqueue.push(pSendOvl);
 
-	//// overlapped ±¸Á¶Ã¼ ¼¼ÆÃ
+	//// overlapped êµ¬ì¡°ì²´ ì„¸íŒ…
 	//auto sendOverlappedEx = new stOverlappedEx;
 	//ZeroMemory(sendOverlappedEx, sizeof(stOverlappedEx));
 	//sendOverlappedEx->m_wsaBuf.len = dataSize;
@@ -113,7 +115,7 @@ bool ClientSession::SendMsg(const UINT32 dataSize, char* pMsg)
 	//std::lock_guard<std::mutex> guard(mSendLock);
 	//mSendDataqueue.push(sendOverlappedEx);
 
-	// µ¥ÀÌÅÍ°¡ 1°³ÀÌ¸é ¾Õ¿¡ º¸³»´Â µ¥ÀÌÅÍ°¡ ¾øÀ¸´Ï ¹Ù·Î wsasend
+	// ë°ì´í„°ê°€ 1ê°œì´ë©´ ì•ì— ë³´ë‚´ëŠ” ë°ì´í„°ê°€ ì—†ìœ¼ë‹ˆ ë°”ë¡œ wsasend
 	if (mSendDataqueue.size() == 1)
 	{
 		if (!SendIO())
@@ -122,7 +124,7 @@ bool ClientSession::SendMsg(const UINT32 dataSize, char* pMsg)
 		}
 	}
 
-	// buffer¸¦ ÀÌ¿ëÇÑ 1-send
+	// bufferë¥¼ ì´ìš©í•œ 1-send
 	/*
 	std::lock_guard<std::mutex>guard(mSendLock);
 	if ((mSendPos + dataSize) > MAX_SOCK_SENDBUF)
@@ -131,7 +133,7 @@ bool ClientSession::SendMsg(const UINT32 dataSize, char* pMsg)
 	}
 	auto pSendBuf = &mSendBuf[mSendPos];
 
-	// º¸³¾ ¸Ş½ÃÁö º¹»ç
+	// ë³´ë‚¼ ë©”ì‹œì§€ ë³µì‚¬
 	CopyMemory(pSendBuf, pMsg, dataSize);
 	mSendPos += dataSize;
 	*/
@@ -145,7 +147,7 @@ bool ClientSession::BindRecv()
 	DWORD dwFlag = 0;
 	DWORD dwRecvNumBytes = 0;
 
-	// Overlapped I/O¸¦ À§ÇÑ °¢ Á¤º¸¸¦ ¼¼ÆÃ
+	// Overlapped I/Oë¥¼ ìœ„í•œ ê° ì •ë³´ë¥¼ ì„¸íŒ…
 	m_stRecvOverlappedEx.m_wsaBuf.len = MAX_SOCKBUF;
 	m_stRecvOverlappedEx.m_wsaBuf.buf = mRecvBuf;
 	m_stRecvOverlappedEx.m_eOperation = IOOperation::RECV;
@@ -162,31 +164,31 @@ bool ClientSession::BindRecv()
 		(LPWSAOVERLAPPED) & (m_stRecvOverlappedEx),
 		NULL);
 
-	// socket_error ½Ã client socketÀÌ ²÷¾îÁ³À¸¹Ç·Î Ã³¸®
+	// socket_error ì‹œ client socketì´ ëŠì–´ì¡Œìœ¼ë¯€ë¡œ ì²˜ë¦¬
 	if (nRet == SOCKET_ERROR && (WSAGetLastError() != ERROR_IO_PENDING))
 	{
-		LOG_ERROR("WSARecv() ½ÇÆĞ : %d\n", WSAGetLastError());
-		ReleaseRef();	//IO µî·Ï ½ÇÆĞ + ¿Ã·È´ø Ä«¿îÆ® µÇµ¹¸²
+		LOG_ERROR("WSARecv() ì‹¤íŒ¨ : %d\n", WSAGetLastError());
+		ReleaseRef();	//IO ë“±ë¡ ì‹¤íŒ¨ + ì˜¬ë ¸ë˜ ì¹´ìš´íŠ¸ ë˜ëŒë¦¼
 		return false;
 	}
-	LOG_DEBUG("bind recv ¼º°ø\n");
+	LOG_DEBUG("bind recv ì„±ê³µ\n");
 	return true;
 }
 
-// CompletionPort °´Ã¼¿Í ¼ÒÄÏ°ú CompletionKey¸¦ ¿¬°á½ÃÅ°´Â ¿¬°á¿ë ÇÔ¼ö
+// CompletionPort ê°ì²´ì™€ ì†Œì¼“ê³¼ CompletionKeyë¥¼ ì—°ê²°ì‹œí‚¤ëŠ” ì—°ê²°ìš© í•¨ìˆ˜
 bool ClientSession::BindIOCompletionPort(HANDLE iocpHandle)
 {
-	// socket°ú pClientInfo¸¦ CompletionPort °´Ã¼¿¡ ¿¬°á½ÃÅ´
+	// socketê³¼ pClientInfoë¥¼ CompletionPort ê°ì²´ì— ì—°ê²°ì‹œí‚´
 	auto hIOCP = CreateIoCompletionPort((HANDLE)GetSocket()
 		, iocpHandle
 		, (ULONG_PTR)(this), 0);
 
 	if (hIOCP == INVALID_HANDLE_VALUE)
 	{
-		LOG_ERROR("CreateIoCompletionPort() ½ÇÆĞ : %d\n", GetLastError());
+		LOG_ERROR("CreateIoCompletionPort() ì‹¤íŒ¨ : %d\n", GetLastError());
 		return false;
 	}
-	LOG_DEBUG("BindIOCompletionport ¼º°ø!\n");
+	LOG_DEBUG("BindIOCompletionport ì„±ê³µ!\n");
 
 	return true;
 }
@@ -212,12 +214,12 @@ bool ClientSession::SendIO()
 	if (nRet == SOCKET_ERROR && (WSAGetLastError() != ERROR_IO_PENDING))
 	{
 		ReleaseRef();
-		// Å¥Á¤¸® ¾ÈÇÔ- > false -> È£ÃâºÎ¿¡¼­ DisconnectAsync() -> CloseSocket -> Closed -> Clear()°¡ ¾ÈÀüÇÏ°Ô Å¥ Á¤¸®
-		LOG_ERROR_ONCE("WSASend() ½ÇÆĞ : %d\n", WSAGetLastError());
+		// íì •ë¦¬ ì•ˆí•¨- > false -> í˜¸ì¶œë¶€ì—ì„œ DisconnectAsync() -> CloseSocket -> Closed -> Clear()ê°€ ì•ˆì „í•˜ê²Œ í ì •ë¦¬
+		LOG_ERROR_ONCE("WSASend() ì‹¤íŒ¨ : %d\n", WSAGetLastError());
 		return false;
 	}
 
-	// buffer ¹æ½ÄÀÇ 1-send
+	// buffer ë°©ì‹ì˜ 1-send
 	/*
 	if (mSendPos <= 0 || mIsSending)
 	{
@@ -242,10 +244,10 @@ bool ClientSession::SendIO()
 		(LPWSAOVERLAPPED)&(m_stSendOverlappedEx),
 		NULL);
 
-	// socket_error½Ã client socketÀÌ ²÷¾îÁø °æ¿ìÀÇ Ã³¸®
+	// socket_errorì‹œ client socketì´ ëŠì–´ì§„ ê²½ìš°ì˜ ì²˜ë¦¬
 	if (nRet == SOCKET_ERROR && (WSAGetLastError() != ERROR_IO_PENDING))
 	{
-		LOG_ERROR_ONCE("WSASend() ½ÇÆĞ : %d\n", WSAGetLastError());
+		LOG_ERROR_ONCE("WSASend() ì‹¤íŒ¨ : %d\n", WSAGetLastError());
 		return false;
 	}
 	mSendPos = 0;
@@ -254,25 +256,34 @@ bool ClientSession::SendIO()
 	return true;
 }
 
-void ClientSession::SendComplete(const UINT32 dataSize_)
+void ClientSession::SendComplete(const UINT32 dataSize_, SendOverlappedEx* pCompletedOvl)
 {
-	// buffer ¹æ½ÄÀ» ÀÌ¿ëÇÑ 1-send
-	/*
-	mIsSending = false;
-	*/
-	LOG_DEBUG("[¼Û½Å ¿Ï·á] bytes : %d\n", dataSize_);
+	// OSê°€ ëŒë ¤ì¤€ ë©”ëª¨ë¦¬ë¥¼ ë¬´ì¡°ê±´ ë¨¼ì € í•´ì œ
+	mSendPool->Free(pCompletedOvl);
+
+	// gen ë¶ˆì¼ì¹˜ì‹œ ì¦‰ì‹œ íƒˆì¶œ (ì´ì „ ìœ ì €ì˜ ì°Œêº¼ê¸° + í ì ˆëŒ€ ì•ˆê±´ë“¦)
+	if (pCompletedOvl->generation != GetGeneration())
+		return;
+
 	std::lock_guard<std::mutex> guard(mSendLock);
-	//delete[] mSendDataqueue.front()->m_wsaBuf.buf;
-	//delete mSendDataqueue.front();
-	mSendPool->Free(mSendDataqueue.front());
-	mSendDataqueue.pop();
-	if (mSendDataqueue.empty() == false)
+
+	// ë‚´ ì„¸ëŒ€ì˜ IOê°€ í™•ì‹¤, íì—ì„œ ì œê±°
+	if (!mSendDataqueue.empty())
+		mSendDataqueue.pop();
+
+	// ëŠê¸°ëŠ” ì¤‘ì´ë¼ë©´ ë‹¤ìŒ ì „ì†¡ ì•ˆí•¨
+	if (!IsConnected())
+		return;
+
+	// í•­ìƒ ì •ìƒ ìœ ì €ë¼ë©´ ë‹¤ìŒ ì „ì†¡ ì‹œì‘
+	if (!mSendDataqueue.empty())
 	{
 		if (!SendIO())
-		{
 			DisconnectAsync(GetGeneration());
-		}
 	}
+
+	LOG_DEBUG("[ì†¡ì‹  ì™„ë£Œ] bytes : %d\n", dataSize_);
+
 }
 
 bool ClientSession::AcceptCompletion(SOCKET listenSock_)
@@ -280,7 +291,7 @@ bool ClientSession::AcceptCompletion(SOCKET listenSock_)
 	if (setsockopt(m_socketClient, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT,
 		(char*)&listenSock_, sizeof(SOCKET)) == SOCKET_ERROR)
 	{
-		LOG_ERROR("SO_UPDATE_ACCEPT_CONTEXT ½ÇÆĞ : %d \n", WSAGetLastError());
+		LOG_ERROR("SO_UPDATE_ACCEPT_CONTEXT ì‹¤íŒ¨ : %d \n", WSAGetLastError());
 		return false;
 	}
 
@@ -329,7 +340,7 @@ bool ClientSession::AcceptCompletion(SOCKET listenSock_)
 //		if (WSAGetLastError() != WSA_IO_PENDING)
 //
 //		{
-//			LOG_ERROR("AcceptEx ½ÇÆĞ! ¿¡·¯ ÄÚµå: %d\n", GetLastError());
+//			LOG_ERROR("AcceptEx ì‹¤íŒ¨! ì—ëŸ¬ ì½”ë“œ: %d\n", GetLastError());
 //
 //			return false;
 //		}
@@ -349,7 +360,7 @@ bool ClientSession::PostImmediateAccept(SOCKET listenSock)
 		return false;
 	}
 
-	AddRef();	// AcceptEx ºñµ¿±â IO¿¡ ´ëÇÑ ÂüÁ¶ Ä«¿îÆ®
+	AddRef();	// AcceptEx ë¹„ë™ê¸° IOì— ëŒ€í•œ ì°¸ì¡° ì¹´ìš´íŠ¸
 
 	ZeroMemory(&mAcceptContext, sizeof(stOverlappedEx));
 	DWORD bytes = 0;
@@ -369,7 +380,7 @@ bool ClientSession::PostImmediateAccept(SOCKET listenSock)
 			ReleaseRef();
 			closesocket(m_socketClient);
 			m_socketClient = INVALID_SOCKET;
-			// index ¹İ³³Àº È£ÃâºÎ¿¡¼­ Ã³¸®
+			// index ë°˜ë‚©ì€ í˜¸ì¶œë¶€ì—ì„œ ì²˜ë¦¬
 			return false;
 		}
 	}
@@ -403,14 +414,18 @@ bool ClientSession::PostImmediateAccept(SOCKET listenSock)
 
 void ClientSession::DisconnectAsync(UINT32 expectedGeneration)
 {
-	// ¼ÒÄÏÀ» ²÷±â Á÷Àü ¸¶Áö¸· ¼¼´ë °Ë»ç (Timeout Snipe ¹æÁö)
+	// ì†Œì¼“ì„ ëŠê¸° ì§ì „ ë§ˆì§€ë§‰ ì„¸ëŒ€ ê²€ì‚¬ (Timeout Snipe ë°©ì§€)
 	if (mGeneration.load(std::memory_order_acquire) != expectedGeneration)
 	{
-		LOG_DEBUG("[Timeout] Snipe ¹æ¾î ¼º°ø! (¼¼´ë º¯°æµÊ)\n");
+		LOG_DEBUG("[Timeout] Snipe ë°©ì–´ ì„±ê³µ! (ì„¸ëŒ€ ë³€ê²½ë¨)\n");
 		return;
 	}
 	if (m_socketClient != INVALID_SOCKET)
 	{
+		// 1. Graceful shutdown ì‹œë„
 		shutdown(m_socketClient, SD_BOTH);
+
+		// 2. Pending IO ê°•ì œ ì·¨ì†Œ -> ERROR_OPERATIOM_ABORTEDë¡œ IOCP ì™„ë£Œ ìƒì„±
+		CancelIoEx((HANDLE)m_socketClient, NULL);
 	}
 }
