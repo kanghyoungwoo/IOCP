@@ -32,7 +32,8 @@ enum class IOOperation
 {
 	RECV,
 	SEND,
-	ACCEPT
+	ACCEPT,
+	ZOMBIE_CLEANUP
 };
 
 //WSAOVERLAPPED 

@@ -13,7 +13,7 @@ bool ClientSession::OnConnect(HANDLE iocpHandle, SOCKET socket)
 	Clear();
 	// 모든 준비가 끝난 후 문 엶(이후 부턴 CloseSocket으로만 닫아야함)
 	mIsConnected.store(true, std::memory_order_release);
-
+	mIsDisconnecting.store(false, std::memory_order_relaxed);
 	// IOCP등록 및 Recv대기
 	if (BindIOCompletionPort(iocpHandle) == false)
 	{
@@ -59,7 +59,6 @@ void ClientSession::Clear()
 	std::lock_guard<std::mutex> guard(mSendLock);
 	// RefCount == 0 보장 → OS가 쥐고 있는 메모리 없음
 	// 큐에 남은 것은 SendIO()를 타지 못한 순수 대기열
-	std::lock_guard<std::mutex> gurad(mSendLock);
 
 	while (!mSendDataqueue.empty())
 	{
@@ -420,12 +419,41 @@ void ClientSession::DisconnectAsync(UINT32 expectedGeneration)
 		LOG_DEBUG("[Timeout] Snipe 방어 성공! (세대 변경됨)\n");
 		return;
 	}
+
+	// 단 한번만 실행
+	bool expected = false;
+	if (!mIsDisconnecting.compare_exchange_strong(expected, true))
+		return;
+
 	if (m_socketClient != INVALID_SOCKET)
 	{
 		// 1. Graceful shutdown 시도
 		shutdown(m_socketClient, SD_BOTH);
 
-		// 2. Pending IO 강제 취소 -> ERROR_OPERATIOM_ABORTED로 IOCP 완료 생성
-		CancelIoEx((HANDLE)m_socketClient, NULL);
+		// 2. Pending IO 강제 취소
+		if (CancelIoEx((HANDLE)m_socketClient, NULL) == 0)
+		{
+			DWORD err = GetLastError();
+			if (err == ERROR_NOT_FOUND)
+			{
+				// 3. 블랙홀 상태 → Worker에 즉시 정리
+				auto pMarker = new stOverlappedEx();
+				ZeroMemory(pMarker, sizeof(stOverlappedEx));
+				pMarker->m_eOperation = IOOperation::ZOMBIE_CLEANUP;
+				pMarker->clientSessionIndex = mIndex;
+				pMarker->generation = mGeneration.load(std::memory_order_acquire);
+
+
+				// 가짜 IO를 큐에 넣으므로 참조 카운트 증가
+				AddRef();
+
+				if (PostQueuedCompletionStatus(mIOCPHandle, 0, (ULONG_PTR)this, (LPOVERLAPPED)pMarker) == 0)
+				{
+					// 만약 큐 삽입에 실패했다면 카운트를 다시 내리고 메모리 누수 방지
+					ReleaseRef();
+					delete pMarker;
+				}
+			}
+		}
 	}
 }

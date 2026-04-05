@@ -85,7 +85,7 @@ public:
 
 	bool PostImmediateAccept(SOCKET listenSock);
 
-	bool SetSockOption();
+	//bool SetSockOption();
 
 	void UpdateActivity()
 	{
@@ -175,5 +175,5 @@ private:
 	std::atomic<ULONGLONG> mLastActivityTime{ 0 };
 	std::atomic<ULONGLONG> mLastPingTime{ 0 };
 
-
+	std::atomic<bool> mIsDisconnecting{ false };
 };

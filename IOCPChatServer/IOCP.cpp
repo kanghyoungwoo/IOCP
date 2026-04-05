@@ -566,20 +566,19 @@ void IOCompletionPort::WorkerThread()
 					PushFreeSessionIndex(pClientSession->GetIndex());
 					TryPostAcceptEx();
 				}
-				if (pSendOvl->generation != pClientSession->GetGeneration())
+			}
+
+			else if (IOOperation::ZOMBIE_CLEANUP == pOverlappedEx->m_eOperation)
+			{
+				// 세대 검증 : 이미 새 유저가 접속 했으면 무시
+				if (pOverlappedEx->generation == pClientSession->GetGeneration())
 				{
-					LOG_DEBUG("[Stale I/O] SEND 무시 - gen: %d vs %d\n",
-						pSendOvl->generation, pClientSession->GetGeneration());
-					// Clear()가 이미 풀에 반납했으므로 Free 안해도됨
-					if (pClientSession->ReleaseRef())
-					{
-						PushFreeSessionIndex(pClientSession->GetIndex());
-						TryPostAcceptEx();
-					}
-					//mSendBufferPool.Free(pSendOvl);  // 풀로 반납
-					continue;
+					CloseSocket(pClientSession);
 				}
-				pClientSession->SendComplete(dwIoSize, pSendOvl);
+
+				delete pOverlappedEx;
+
+				// 가짜 I/O 처리가 끝났으므로 참조 카운트 감소
 				if (pClientSession->ReleaseRef())
 				{
 					PushFreeSessionIndex(pClientSession->GetIndex());
