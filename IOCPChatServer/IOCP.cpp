@@ -467,24 +467,36 @@ void IOCompletionPort::WorkerThread()
 			}
 
 			auto pOverlappedEx = (stOverlappedEx*)lpOverlapped;
-			// client의 접속이 끊어졌을때(0바이트 수신(연결종료)
-			if (dwIoSize == 0 && pOverlappedEx->m_eOperation != IOOperation::ACCEPT)
-			{
-				CloseSocket(pClientSession);
+			//// client의 접속이 끊어졌을때(0바이트 수신(연결종료)
+			//if (dwIoSize == 0 && pOverlappedEx->m_eOperation != IOOperation::ACCEPT)
+			//{
+			//	CloseSocket(pClientSession);
 
-				if (pClientSession->ReleaseRef())
-				{
-					PushFreeSessionIndex(pClientSession->GetIndex());
-					TryPostAcceptEx();
-				}
-				continue;
-			}
+			//	if (pClientSession->ReleaseRef())
+			//	{
+			//		PushFreeSessionIndex(pClientSession->GetIndex());
+			//		TryPostAcceptEx();
+			//	}
+			//	continue;
+			//}
 			//printf("[DEBUG] Operation=%d, ClientSessionIndex=%d\n",
 			//	(int)pOverlappedEx->m_eOperation, pOverlappedEx->clientSessionIndex);
 			if (IOOperation::ACCEPT == pOverlappedEx->m_eOperation)
 			{
 				pClientSession = GetClientInfo(pOverlappedEx->clientSessionIndex);
 				--mPendingAcceptCount;
+
+				// 서버 종료중이거나 Listen Socket이 닫혀있다면 즉시 탈출
+				if (!mIsWorkerRun || mListenSocket == INVALID_SOCKET)
+				{
+					pClientSession->CloseAcceptSocket();	// 혹시 열려있을 수 있는 Accept 소켓 닫기
+
+					if (pClientSession->ReleaseRef())
+					{
+						PushFreeSessionIndex(pOverlappedEx->clientSessionIndex);
+					}
+					continue;
+				}
 
 				if (pClientSession->AcceptCompletion(mListenSocket))
 				{
@@ -521,6 +533,17 @@ void IOCompletionPort::WorkerThread()
 			// workerthread accept 처리
 			else if (IOOperation::RECV == pOverlappedEx->m_eOperation)
 			{
+				// recv종료 처리
+				if (dwIoSize == 0)
+				{
+					CloseSocket(pClientSession);
+					if (pClientSession->ReleaseRef())
+					{
+						PushFreeSessionIndex(pClientSession->GetIndex());
+						TryPostAcceptEx();
+					}
+					continue;
+				}
 				// Stale I/O 방지
 				if (pOverlappedEx->generation != pClientSession->GetGeneration())
 				{
@@ -559,7 +582,14 @@ void IOCompletionPort::WorkerThread()
 
 				// Stale 여부 상관없이 무조건 SendComplete로 넘김
 				// 메모리 해제 + 큐 정리는 항상 다음 전송만 조건부
+				// 0바이트 취소든, 정상이든 일단 풀 반납
 				pClientSession->SendComplete(pSendOvl);
+
+				// 반납 후 끊김 처리
+				if (dwIoSize == 0)
+				{
+					CloseSocket(pClientSession);
+				}
 
 				if (pClientSession->ReleaseRef())
 				{
