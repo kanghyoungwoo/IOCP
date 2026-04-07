@@ -12,7 +12,7 @@ struct TestPhase
 struct LoadTestConfig
 {
 	//static constexpr const char* SERVER_IP = "127.0.0.1";
-	static constexpr const char* SERVER_IP = "3.38.216.248";
+	static constexpr const char* SERVER_IP = "3.39.246.141";
 	static constexpr int SERVER_PORT = 11021;
 
 	static constexpr int MAX_ROOMS = 250;

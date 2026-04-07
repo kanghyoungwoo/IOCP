@@ -55,9 +55,19 @@ void StrandProcessor::EnqueueJob(Room* pRoom, uint32_t clientIndex, uint32_t tar
     pJob->packetId = packetId;
     pJob->dataSize = dataSize;
 
-    if (dataSize == 0 || dataSize > MAX_SOCKBUF)
+    // 비정상적으로 큰 패킷 방어 및 누수 방지
+    if (dataSize > MAX_SOCKBUF)
     {
         LOG_ERROR("비정상적인 패킷 크기 수신 (해킹 시도)! Size: %d\n", dataSize);
+        mJobPool.Free(pJob);
+        return;
+    }
+
+    // 시스템 패킷(Disconnect 등)이 아닌 일반 패킷인데 size가 0인 경우 방어
+    if (dataSize == 0 && packetId != (uint16_t)PACKET_ID::SYS_USER_DISCONNECT)
+    {
+        LOG_ERROR("빈 패킷 수신 (해킹 시도)! PacketId: %d\n", packetId);
+        mJobPool.Free(pJob); // 필수: 드랍 시 반드시 메모리 반납
         return;
     }
 

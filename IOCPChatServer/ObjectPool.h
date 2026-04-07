@@ -18,7 +18,7 @@ public:
 		// 풀에 할당된 메모리 해제
 		if (m_poolBlock != nullptr)
 		{
-			delete[] m_poolBlock;
+			std::free(m_poolBlock);
 			m_poolBlock = nullptr;
 		}
 
@@ -31,19 +31,34 @@ public:
 	// poolSize만큼 객체를 미리 할당
 	void Init(const uint32_t poolSize)
 	{
+		mPoolSize = poolSize;
+		// 디버깅용 로그 추가
+		uint64_t totalBytes = (uint64_t)sizeof(T) * poolSize;
+		//printf("Pointer Size: %zu (8이면 64bit, 4면 32bit)\\n", sizeof(void*));
+		//printf("[ObjectPool Init] Type Size: %zu bytes, Count: %u, Requesting: %llu MB\n",sizeof(T), poolSize, totalBytes / (1024 * 1024));
 		//mFreeList.reserve(poolSize);
 
 		// 연속된 배열로 할당
-		m_poolBlock = new T[poolSize];
+		//m_poolBlock = new T[poolSize];
+		m_poolBlock = static_cast<T*>(std::malloc(sizeof(T) * poolSize));
+
+		if (m_poolBlock == nullptr)
+		{
+			//LOG_DEBUG("FATAL : Objectpool malloc failed !\n");
+			return;
+		}
 
 		// 스택에 배열 시작주소 알려줌
 		mFreeStack.Init(m_poolBlock);	// 베이스 주소 설정
 		for (uint32_t i = 0; i < poolSize; ++i)
 		{
+			//mFreeStack.Push(&m_poolBlock[i]);
+			new (&m_poolBlock[i]) T();
 			mFreeStack.Push(&m_poolBlock[i]);
 		}
+		mFreeCount.store(poolSize, std::memory_order_relaxed);
 
-		mPoolSize = poolSize;
+
 
 		// 디버깅
 		mFreeCount.store(poolSize, std::memory_order_relaxed);
