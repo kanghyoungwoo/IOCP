@@ -69,7 +69,7 @@ IOCPChatServer/
 ├── 📁 Database/ ← 비동기 DB/Cache
 │ ├── mysqlmanager.h MySQL 비동기 Task Queue
 │ ├── redismanager.h Redis 인메모리 캐시 (인증)
-│ └── *taskdefine.h DB 작업 정의
+│ └── taskdefine.h DB 작업 정의
 │
 ├── main.cpp 진입점
 ├── define.h 공통 매크로 및 구조체
