@@ -9,8 +9,14 @@ Windows IOCP(I/O Completion Port)를 활용한 고성능 멀티스레드 채팅 
 ### 🎯 Key Achievements
 
 - ⚡ **142,400 TPS** — Lock-Free 아키텍처로 초당 14만 건 패킷 처리, Mutex 대비 p99 지연시간 30% 개선
+- 🛡️ 카오스 엔지니어링을 통한 극한의 안정성 검증
+-     - 자체 개발한 악성 테스트 봇(ChaosBotSystem)을 통해 Lock-Free의 3대 취약점(ABA 오버플로우, 스레드 경합, 좀비 세션) 방어 검증
+-     - 62만 건 이상의 TCP 패킷 단편화(Fragmentation) 공격 및 무작위 랜선 뽑기(RST) 공격에도 패킷 조립 에러 및 서버 크래시 0건 증명
 - 🏋️ **10,000명 동시접속** — AWS EC2 4대에서 실제 유저 시나리오(채팅·입퇴장 반복) 82분 연속 부하 테스트, 연결 유실 0건
-- 🧠 **Zero-Allocation 증명** — Lock-Free Object Pool로 740만 회 작업 처리 후 메모리 누수 0%, 371.9MB 고정 메모리 운용
+- 🧠 **Zero-Allocation 메모리 풀 설계**
+-     — Lock-Free Object Pool로 740만 회 작업 처리 후 메모리 누수 0%
+-     - 런타임 중 OS 힙 락(Heap Lock)을 유발하는 동적 할당(new/delete)을 완전히 배제한 Lock-Free 스택 기반의 Object Pool 구현
+-     - malloc과 Placement new를 결합한 통짜 할당 방식으로 생성자 오버헤드를 제거
 
 ---
 
