@@ -87,24 +87,32 @@ bool PacketManager::Run()
 {
 	const auto& config = ConfigManager::GetInstance().Get();
 
-	if (mRedisManager->Run(config.RedisHost, config.RedisPort, 1) == false)
+	if (!config.TestMode)
 	{
-		return false;
+
+
+		if (mRedisManager->Run(config.RedisHost, config.RedisPort, 1) == false)
+		{
+			return false;
+		}
+
+		mMySQLManager->configure(
+			config.MySQLHost.c_str(),
+			config.MySQLUser.c_str(),
+			config.MySQLPassword.c_str(),
+			config.MySQLDatabase.c_str(),
+			config.MySQLPort
+		);
+
+		if (mMySQLManager->Run(1) == false)
+		{
+			return false;
+		}
 	}
-
-	mMySQLManager->configure(
-		config.MySQLHost.c_str(),
-		config.MySQLUser.c_str(),
-		config.MySQLPassword.c_str(),
-		config.MySQLDatabase.c_str(),
-		config.MySQLPort
-	);
-
-	if (mMySQLManager->Run(1) == false)
+	else
 	{
-		return false;
+		LOG_DEBUG("[TestMode] DB 초기화 생략 (Redis/MySQL 비활성)\n");
 	}
-
 	mIsRunProcessThread = true;
 	mProcessThead = std::thread([this]() { ProcessPacket();});
 	m_strandProcessor.Start(config.MaxLogicThread);
@@ -379,7 +387,10 @@ void PacketManager::ProcessPacket()
 					task.DataSize = sizeof(MySQLRoomEventReq);
 					//task.pData = new char[task.DataSize];
 					CopyMemory(task.body, &req, task.DataSize);
-					mMySQLManager->PushTask(task);
+					if (!ConfigManager::GetInstance().Get().TestMode)
+					{
+						mMySQLManager->PushTask(task);
+					}
 				}
 				
 				break;
@@ -589,7 +600,10 @@ void PacketManager::ProcessLoginDBResult(UINT32 clientIndex_, UINT32 generation_
 
 			//mysqlTask.pData = new char[mysqlTask.DataSize];
 			CopyMemory(mysqlTask.body, &mysqlReq, mysqlTask.DataSize);
-			mMySQLManager->PushTask(mysqlTask);
+			if (!ConfigManager::GetInstance().Get().TestMode)
+			{
+				mMySQLManager->PushTask(mysqlTask);
+			}
 		}
 	}
 

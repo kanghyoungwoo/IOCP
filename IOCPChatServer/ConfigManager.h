@@ -43,6 +43,7 @@ public:
         uint32_t MySQLPort = 3306;
         std::string RedisHost = "127.0.0.1";
         uint32_t RedisPort = 6379;
+        bool TestMode = false;
     };
 
     static ConfigManager& GetInstance()
@@ -74,6 +75,7 @@ public:
             mConfig.ServerPort = j.value("/Network/ServerPort"_json_pointer, mConfig.ServerPort);
             mConfig.MaxClient = j.value("/Network/MaxClient"_json_pointer, mConfig.MaxClient);
             mConfig.MaxIOWorkerThread = j.value("/Network/MaxIOWorkerThread"_json_pointer, mConfig.MaxIOWorkerThread);
+            mConfig.TestMode = j.value("/TestMode"_json_pointer, mConfig.TestMode);
 
             // Thread
             mConfig.MaxWorkerThread = j.value("/Thread/MaxWorkerThread"_json_pointer, mConfig.MaxWorkerThread);

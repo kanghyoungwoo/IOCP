@@ -30,7 +30,10 @@ BOOL WINAPI ConsoleCtrlHandler(DWORD ctrlType)
 			return FALSE;
 	}
 	if (g_pServer)
+	{
+		LOG_ERROR("[종료] ConsoleCtrlHandler에 의한 종료! ctrlType=%d\n", ctrlType);
 		g_pServer->End();
+	}
 	return TRUE;
 }
 int main()
@@ -71,6 +74,7 @@ int main()
 
 		if (input == "quit")
 		{
+			LOG_ERROR("[종료] quit 명령에 의한 종료\n");
 			break;
 		}
 	}
