@@ -4,6 +4,7 @@
 #include <fstream>
 #include <string>
 #include <cstdint>
+#include <Windows.h>
 
 class ConfigManager
 {
@@ -59,10 +60,27 @@ public:
             LOG_ERROR("[Config] 이미 로드 됨. 중복 요청콜을 무시합니다.\n");
             return false;
         }
-        std::ifstream file(filePath);
+
+        std::string resolvedPath = filePath;
+
+        // 상대 경로인 경우, exe 디렉터리 기준으로 변환
+        if (filePath.find(':') == std::string::npos && filePath.find('\\') != 0 && filePath.find('/') != 0)
+        {
+            char exePath[MAX_PATH] = {};
+            GetModuleFileNameA(NULL, exePath, MAX_PATH);
+            // 마지막 '\' 찾아서 디렉터리만 추출
+            std::string exeDir(exePath);
+            auto pos = exeDir.find_last_of("\\/");
+            if (pos != std::string::npos)
+                exeDir = exeDir.substr(0, pos + 1);
+            resolvedPath = exeDir + filePath;
+        }
+
+
+        std::ifstream file(resolvedPath);
         if (!file.is_open())
         {
-            LOG_ERROR("Config file not found: %s (using defaults)\n", filePath.c_str());
+            LOG_ERROR("Config file not found: %s (using defaults)\n", resolvedPath.c_str());
             return false;
         }
 

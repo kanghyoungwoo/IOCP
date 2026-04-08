@@ -70,7 +70,14 @@ int main()
 	while (true)
 	{
 		std::string input;
-		std::getline(std::cin, input);
+		if (!std::getline(std::cin, input))
+		{
+			// stdin EOF 또는 오류 → 서버는 계속 실행
+			LOG_ERROR("[경고] stdin EOF/오류 감지 - 서버는 계속 실행 중\n");
+			std::cin.clear();       // fail 상태 초기화
+			Sleep(1000);            // 스핀 방지
+			continue;               // 종료하지 않고 유지
+		}
 
 		if (input == "quit")
 		{
