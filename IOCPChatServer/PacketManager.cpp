@@ -272,7 +272,7 @@ void PacketManager::ProcessPacket()
 			if (packetData.PacketId == 0)
 				continue;
 
-			if (packetData.DataSize == 0 || packetData.DataSize > MAX_SOCKBUF)
+			if (packetData.DataSize == 0 || packetData.DataSize > MAX_PACKET_DATA_BUFFER_SIZE)
 			{
 				LOG_ERROR("비정상적인 패킷 크기 수신 (해킹 시도)! Size: %d\n", packetData.DataSize);
 				pUser->SetDisconnecting();
