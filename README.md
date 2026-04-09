@@ -4,7 +4,7 @@
 
 Windows IOCP(I/O Completion Port)를 활용한 고성능 멀티스레드 채팅 서버입니다.
 
-단순한 기능 구현을 넘어 **아키텍처 진화(Single-Thread ➡️ Lock-Free)와 극한의 부하 테스트**를 통해 병목 현상을 해결하고, 실제 상용 서비스 수준인 **10,000명 동시 접속 환경에서 Zero-Allocation(메모리 누수 0%)**을 달성한 프로젝트입니다.
+단순한 기능 구현을 넘어 **아키텍처 진화(Single-Thread ➡️ Lock-Free)와 극한의 부하 테스트**를 통해 병목 현상을 해결하고, 실제 상용 서비스 수준인 **10,000명 동시 접속 환경에서 Hot-path Zero-Allocation을 통한 힙 경합 최소화 및 Object Pool 기반 메모리 누수 0%**를 달성한 프로젝트입니다.
 
 ### 🎯 Key Achievements
 
@@ -12,13 +12,12 @@ Windows IOCP(I/O Completion Port)를 활용한 고성능 멀티스레드 채팅 
 - 🔬 **스레드 황금 비율 도출** — AWS EC2 4코어 환경에서 IO힌트·Worker·Logic 스레드 조합 4가지를 실측 비교. `IO힌트=4 / Worker=2 / Logic=4` 구성이 CPU 87% 헤드룸 + p99 17ms로 최적 확인
 - 📡 **엔진 물리 한계 측정** — 10,000명 브로드캐스트(방당 1,000명) 환경에서 수신 TPS **118,000 pkts/s**가 4코어 IOCP 엔진의 물리적 포화 한계임을 시나리오 B·C 교차 검증으로 확정
 - 🛡️ 카오스 엔지니어링을 통한 극한의 안정성 검증
--     - 자체 개발한 악성 테스트 봇(ChaosBotSystem)을 통해 Lock-Free의 3대 취약점(ABA 오버플로우, 스레드 경합, 좀비 세션) 방어 검증
+-     - 자체 개발한 악성 테스트 봇(ChaosBotSystem)을 통해 Lock-Free 고유 취약점(ABA 오버플로우, 스레드 경합) 및 네트워크 고질 문제(좀비 세션, TCP 단편화, RST 공격) 방어 검증
 -     - 62만 건 이상의 TCP 패킷 단편화(Fragmentation) 공격 및 무작위 랜선 뽑기(RST) 공격에도 패킷 조립 에러 및 서버 크래시 0건 증명
 - 🏋️ **10,293명 동시접속** — AWS EC2 4대에서 실제 유저 시나리오(채팅·입퇴장 반복) 부하 테스트, 연결 유실 0건
-- 🧠 **Zero-Allocation 메모리 풀 설계**
--     — Lock-Free Object Pool로 740만 회 작업 처리 후 메모리 누수 0%
--     - 런타임 중 OS 힙 락(Heap Lock)을 유발하는 동적 할당(new/delete)을 완전히 배제한 Lock-Free 스택 기반의 Object Pool 구현
--     - malloc과 Placement new를 결합한 통짜 할당 방식으로 생성자 오버헤드를 제거
+- 🧠 **Hot-path Zero-Allocation 설계 + 객체 풀링 기반 메모리 누수 방지**
+-     - **Zero-Allocation (성능):** 런타임 Hot-path에서 동적 할당(new/delete)을 완전히 배제하여 OS 힙 락(Heap Lock) 경합과 메모리 파편화(Fragmentation) 원천 차단. malloc + Placement new 통짜 할당으로 생성자 오버헤드 제거
+-     - **Zero-Leak (안정성):** Lock-Free Object Pool로 740만 회 작업 처리 후 반환 누락 0건. VS 프로파일러 힙 스냅샷으로 교차 검증 완료
 
 ---
 
@@ -102,7 +101,7 @@ IOCPChatServer/
 ③ PacketJob 생성 + Generation Token 기록
 │
 ④ Lock-Free Global Queue에 Push
-(MPSCQueue::Enqueue, CAS 연산)
+(GlobalQueue_LockFree::Push, CAS 연산)
 │
 ⑤ Packet Process Thread가 Dequeue
 │
@@ -153,6 +152,7 @@ Object Pool에서 SendBuffer 할당 (Lock-Free, new/delete 없음)
 | **Server** | AWS EC2 c6i.xlarge (4 vCPU, 8GB RAM) × 1대, Windows Server 2022 |
 | **Client** | AWS EC2 c6i.xlarge (4 vCPU, 8GB RAM) × 4대, Windows Server 2022 (각 2,500봇) |
 | **Network** | 동일 리전, 동일 클러스터 배치 그룹 (Cluster Placement Group) |
+| **테스트 모드** | `TestMode=true` — Redis 인증·MySQL 로그 I/O 우회, **순수 네트워크·로직 엔진 처리 성능** 측정 (DB 병목 변수 제거) |
 
 > **아키텍처 진화 요약**
 
@@ -191,7 +191,7 @@ Object Pool에서 SendBuffer 할당 (Lock-Free, new/delete 없음)
 ### 🔹 v1 → v2: Multi-Thread (Mutex + CV)
 
 - **한계 극복:** 1,500명 이상에서 발생하는 단일 코어의 한계(CPU 100% 및 처리 스타베이션)를 극복하기 위해 스레드 풀(Thread Pool) 도입.
-- **이슈 발생:** 채팅 서버 특성상 브로드캐스트를 위한 공유 자원(Room, Session) 접근이 잦아 Mutex Lock/Unlock 과정에서 심각한 병목 현상 발생. p99 지연시간이 36.5ms까지 튀는 현상 확인.
+- **이슈 발생:** 채팅 서버 특성상 브로드캐스트를 위한 공유 자원(Room, Session) 접근이 잦아 Mutex Lock/Unlock 과정에서 심각한 병목 현상 발생. 2,000명 부하 시 p99 지연시간이 500ms까지 튀는 현상 확인.
 <img width="2994" height="1902" alt="v2 _Multi-Thread__Mutex_CV_Architecture" src="https://github.com/user-attachments/assets/9f77aa29-79c3-45df-b278-56927b90ec36" />
 
 
