@@ -8,7 +8,7 @@ Windows IOCP(I/O Completion Port)를 활용한 고성능 멀티스레드 채팅 
 
 ### 🎯 Key Achievements
 
-- ⚡ **142,400 TPS** — Lock-Free 아키텍처로 초당 14만 건 패킷 처리, Mutex 대비 p99 지연시간 30% 개선
+- ⚡ **142,400 TPS** — Lock-Free 아키텍처로 초당 14만 건 패킷 처리, Mutex 대비 p99 지연시간 **97% 개선** (≤500ms → ≤16.1ms), 무응답 패킷 0건
 - 🔬 **스레드 황금 비율 도출** — AWS EC2 4코어 환경에서 IO힌트·Worker·Logic 스레드 조합 4가지를 실측 비교. `IO힌트=4 / Worker=2 / Logic=4` 구성이 CPU 87% 헤드룸 + p99 17ms로 최적 확인
 - 📡 **엔진 물리 한계 측정** — 10,000명 브로드캐스트(방당 1,000명) 환경에서 수신 TPS **118,000 pkts/s**가 4코어 IOCP 엔진의 물리적 포화 한계임을 시나리오 B·C 교차 검증으로 확정
 - 🛡️ 카오스 엔지니어링을 통한 극한의 안정성 검증
@@ -210,7 +210,7 @@ Object Pool에서 SendBuffer 할당 (Lock-Free, new/delete 없음)
 > 
 > 
 > 
-> <img width="1172" height="641" alt="서버아키텍처성능비교분석" src="https://github.com/user-attachments/assets/02085013-25f3-417f-9571-f5f3aadbf196" />
+> <img width="1178" height="647" alt="더미클라이언트테스트" src="https://github.com/user-attachments/assets/1ed11885-30d8-4223-ad7e-61c2e84ee9c0" />
 
 > 
 
@@ -224,7 +224,7 @@ Object Pool에서 SendBuffer 할당 (Lock-Free, new/delete 없음)
 
 - **Single-Thread의 붕괴:** 1,500명까지는 락 오버헤드가 없는 싱글 스레드가 훌륭한 효율을 보였으나, 2,000명 부하를 넘어서는 순간 **단일 코어(CPU 100%)의 병목으로 인해 초당 23만 건의 패킷이 Drop(무응답)**되는 붕괴 현상이 발생했습니다.
 - **Mutex의 한계 (Lock Contention):** 멀티 스레드를 도입하여 붕괴는 막았으나, 채팅 서버 특성상 동일한 방(Room)에 접근하기 위해 락을 획득/해제하는 과정에서 병목이 발생하여 **p99 지연시간이 36.5ms까지 튀는 현상**을 확인했습니다.
-- **Lock-Free의 압승:** 결과적으로 Lock-Free 아키텍처가 **초당 142,400건의 패킷을 25.4ms라는 매우 안정적인 지연 시간으로 완벽하게 처리**해 내며 대규모 트래픽에서 가장 우수한 아키텍처임을 증명했습니다.
+- **Lock-Free의 압승:** 결과적으로 Lock-Free 아키텍처가 **초당 142,400건의 패킷을 15.5ms라는 매우 안정적인 지연 시간, 무응답 0건으로 완벽하게 처리**해 내며 대규모 트래픽에서 가장 우수한 아키텍처임을 증명했습니다.
 
 ---
 
