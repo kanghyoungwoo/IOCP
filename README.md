@@ -53,36 +53,39 @@ Windows IOCP(I/O Completion Port)를 활용한 고성능 멀티스레드 채팅 
 ```
 IOCPChatServer/
 ├── 📁 Network/ ← IOCP 네트워크 I/O 코어
-│ ├── iocp.h IOCP 엔진 (AcceptEx, WSARecv, WSASend)
-│ ├── clientSession.h 클라이언트 세션 관리 및 생명주기
-│ ├── chatserver.h 서버 오케스트레이터 (IOCP 상속)
-│ ├── ringbuffer.h TCP 스트림 패킷 버퍼링
-│ └── packet.h 패킷 헤더/프로토콜 정의
+│ ├── IOCP.h/.cpp          IOCP 엔진 (AcceptEx, WSARecv, WSASend)
+│ ├── ClientSession.h/.cpp 클라이언트 세션 관리 및 생명주기
+│ ├── ChatServer.h         서버 오케스트레이터 (IOCP 상속)
+│ ├── RingBuffer.h         TCP 스트림 패킷 버퍼링
+│ └── Packet.h             패킷 헤더/프로토콜 정의
 │
-├── 📁 Concurrency/ ← Lock-Free 자료구조 (직접 구현)
-│ ├── MPSCQueue.h CAS 기반 Lock-Free MPSC 큐
-│ ├── LockFreeStack.h Lock-Free 스택
-│ ├── objectpool.h Lock-Free Object Pool
-│ ├── objectmemorypool.h 범용 메모리 풀 (직접 구현 → 적용)
-│ ├── strandprocessor.h Strand 패턴 (Room별 직렬화)
-│ ├── strandcallback.h Strand 콜백 래퍼
-│ └── globalqueue_mutexcv.h Mutex+CV 큐 (v2 비교용)
+├── 📁 Concurrency/ ← Lock-Free 자료구조
+│ ├── MPSCQueue.h              CAS 기반 Lock-Free MPSC 큐
+│ ├── LockFreeStack.h          Lock-Free 스택
+│ ├── ObjectPool.h             Lock-Free Object Pool
+│ ├── ObjectMemoryPool.h       범용 메모리 풀
+│ ├── StrandProcessor.h/.cpp   Strand 패턴 (Room별 직렬화)
+│ ├── StrandCallback.h         Strand 콜백 래퍼
+│ ├── GlobalQueue_LockFree.h/.cpp Lock-Free 글로벌 큐 (v3 최종)
+│ └── GlobalQueue_MutexCV.h    Mutex+CV 큐 (v2 비교용)
 │
 ├── 📁 Contents/ ← 비즈니스 로직
-│ ├── packetmanager.h/.cpp 패킷 라우팅 및 핸들러
-│ ├── packetjob.h 패킷 처리 작업 단위
-│ ├── user.h / usermanager.h 유저 세션 상태 관리
-│ └── room.h / roommanager.h 채팅방 관리 및 브로드캐스트
+│ ├── PacketManager.h/.cpp 패킷 라우팅 및 핸들러
+│ ├── PacketJob.h          패킷 처리 작업 단위
+│ ├── User.h/.cpp / UserManager.h/.cpp 유저 세션 상태 관리
+│ └── Room.h/.cpp / RoomManager.h/.cpp 채팅방 관리 및 브로드캐스트
 │
 ├── 📁 Database/ ← 비동기 DB/Cache
-│ ├── mysqlmanager.h MySQL 비동기 Task Queue
-│ ├── redismanager.h Redis 인메모리 캐시 (인증)
-│ └── taskdefine.h DB 작업 정의
+│ ├── MysqlManager.h      MySQL 비동기 Task Queue
+│ ├── MySQLTaskDefine.h   MySQL 작업 정의
+│ ├── RedisManager.h      Redis 인메모리 캐시 (인증)
+│ └── RedisTaskDefine.h   Redis 작업 정의
 │
-├── main.cpp 진입점
-├── define.h 공통 매크로 및 구조체
-├── errorcode.h 에러 코드 정의
-└── crashdump.h 크래시 덤프 수집
+├── main.cpp          진입점
+├── ConfigManager.h   JSON 기반 서버 설정 로더 (런타임 튜닝)
+├── Define.h          공통 매크로 및 구조체
+├── ErrorCode.h       에러 코드 정의
+└── CrashDump.h       크래시 덤프 수집
 ```
 ## 🔀 패킷 처리 흐름
 - 클라이언트가 채팅 메시지를 보내고, 같은 방의 모든 유저에게 
@@ -229,6 +232,8 @@ Object Pool에서 SendBuffer 할당 (Lock-Free, new/delete 없음)
 
 *서버의 장기 실행 안정성을 철저히 검증하기 위해, AWS EC2 클라이언트 4대(각 2,500봇)에서 10,000명의 더미 클라이언트가 실제 유저와 동일한 시나리오(로그인 → 방 입장 → 채팅 → 방 퇴장 → 재입장)를 3~10초 간격으로 반복하는 82분(1.38시간) 연속 부하 테스트를 진행했습니다.*
 
+*이후 추가 진행한 극한 부하 시나리오 테스트(Scenario C: CPU 포화 한계 측정)에서 **최대 10,293명 동시 접속**이 확인되었습니다. 자세한 내용은 하단 [극한 부하 시나리오 테스트](#-극한-부하-시나리오-테스트-load-test-scenarios) 섹션을 참조하세요.*
+
 > 
 > 
 > 
@@ -240,10 +245,10 @@ Object Pool에서 SendBuffer 할당 (Lock-Free, new/delete 없음)
 
 | 측정 항목 | 결과 수치 | 상태 요약 |
 | --- | --- | --- |
-| **최대 동시 접속 (Peak Conn)** | **10,293 명** | 목표 수용량 달성 ✅ |
-| **연결 실패 / 끊김 (Fail / Disconn)** | **0 건 / 0 건** | 단 1건의 유실도 없는 세션 안정성 ✅ |
-| **평균 지연 시간 (Avg Latency)** | **15.89 ms** (저부하) / **1,884 ms** (브로드캐스트 폭풍 시) | 저부하 시 실시간 통신 방어 ✅ |
-| **p99 지연 시간 (p99 Latency)** | **17.21 ms** (저부하) / **9,346 ms** (브로드캐스트 폭풍 시) | 저부하 시 상위 1% 패킷도 안정적 처리 ✅ |
+| **최대 동시 접속 (Peak Conn)** | **10,000 명** | 목표 수용량 달성 ✅ |
+| **연결 실패 / 끊김 (Fail / Disconn)** | **0 건 / 0 건** | 82분간 단 1건의 유실도 없는 세션 안정성 ✅ |
+| **평균 지연 시간 (Avg Latency)** | **15.82 ms** | 지연 없는 실시간 통신 방어 ✅ |
+| **p99 지연 시간 (p99 Latency)** | **16.87 ms** (최대 31.49 ms) | 상위 1% 패킷도 30ms 내외로 안정적 처리 ✅ |
 | **이상 현상 (Anomalies)** | **없음** | 무중단 서비스 검증 완료 |
 
 ### ⚙️ 2. 서버 내부 메모리 풀(Object Pool) 벤치마크 지표
