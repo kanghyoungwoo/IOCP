@@ -227,12 +227,16 @@ void PacketManager::ProcessPacket()
 		
 		// Queue Depth logging (5sec interval)
 		{
-			static auto lastQueueLog = std::chrono::steady_clock::now();
+			// thread_local을 써서 스레드 충돌 방지
+			thread_local auto lastQueueLog = std::chrono::steady_clock::now();
 			auto now = std::chrono::steady_clock::now();
 			auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - lastQueueLog).count();
-			if (elapsed >= 5)
+
+			if (elapsed >= 1)
 			{
-				LOG_DEBUG("[QueueDepth] batch_size=%zu  sys_batch=%zu\n", mReadBuffer.size(), mSystemReadBuffer.size());
+				printf("[QueueDepth] ThreadID=%lu, batch_size=%zu  sys_batch=%zu\n",
+					GetCurrentThreadId(), mReadBuffer.size(), mSystemReadBuffer.size());
+
 				lastQueueLog = now;
 			}
 		 }

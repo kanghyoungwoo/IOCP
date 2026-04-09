@@ -44,8 +44,8 @@ bool IOCompletionPort::BindandListen(int nBindPort)
 		return false;
 	}
 
-	// 접속대기큐 5개 설정
-	nRet = listen(mListenSocket, 5);
+	// 접속대기큐 SOMAXCONN개 설정
+	nRet = listen(mListenSocket, SOMAXCONN);
 
 	if (nRet != 0)
 	{
@@ -125,6 +125,7 @@ bool IOCompletionPort::StartServer(const int maxClientCount)
 // 생성되어 있는 스레드를 파괴한다
 void IOCompletionPort::DestroyThread()
 {
+	mIsShuttingDown.store(true, std::memory_order_release);
 
 	mIsTimeoutRun = false;
 	if (mTimeoutThread.joinable())
@@ -132,6 +133,14 @@ void IOCompletionPort::DestroyThread()
 	LOG_DEBUG("TimeoutThread 종료 완료\n");
 
 	//Todo: GracefulShutDown 구현하기
+	SOCKET tempListen = mListenSocket;
+	mListenSocket = INVALID_SOCKET;
+
+	if (tempListen != INVALID_SOCKET)
+	{
+		closesocket(tempListen);
+	}
+	LOG_DEBUG("step1 Accept 종료 완료\n");
 
 	// step1. Accept 중지
 	//mIsAccepterRun = false;
@@ -280,7 +289,7 @@ void IOCompletionPort::TryPostAcceptEx()
 
 void IOCompletionPort::CreateClient(const int maxClientCount)
 {
-	mSendBufferPool.Init(maxClientCount * 50); // maxclient 2000일때 2000, 10000이면 400
+	mSendBufferPool.Init(maxClientCount * 20); // maxclient 2000일때 2000, 10000이면 400
 
 	for (int i = 0;i < maxClientCount;++i)
 	{
@@ -426,6 +435,11 @@ void IOCompletionPort::WorkerThread()
 		{
 			DWORD error = GetLastError();
 
+			if (mIsShuttingDown.load(std::memory_order_acquire))
+			{
+				continue;
+			}
+
 			if (error == TIMEOUT_WAIT)
 			{
 				continue;
@@ -486,17 +500,28 @@ void IOCompletionPort::WorkerThread()
 				pClientSession = GetClientInfo(pOverlappedEx->clientSessionIndex);
 				--mPendingAcceptCount;
 
-				// 서버 종료중이거나 Listen Socket이 닫혀있다면 즉시 탈출
-				if (!mIsWorkerRun || mListenSocket == INVALID_SOCKET)
+
+				if (mIsShuttingDown.load(std::memory_order_acquire) || mListenSocket == INVALID_SOCKET)
 				{
-					pClientSession->CloseAcceptSocket();	// 혹시 열려있을 수 있는 Accept 소켓 닫기
+					pClientSession->CloseAcceptSocket();	// 열려있을 수 있는 Accept 소켓 닫기
 
 					if (pClientSession->ReleaseRef())
 					{
 						PushFreeSessionIndex(pOverlappedEx->clientSessionIndex);
 					}
-					continue;
+					continue; // 조용히 다음으로 넘어감
 				}
+				//// 서버 종료중이거나 Listen Socket이 닫혀있다면 즉시 탈출
+				//if (!mIsWorkerRun || mListenSocket == INVALID_SOCKET)
+				//{
+				//	pClientSession->CloseAcceptSocket();	// 혹시 열려있을 수 있는 Accept 소켓 닫기
+
+				//	if (pClientSession->ReleaseRef())
+				//	{
+				//		PushFreeSessionIndex(pOverlappedEx->clientSessionIndex);
+				//	}
+				//	continue;
+				//}
 
 				if (pClientSession->AcceptCompletion(mListenSocket))
 				{

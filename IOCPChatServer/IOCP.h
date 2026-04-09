@@ -136,4 +136,5 @@ private:
 	std::thread mTimeoutThread;
 	std::atomic<bool> mIsTimeoutRun{ false };
 	std::atomic<int> mPendingAcceptCount{ 0 };
+	std::atomic<bool> mIsShuttingDown{ false };
 };

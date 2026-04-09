@@ -83,9 +83,6 @@ public:
 		bool expected = false;
 		if (!mIsEnded.exchange(true))
 		{
-			DestroyThread();			// step1~5, 네트워크 레이어 종료
-			m_pPacketManager->End();	// step6: 패킷매니저 + DB매니저
-
 			// 벤치마크 (콘솔 + 파일)
 			printf("\n=== Benchmark Result ===\n");
 			printf("SendPool Alloc Fail: %llu\n", GetSendPoolAllocFailCount());
@@ -97,6 +94,9 @@ public:
 				fprintf(fp, "SendPool Alloc Fail: %llu\n\n", GetSendPoolAllocFailCount());
 				fclose(fp);
 			}
+
+			DestroyThread();			// step1~5, 네트워크 레이어 종료
+			m_pPacketManager->End();	// step6: 패킷매니저 + DB매니저
 		}
 		// 역순 종료 방식
 		//m_pPacketManager->End();
