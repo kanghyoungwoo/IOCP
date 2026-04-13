@@ -546,7 +546,7 @@ AWS EC2 c6i.xlarge (4 vCPU, 8GB RAM) 환경에서 3가지 시나리오로 서버
 
 ---
 
-## 🧪 카오스 엔지니어링(Chaos Engineering) 기반 극한의 안정성 검증
+## 🧪 카오스 엔지니어링기반 극한의 안정성 검증
 
 Lock-Free 아키텍처와 Strand 패턴의 무결성을 입증하기 위해, 악의적인 네트워크 공격과 극단적인 스레드 경합 상황을 모사하는 자체 제작 Chaos Bot System으로 3단계 극한 스트레스 테스트를 진행했습니다. 
 단순한 처리량(TPS) 측정을 넘어, Lock-Free의 3대 취약점(ABA, Data Race, 좀비 세션)을 완벽히 방어하며 Zero-Defect(무결점) 서버임을 증명했습니다.
@@ -554,15 +554,15 @@ Lock-Free 아키텍처와 Strand 패턴의 무결성을 입증하기 위해, 악
 ### 🛡️ 3대 시나리오 검증 요약
 1. **Scenario A (ABA 오버플로우 방어):** 30분간 570만 개(770MB)의 패킷 I/O 폭격 ➡️ **메모리 오염 및 Crash 0건** (Generation 검증 로직 입증)
 2. **Scenario B (Strand Race 방어):** 공유 자원(Room) 동시 접근 버스트 775회 유발 ➡️ **Data Race 0건** (Strand 직렬화 패턴 동작 입증)
-3. **Scenario C (좀비 및 단편화 공격):** 패킷 1바이트 조각화 83,000건 및 RST 강제 종료 150건 ➡️ **조립 에러 0건, 좀비 세션 잔류 0건** (RingBuffer 및 CancelIoEx 로직 검증)
+3. **Scenario C (좀비 및 단편화 공격):** 패킷 1바이트 조각화 83,000건 및 RST 강제 종료 150건 ➡️ **조립 에러 0건, 좀비 세션 잔류 0건**
 
 ### 🛡️ Scenario A: Lock-Free 메모리 무결성 및 ABA 오버플로우 검증
 - **Test:** 30분간 950개 이상의 세션이 미친 듯이 접속과 해제를 반복하며 **570만 개(770MB)의 패킷 I/O 폭격** 수행.
 - **Result:** `ABA Overflow 0건`, `메모리 누수 0건`, `서버 크래시 0건`
-- **Insight:** Lock-Free Object Pool의 고질적 문제인 ABA(주소 재사용 오염) 문제를 **Generation(세대) 검증과 RefCount(참조 카운트) 기반의 안전한 메모리 반납 로직**으로 완벽하게 방어해 냈습니다. 
-### 📊 실제 테스트 결과 로그 (Raw Data)
+- **Insight:** Lock-Free Object Pool의 고질적 문제인 ABA(주소 재사용 오염) 문제를 **Generation(세대) 검증과 RefCount(참조 카운트) 기반의 안전한 메모리 반납 로직**으로 방어해 냈습니다. 
+
 <details>
-<summary><b>👉 Scenario A: ABA 오버플로우 검증 결과 보기 (클릭)</b></summary>
+<summary><b>👉 Scenario A: ABA 오버플로우 검증 테스트 로그 보기</b></summary>
 <div markdown="1">
 
 ```text
@@ -592,12 +592,26 @@ Lock-Free 아키텍처와 Strand 패턴의 무결성을 입증하기 위해, 악
 ### ⚔️ Scenario B: Multi-Thread 논리적 경합 (Strand Race) 검증
 - **Test:** 200개의 봇이 120초 동안 의도적으로 **패킷 파이프라인 버스트(775회)**를 일으키며, 동시다발적으로 방 입장/퇴장 및 채팅 도배 요청(Data Race 유발).
 - **Result:** `Strand Race 0건`, `비정상 패킷 차단(Fail) 1,175건`
-- **Insight:** 수백 개의 스레드가 동일한 Room 자원에 동시 접근하려 했으나, **StrandProcessor를 통한 철저한 작업 직렬화(Serialization)**가 동작하여 동기화 오류를 원천 차단했습니다. 또한 비정상적인 상태 전이 요청은 입구에서 즉시 차단(Disconnect)하여 서버 로직을 보호했습니다.
+- **Insight:** 수백 개의 스레드가 동일한 Room 자원에 동시 접근하려 했으나, StrandProcessor를 통한 철저한 작업 직렬화(Serialization)가 동작하여 동기화 오류를 원천 차단했습니다. 또한 비정상적인 상태 전이 요청은 입구에서 즉시 차단(Disconnect)하여 서버 로직을 보호했습니다.
+
+<details>
+<summary><b>👉 Scenario A: ABA 오버플로우 검증 결과 보기 (클릭)</b></summary>
+<div markdown="1">
+<img width="530" height="831" alt="KakaoTalk_20260413_150714205" src="https://github.com/user-attachments/assets/7e4b8497-7914-432e-9130-9b8e96b24eeb" />
+</div>
+</details>
 
 ### 🧟 Scenario C: 악성 네트워크 공격 및 좀비 세션(Zombie) 토벌
 - **Test:** 83,903개의 모든 통신 패킷을 1바이트 단위로 조각내어 전송(**TCP 단편화**)하고, 정상 통신 중 강제 랜선 뽑기(**RST Hard Close**) 150회 시도.
 - **Result:** `Zombie Race 0건`, `패킷 조립 에러 0건`
-- **Insight:** TCP 스트림 파싱의 맹점을 노린 극악의 1바이트 쪼개기 공격에서도 **RingBuffer의 패킷 경계 파싱 로직**이 완벽히 동작했습니다. 또한 RST 강제 종료 시 `CancelIoEx`와 내부 Task Queue를 활용한 즉각적인 좀비 세션 암살(Cleanup) 로직이 무결점으로 작동하여, 리소스 낭비 없는 우주 방어력을 입증했습니다.
+- **Insight:** TCP 스트림 파싱의 맹점을 노린 극악의 1바이트 쪼개기 공격에서도 **RingBuffer의 패킷 경계 파싱 로직**이 완벽히 동작했습니다. 또한 RST 강제 종료 시 `CancelIoEx`와 내부 Task Queue를 활용한 즉각적인 좀비 세션 암살(Cleanup) 로직이 무결점으로 작동하여, 리소스 낭비 없는 방어력을 입증했습니다.
+### 📊 실제 테스트 결과 로그 (Raw Data)
+<details>
+<summary><b>👉 Scenario A: ABA 오버플로우 검증 결과 보기 (클릭)</b></summary>
+<div markdown="1">
+<img width="549" height="853" alt="KakaoTalk_20260413_150714205_01" src="https://github.com/user-attachments/assets/590a5c7b-63a5-45ca-ab5e-e5bf32a5af9e" />
+</div>
+</details>
 
 - ---
 
