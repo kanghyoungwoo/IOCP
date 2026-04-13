@@ -492,7 +492,7 @@ AWS EC2 c6i.xlarge (4 vCPU, 8GB RAM) 환경에서 3가지 시나리오로 서버
 
 #### 저부하 (방당 8명, 채팅 여유)
 
-| 테스트 | 설정 (IO힌트/Worker/Logic) | 평균 레이턴시 | p99 | CPU |
+| 테스트 | 설정 (MaxIOWorkerThread/MaxWorkerThread/MaxLogicThread) | 평균 레이턴시 | p99 | CPU |
 |--------|--------------------------|-------------|-----|-----|
 | A-1 | IO4 / W2 / L2 (총 4개) | 16.10 ms | 32.13 ms | 32.41% |
 | A-4 | IO4 / W4 / L2 (총 6개) | 15.69 ms | 32.77 ms | 35.49% |
@@ -503,7 +503,7 @@ AWS EC2 c6i.xlarge (4 vCPU, 8GB RAM) 환경에서 3가지 시나리오로 서버
 
 #### 고부하 (방당 8명, 채팅 빡빡)
 
-| 테스트 | 설정 (IO힌트/Worker/Logic) | 평균 레이턴시 | 수신 TPS | CPU |
+| 테스트 | 설정 (MaxIOWorkerThread/MaxWorkerThread/MaxLogicThread) | 평균 레이턴시 | 수신 TPS | CPU |
 |--------|--------------------------|-------------|---------|-----|
 | A-1 | IO4 / W2 / L2 | 251 ms | 146,277 pkts/s | 94.87% |
 | **A-2** | **IO4 / W2 / L4** | **261 ms** | **128,528 pkts/s** | **87.38%** |
@@ -511,7 +511,7 @@ AWS EC2 c6i.xlarge (4 vCPU, 8GB RAM) 환경에서 3가지 시나리오로 서버
 | A-4 | IO8 / W4 / L4 | 401 ms 🔴 | 91,093 pkts/s 🔴 | 99.82% 🔴 |
 
 > A-4는 스레드가 가장 많지만 최악. 4코어에 Worker(4)+Logic(4)=8 스레드는 2배 오버서브스크립션 → 컨텍스트 스위칭 폭증.
-> **Golden Ratio: IO힌트=4 / Worker=2 / Logic=4** — CPU 87%로 유일하게 헤드룸 확보, 저부하 p99 17ms.
+> **Golden Ratio: MaxIOWorkerThread=4 / MaxWorkerThread=2 / MaxLogicThread=4** — CPU 87%로 유일하게 헤드룸 확보, 저부하 p99 17ms.
 
 ---
 
