@@ -542,20 +542,52 @@ AWS EC2 c6i.xlarge (4 vCPU, 8GB RAM) 환경에서 3가지 시나리오로 서버
 | p99 레이턴시 | 10,269 ms | 큐 포화 시 처리 한계 |
 | Send:Recv 비율 | 1 : 501 | 시나리오 B와 동일한 병목 패턴 |
 
-> 시나리오 B 최고치(118,420)와 거의 일치 → **c6i.xlarge 4코어 IOCP 엔진의 물리적 수신 한계 = 초당 약 118,000 패킷**으로 확정.
+> 시나리오 B 최고치(118,420)와 거의 일치 → c6i.xlarge 4코어 IOCP 엔진의 물리적 수신 한계 = 초당 약 118,000 패킷으로 확정.
 
 ---
 
 ## 🧪 카오스 엔지니어링(Chaos Engineering) 기반 극한의 안정성 검증
 
-Lock-Free 아키텍처와 Strand 패턴의 무결성을 입증하기 위해, 악의적인 네트워크 공격과 극단적인 스레드 경합 상황을 모사하는 자체 제작 **'Chaos Bot System'**으로 3단계 극한 스트레스 테스트를 진행했습니다. 
+Lock-Free 아키텍처와 Strand 패턴의 무결성을 입증하기 위해, 악의적인 네트워크 공격과 극단적인 스레드 경합 상황을 모사하는 자체 제작 Chaos Bot System으로 3단계 극한 스트레스 테스트를 진행했습니다. 
+단순한 처리량(TPS) 측정을 넘어, Lock-Free의 3대 취약점(ABA, Data Race, 좀비 세션)을 완벽히 방어하며 Zero-Defect(무결점) 서버임을 증명했습니다.
 
-그 결과, 단 한 건의 크래시나 데이터 오염 없는 **완벽한 Zero-Defect(무결점) 서버**임을 증명했습니다.
+### 🛡️ 3대 시나리오 검증 요약
+1. **Scenario A (ABA 오버플로우 방어):** 30분간 570만 개(770MB)의 패킷 I/O 폭격 ➡️ **메모리 오염 및 Crash 0건** (Generation 검증 로직 입증)
+2. **Scenario B (Strand Race 방어):** 공유 자원(Room) 동시 접근 버스트 775회 유발 ➡️ **Data Race 0건** (Strand 직렬화 패턴 동작 입증)
+3. **Scenario C (좀비 및 단편화 공격):** 패킷 1바이트 조각화 83,000건 및 RST 강제 종료 150건 ➡️ **조립 에러 0건, 좀비 세션 잔류 0건** (RingBuffer 및 CancelIoEx 로직 검증)
 
 ### 🛡️ Scenario A: Lock-Free 메모리 무결성 및 ABA 오버플로우 검증
 - **Test:** 30분간 950개 이상의 세션이 미친 듯이 접속과 해제를 반복하며 **570만 개(770MB)의 패킷 I/O 폭격** 수행.
 - **Result:** `ABA Overflow 0건`, `메모리 누수 0건`, `서버 크래시 0건`
 - **Insight:** Lock-Free Object Pool의 고질적 문제인 ABA(주소 재사용 오염) 문제를 **Generation(세대) 검증과 RefCount(참조 카운트) 기반의 안전한 메모리 반납 로직**으로 완벽하게 방어해 냈습니다. 
+### 📊 실제 테스트 결과 로그 (Raw Data)
+<details>
+<summary><b>👉 Scenario A: ABA 오버플로우 검증 결과 보기 (클릭)</b></summary>
+<div markdown="1">
+
+```text
+=============================================================
+  CHAOS BOT - Statistics (1800.5 sec elapsed)
+=============================================================
+  [Connection]
+    Attempts: 951  Success: 951  Failed: 0
+    Disconnects: 951  Hard Close(RST): 0
+
+  [Packet I/O]
+    Sent: 5708391 (772.93 MB)  Recv: 5707511 (38.10 MB)
+    Send Errors: 0
+    Throughput: 3170 pkt/s sent, 3170 pkt/s recv
+
+  *** VULNERABILITY DETECTION ***
+    [A] ABA Overflow:     0
+    [B] Strand Race:      0
+    [C] Zombie Race:      0
+    Server Crash:         0
+=============================================================
+```
+</div>
+</details>
+
 
 ### ⚔️ Scenario B: Multi-Thread 논리적 경합 (Strand Race) 검증
 - **Test:** 200개의 봇이 120초 동안 의도적으로 **패킷 파이프라인 버스트(775회)**를 일으키며, 동시다발적으로 방 입장/퇴장 및 채팅 도배 요청(Data Race 유발).
