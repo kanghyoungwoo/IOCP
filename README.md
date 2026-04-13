@@ -16,8 +16,8 @@ Windows IOCP(I/O Completion Port)를 활용한 고성능 멀티스레드 채팅 
   - 62만 건 이상의 TCP 패킷 단편화(Fragmentation) 공격 및 무작위 랜선 뽑기(RST) 공격에도 패킷 조립 에러 및 서버 크래시 0건 증명
 - 🏋️ **10,000명 동시접속** — AWS EC2 4대에서 실제 유저 시나리오(채팅·입퇴장 반복) 부하 테스트, 연결 유실 0건
 - 🧠 **Hot-path Zero-Allocation 설계 + 객체 풀링 기반 메모리 누수 방지**
-- - **Zero-Allocation (성능):** 런타임 Hot-path에서 동적 할당(new/delete)을 완전히 배제하여 OS 힙 락(Heap Lock) 경합과 메모리 파편화(Fragmentation) 원천 차단. malloc + Placement new 통짜 할당으로 생성자 오버헤드 제거
-- - **Zero-Leak (안정성):** Lock-Free Object Pool로 740만 회 작업 처리 후 반환 누락 0건. VS 프로파일러 힙 스냅샷으로 교차 검증 완료
+  - **Zero-Allocation (성능):** 런타임 Hot-path에서 동적 할당(new/delete)을 완전히 배제하여 OS 힙 락(Heap Lock) 경합과 메모리 파편화(Fragmentation) 원천 차단. malloc + Placement new 통짜 할당으로 생성자 오버헤드 제거
+  - **Zero-Leak (안정성):** Lock-Free Object Pool로 740만 회 작업 처리 후 반환 누락 0건. VS 프로파일러 힙 스냅샷으로 교차 검증 완료
 
 ---
 
