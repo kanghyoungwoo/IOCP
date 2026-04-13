@@ -4,7 +4,7 @@
 
 Windows IOCP(I/O Completion Port)를 활용한 고성능 멀티스레드 채팅 서버입니다.
 
-단순한 기능 구현을 넘어 **아키텍처 진화(Single-Thread ➡️ Lock-Free)와 극한의 부하 테스트**를 통해 병목 현상을 해결하고, 실제 상용 서비스 수준인 **10,000명 동시 접속 환경에서 Hot-path Zero-Allocation을 통한 힙 경합 최소화 및 Object Pool 기반 메모리 누수 0%**를 달성한 프로젝트입니다.
+단순한 기능 구현을 넘어 **아키텍처 진화(Single-Thread ➡️ Lock-Free)와 극한의 부하 테스트**를 통해 병목 현상을 해결하고, 실제 상용 서비스 수준인 **10,000명 동시 접속 환경에서 Hot-path Zero-Allocation을 통한 힙 경합 최소화 및 Object Pool 기반 메모리 누수 0%** 를 달성한 프로젝트입니다.
 
 ### 🎯 Key Achievements
 
@@ -12,12 +12,12 @@ Windows IOCP(I/O Completion Port)를 활용한 고성능 멀티스레드 채팅 
 - 🔬 **스레드 황금 비율 도출** — AWS EC2 4코어 환경에서 IO힌트·Worker·Logic 스레드 조합 4가지를 실측 비교. `IO힌트=4 / Worker=2 / Logic=4` 구성이 CPU 87% 헤드룸 + p99 17ms로 최적 확인
 - 📡 **엔진 물리 한계 측정** — 10,000명 브로드캐스트(방당 1,000명) 환경에서 수신 TPS **118,000 pkts/s**가 4코어 IOCP 엔진의 물리적 포화 한계임을 시나리오 B·C 교차 검증으로 확정
 - 🛡️ 카오스 엔지니어링을 통한 극한의 안정성 검증
--     - 자체 개발한 악성 테스트 봇(ChaosBotSystem)을 통해 Lock-Free 고유 취약점(ABA 오버플로우, 스레드 경합) 및 네트워크 고질 문제(좀비 세션, TCP 단편화, RST 공격) 방어 검증
--     - 62만 건 이상의 TCP 패킷 단편화(Fragmentation) 공격 및 무작위 랜선 뽑기(RST) 공격에도 패킷 조립 에러 및 서버 크래시 0건 증명
+  - 자체 개발한 악성 테스트 봇(ChaosBotSystem)을 통해 Lock-Free 고유 취약점(ABA 오버플로우, 스레드 경합) 및 네트워크 고질 문제(좀비 세션, TCP 단편화, RST 공격) 방어 검증
+  - 62만 건 이상의 TCP 패킷 단편화(Fragmentation) 공격 및 무작위 랜선 뽑기(RST) 공격에도 패킷 조립 에러 및 서버 크래시 0건 증명
 - 🏋️ **10,293명 동시접속** — AWS EC2 4대에서 실제 유저 시나리오(채팅·입퇴장 반복) 부하 테스트, 연결 유실 0건
 - 🧠 **Hot-path Zero-Allocation 설계 + 객체 풀링 기반 메모리 누수 방지**
--     - **Zero-Allocation (성능):** 런타임 Hot-path에서 동적 할당(new/delete)을 완전히 배제하여 OS 힙 락(Heap Lock) 경합과 메모리 파편화(Fragmentation) 원천 차단. malloc + Placement new 통짜 할당으로 생성자 오버헤드 제거
--     - **Zero-Leak (안정성):** Lock-Free Object Pool로 740만 회 작업 처리 후 반환 누락 0건. VS 프로파일러 힙 스냅샷으로 교차 검증 완료
+- - **Zero-Allocation (성능):** 런타임 Hot-path에서 동적 할당(new/delete)을 완전히 배제하여 OS 힙 락(Heap Lock) 경합과 메모리 파편화(Fragmentation) 원천 차단. malloc + Placement new 통짜 할당으로 생성자 오버헤드 제거
+- - **Zero-Leak (안정성):** Lock-Free Object Pool로 740만 회 작업 처리 후 반환 누락 0건. VS 프로파일러 힙 스냅샷으로 교차 검증 완료
 
 ---
 
@@ -408,8 +408,8 @@ graph TD
 
 **💡 분석**
 
-- **Single-Thread의 붕괴:** 1,500명까지는 락 오버헤드가 없는 싱글 스레드가 훌륭한 효율을 보였으나, 2,000명 부하를 넘어서는 순간 **단일 코어(CPU 100%)의 병목으로 인해 초당 23만 건의 패킷이 Drop(무응답)**되는 붕괴 현상이 발생했습니다.
-- **Mutex의 한계 (Lock Contention):** 멀티 스레드를 도입하여 붕괴는 막았으나, 채팅 서버 특성상 동일한 방(Room)에 접근하기 위해 락을 획득/해제하는 과정에서 병목이 발생하여 **p99 지연시간이 36.5ms까지 튀는 현상**을 확인했습니다.
+- **Single-Thread의 붕괴:** 1,500명까지는 락 오버헤드가 없는 싱글 스레드가 훌륭한 효율을 보였으나, 2,000명 부하를 넘어서는 순간 **단일 코어(CPU 100%)의 병목으로 인해 초당 23만 건의 패킷이 Drop(무응답)** 되는 붕괴 현상이 발생했습니다.
+- **Mutex의 한계 (Lock Contention):** 멀티 스레드를 도입하여 붕괴는 막았으나, 채팅 서버 특성상 동일한 방(Room)에 접근하기 위해 락을 획득/해제하는 과정에서 병목이 발생하여 **p99 지연시간이 36.5ms까지 튀는 현상** 을 확인했습니다.
 - **Lock-Free의 압승:** 결과적으로 Lock-Free 아키텍처가 **초당 142,400건의 패킷을 15.5ms라는 매우 안정적인 지연 시간, 무응답 0건으로 완벽하게 처리**해 내며 대규모 트래픽에서 가장 우수한 아키텍처임을 증명했습니다.
 
 ---
@@ -453,7 +453,7 @@ graph TD
 위의 서버 내부 지표(`Pool Free Count = 100,000`)로 객체 누수가 없음을 확인했으나, AWS CloudWatch를 통한 OS 레벨 메모리 모니터링을 관찰하고 분석했습니다.
 
 #### Phase 1: 실제 메모리 누수 발견 및 수정
-- **현상**: 최초 10,000명 테스트에서 서버 메모리가 **99%(6,680MB)**를 점유하며 **0.4MB/s**씩 지속 증가
+- **현상**: 최초 10,000명 테스트에서 서버 메모리가 **99%(6,680MB)** 를 점유하며 **0.4MB/s** 씩 지속 증가
 - **원인 분석**:
     1. **SendBuffer Pool 과잉 할당**: 봇당 400개씩 총 4,000,000개 할당 → 약 4.1GB 낭비
     2. **세션 버퍼 비대화**: `MAX_PACKET_DATA_BUFFER_SIZE`가 65,536으로 과도하게 설정
@@ -590,24 +590,24 @@ Lock-Free 아키텍처와 Strand 패턴의 무결성을 입증하기 위해, 악
 
 
 ### ⚔️ Scenario B: Multi-Thread 논리적 경합 (Strand Race) 검증
-- **Test:** 200개의 봇이 120초 동안 의도적으로 **패킷 파이프라인 버스트(775회)**를 일으키며, 동시다발적으로 방 입장/퇴장 및 채팅 도배 요청(Data Race 유발).
+- **Test:** 200개의 봇이 120초 동안 의도적으로 **패킷 파이프라인 버스트(775회)** 를 일으키며, 동시다발적으로 방 입장/퇴장 및 채팅 도배 요청(Data Race 유발).
 - **Result:** `Strand Race 0건`, `비정상 패킷 차단(Fail) 1,175건`
 - **Insight:** 수백 개의 스레드가 동일한 Room 자원에 동시 접근하려 했으나, StrandProcessor를 통한 철저한 작업 직렬화(Serialization)가 동작하여 동기화 오류를 원천 차단했습니다. 또한 비정상적인 상태 전이 요청은 입구에서 즉시 차단(Disconnect)하여 서버 로직을 보호했습니다.
 
 <details>
-<summary><b>👉 Scenario A: ABA 오버플로우 검증 결과 보기 (클릭)</b></summary>
+<summary><b>👉 Scenario B: Multi-Thread 논리적 경합 (Strand Race) 검증 결과
 <div markdown="1">
 <img width="530" height="831" alt="KakaoTalk_20260413_150714205" src="https://github.com/user-attachments/assets/7e4b8497-7914-432e-9130-9b8e96b24eeb" />
 </div>
 </details>
 
-### 🧟 Scenario C: 악성 네트워크 공격 및 좀비 세션(Zombie) 토벌
+### 🧟 Scenario C: 악성 네트워크 공격 및 좀비 세션 검증
 - **Test:** 83,903개의 모든 통신 패킷을 1바이트 단위로 조각내어 전송(**TCP 단편화**)하고, 정상 통신 중 강제 랜선 뽑기(**RST Hard Close**) 150회 시도.
 - **Result:** `Zombie Race 0건`, `패킷 조립 에러 0건`
 - **Insight:** TCP 스트림 파싱의 맹점을 노린 극악의 1바이트 쪼개기 공격에서도 **RingBuffer의 패킷 경계 파싱 로직**이 완벽히 동작했습니다. 또한 RST 강제 종료 시 `CancelIoEx`와 내부 Task Queue를 활용한 즉각적인 좀비 세션 암살(Cleanup) 로직이 무결점으로 작동하여, 리소스 낭비 없는 방어력을 입증했습니다.
 ### 📊 실제 테스트 결과 로그 (Raw Data)
 <details>
-<summary><b>👉 Scenario A: ABA 오버플로우 검증 결과 보기 (클릭)</b></summary>
+<summary><b>👉 Scenario C: 악성 네트워크 공격 및 좀비 세션 검증 결과
 <div markdown="1">
 <img width="549" height="853" alt="KakaoTalk_20260413_150714205_01" src="https://github.com/user-attachments/assets/590a5c7b-63a5-45ca-ab5e-e5bf32a5af9e" />
 </div>
