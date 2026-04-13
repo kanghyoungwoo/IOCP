@@ -4,7 +4,7 @@
 
 Windows IOCP(I/O Completion Port)를 활용한 고성능 멀티스레드 채팅 서버입니다.
 
-단순한 기능 구현을 넘어 **아키텍처 진화(Single-Thread ➡️ Lock-Free)와 극한의 부하 테스트**를 통해 병목 현상을 해결하고, 실제 상용 서비스 수준인 **10,000명 동시 접속 환경에서 Hot-path Zero-Allocation을 통한 힙 경합 최소화 및 Object Pool 기반 메모리 누수 0%** 를 달성한 프로젝트입니다.
+단순한 기능 구현을 넘어 **아키텍처 진화(Single-Thread ➡️ Lock-Free)와 극한의 부하 테스트**를 통해 병목 현상을 해결하고, 실제 상용 서비스 수준인 **10,000명 동시 접속 환경에서 Zero-Allocation을 통한 힙 경합 최소화 및 Object Pool 기반 메모리 누수 0%** 를 달성한 프로젝트입니다.
 
 ### 🎯 Key Achievements
 
