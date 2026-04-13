@@ -167,7 +167,62 @@ Object Pool에서 SendBuffer 할당 (Lock-Free, new/delete 없음)
 - **Problem:** IOCP 스레드와 패킷 처리 스레드가 단일 패킷 큐(`mInComingPacketUserIndex`)를 공유하며 `std::mutex`로 보호 → 패킷 삽입/처리마다 락 경합(Lock Contention)이 발생하여 처리 지연 누적, 1,000명 이상에서 처리 스타베이션(Starvation) 발생
 - **Solution:** 더블 버퍼링(Double Buffering) 기법 도입. 수신용 큐와 처리용 큐를 분리하고, 로직 스레드가 처리를 시작할 때 두 큐를 O(1) swap하여 락 경합을 원천 차단. IOCP I/O 워커 스레드도 4개 → 8개로 최적화.
 - **Result:** 기존 단일 큐 대비 **초당 처리량(TPS) 83% 증가 및 평균 지연시간 76% 단축** 달성. 최대 1,500명 부하까지 안정적 방어.
+```mermaid
+graph TD
+    %% 외부 클라이언트
+    Clients((Clients))
 
+    %% 네트워크 레이어 (IOCP)
+    subgraph Network_Layer [Network Layer]
+        IOCP[IOCompletionPort]
+        ChatServer[ChatServer]
+        WorkerThreads[I/O Worker Threads]
+        SessionPool[Client Session Pool]
+
+        ChatServer -- 상속 --> IOCP
+        IOCP --> WorkerThreads
+        WorkerThreads -->|Accept/Recv/Send| SessionPool
+    end
+
+    %% 로직 레이어 (Packet Manager)
+    subgraph Logic_Layer [Logic Layer]
+        PacketManager[PacketManager]
+        RingBuffer[(Ring Buffer / Queue)]
+        ProcessThread[Logic Process Thread]
+        RoomMgr[RoomManager]
+        UserMgr[UserManager]
+
+        PacketManager -->|Enqueue| RingBuffer
+        RingBuffer -->|Dequeue| ProcessThread
+        ProcessThread --> RoomMgr
+        ProcessThread --> UserMgr
+    end
+
+    %% 비동기 DB 레이어
+    subgraph DB_Layer [Async DB Layer]
+        direction LR
+        RedisMgr[RedisManager Task]
+        MySQLMgr[MySQLManager Task]
+    end
+
+    %% 외부 데이터베이스
+    subgraph External_Database [External Database]
+        Redis[(Redis)]
+        MySQL[(MySQL RDS)]
+    end
+
+    %% 흐름 연결
+    Clients <-->|TCP Socket| IOCP
+    WorkerThreads -->|OnConnect / OnReceive / OnClose| ChatServer
+    ChatServer -->|Push Packet| PacketManager
+    ProcessThread -->|Send Packet| ChatServer
+
+    ProcessThread -->|Push Auth Task| RedisMgr
+    ProcessThread -->|Push Log Task| MySQLMgr
+
+    RedisMgr <-->|CRedisConn| Redis
+    MySQLMgr -->|MySQL C API| MySQL
+```
 <img width="4528" height="998" alt="v1 _Single-Thread__Double_Buffering_Architecture" src="https://github.com/user-attachments/assets/51aef633-43af-4005-b3d5-585d68c70296" />
 
 
