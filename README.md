@@ -321,42 +321,48 @@ graph TD
 - **최종 성과:** 2,000명 극한의 스트레스 테스트(Max TPS)에서 **초당 142,400 건의 패킷 처리를 무응답 에러 없이 달성**하며 동급 아키텍처 대비 압도적인 성능 증명.
 ```mermaid
 graph TD
-    %% 외부 클라이언트
-    Clients((Clients))
+    %% 외부 클라이언트 및 테스트 시스템
+    subgraph External_Clients [Clients & Test Bots]
+        Clients((Real Clients))
+        ChaosBot[Chaos Bot System\nStress/ABA Test]
+        LoadTester[Chat Load Tester]
+    end
+
+    %% 메모리 풀 레이어 (전역)
+    subgraph Memory_Layer [Memory Management]
+        MemPool[Lock-Free Object Pool\nSession / Packet]
+    end
 
     %% 네트워크 레이어 (IOCP)
     subgraph Network_Layer [Network Layer]
         IOCP[IOCompletionPort]
-        ChatServer[ChatServer]
         WorkerThreads[I/O Worker Threads]
         SessionPool[Client Session Pool]
-        TimeoutThread[Timeout Check Thread]
-
-        ChatServer -- 상속 --> IOCP
+        
         IOCP --> WorkerThreads
         WorkerThreads -->|Accept/Recv/Send| SessionPool
-        TimeoutThread -->|Ping / Kick| SessionPool
     end
 
-    %% 로직 레이어 (Packet Manager)
+    %% 로직 레이어 (Strand & Lock-Free)
     subgraph Logic_Layer [Logic Layer]
         PacketManager[PacketManager]
-        DoubleBuffer[(Double Buffering Queue)]
-        ProcessThread[Logic Process Thread]
+        GlobalQueue[(MPSC Lock-Free Queue\nGlobal Event Queue)]
+        StrandProcessor[Strand Processor]
         RoomMgr[RoomManager]
         UserMgr[UserManager]
 
-        PacketManager -->|Enqueue| DoubleBuffer
-        DoubleBuffer -->|Dequeue| ProcessThread
-        ProcessThread --> RoomMgr
-        ProcessThread --> UserMgr
+        WorkerThreads -->|Enqueue Packet\nLock-Free| GlobalQueue
+        GlobalQueue -->|Dequeue| PacketManager
+        PacketManager -->|Dispatch Task| StrandProcessor
+        StrandProcessor -->|Serialized Execution\nNo Mutex| RoomMgr
+        StrandProcessor -->|Serialized Execution\nNo Mutex| UserMgr
     end
 
     %% 비동기 DB 레이어
     subgraph DB_Layer [Async DB Layer]
         direction LR
-        RedisMgr[RedisManager Task]
-        MySQLMgr[MySQLManager Task]
+        RedisMgr[RedisManager Worker]
+        MySQLMgr[MySQLManager Worker]
     end
 
     %% 외부 데이터베이스
@@ -366,16 +372,21 @@ graph TD
     end
 
     %% 흐름 연결
-    Clients <-->|TCP Socket| IOCP
-    WorkerThreads -->|OnConnect / OnReceive / OnClose| ChatServer
-    ChatServer -->|Push Packet| PacketManager
-    ProcessThread -->|SendPacketFunc| ChatServer
+    External_Clients <-->|TCP Socket| IOCP
+    
+    MemPool -.->|Allocate / Free| SessionPool
+    MemPool -.->|Allocate / Free| PacketManager
 
-    ProcessThread -->|Push Auth Task| RedisMgr
-    ProcessThread -->|Push Log Task| MySQLMgr
+    RoomMgr -->|Push Auth/State Task| RedisMgr
+    RoomMgr -->|Push Log Task| MySQLMgr
+    UserMgr -->|Push Task| RedisMgr
+    UserMgr -->|Push Task| MySQLMgr
 
     RedisMgr <-->|CRedisConn| Redis
     MySQLMgr -->|MySQL C API| MySQL
+
+    classDef core fill:#f9f,stroke:#333,stroke-width:2px;
+    class StrandProcessor,GlobalQueue,MemPool core;
 ```
 
 ### 📊 아키텍처별 극한 부하 성능 비교 (2,000명 Stress Test)
