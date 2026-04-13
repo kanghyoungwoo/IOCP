@@ -9,12 +9,12 @@ Windows IOCP(I/O Completion Port)를 활용한 고성능 멀티스레드 채팅 
 ### 🎯 Key Achievements
 
 - ⚡ **142,400 TPS** — Lock-Free 아키텍처로 초당 14만 건 패킷 처리, Mutex 대비 p99 지연시간 **97% 개선** (≤500ms → ≤16.1ms), 무응답 패킷 0건
-- 🔬 **스레드 황금 비율 도출** — AWS EC2 4코어 환경에서 IO힌트·Worker·Logic 스레드 조합 4가지를 실측 비교. `IO힌트=4 / Worker=2 / Logic=4` 구성이 CPU 87% 헤드룸 + p99 17ms로 최적 확인
+- 🔬 **스레드 황금 비율 도출** — AWS EC2 4코어 환경에서 IO·Worker·Logic 스레드 조합 4가지를 실측 비교. `IO힌트=4 / Worker=2 / Logic=4` 구성이 CPU 87% 헤드룸 + p99 17ms로 최적 확인
 - 📡 **엔진 물리 한계 측정** — 10,000명 브로드캐스트(방당 1,000명) 환경에서 수신 TPS **118,000 pkts/s**가 4코어 IOCP 엔진의 물리적 포화 한계임을 시나리오 B·C 교차 검증으로 확정
 - 🛡️ 카오스 엔지니어링을 통한 극한의 안정성 검증
   - 자체 개발한 악성 테스트 봇(ChaosBotSystem)을 통해 Lock-Free 고유 취약점(ABA 오버플로우, 스레드 경합) 및 네트워크 고질 문제(좀비 세션, TCP 단편화, RST 공격) 방어 검증
   - 62만 건 이상의 TCP 패킷 단편화(Fragmentation) 공격 및 무작위 랜선 뽑기(RST) 공격에도 패킷 조립 에러 및 서버 크래시 0건 증명
-- 🏋️ **10,293명 동시접속** — AWS EC2 4대에서 실제 유저 시나리오(채팅·입퇴장 반복) 부하 테스트, 연결 유실 0건
+- 🏋️ **10,000명 동시접속** — AWS EC2 4대에서 실제 유저 시나리오(채팅·입퇴장 반복) 부하 테스트, 연결 유실 0건
 - 🧠 **Hot-path Zero-Allocation 설계 + 객체 풀링 기반 메모리 누수 방지**
 - - **Zero-Allocation (성능):** 런타임 Hot-path에서 동적 할당(new/delete)을 완전히 배제하여 OS 힙 락(Heap Lock) 경합과 메모리 파편화(Fragmentation) 원천 차단. malloc + Placement new 통짜 할당으로 생성자 오버헤드 제거
 - - **Zero-Leak (안정성):** Lock-Free Object Pool로 740만 회 작업 처리 후 반환 누락 0건. VS 프로파일러 힙 스냅샷으로 교차 검증 완료
