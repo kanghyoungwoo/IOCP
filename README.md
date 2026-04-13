@@ -223,7 +223,6 @@ graph TD
     RedisMgr <-->|CRedisConn| Redis
     MySQLMgr -->|MySQL C API| MySQL
 ```
-<img width="4528" height="998" alt="v1 _Single-Thread__Double_Buffering_Architecture" src="https://github.com/user-attachments/assets/51aef633-43af-4005-b3d5-585d68c70296" />
 
 
 #### 📊 단일 큐 vs 더블 버퍼링 성능 비교
@@ -247,16 +246,137 @@ graph TD
 
 - **한계 극복:** 1,500명 이상에서 발생하는 단일 코어의 한계(CPU 100% 및 처리 스타베이션)를 극복하기 위해 스레드 풀(Thread Pool) 도입.
 - **이슈 발생:** 채팅 서버 특성상 브로드캐스트를 위한 공유 자원(Room, Session) 접근이 잦아 Mutex Lock/Unlock 과정에서 심각한 병목 현상 발생. 2,000명 부하 시 p99 지연시간이 500ms까지 튀는 현상 확인.
-<img width="2994" height="1902" alt="v2 _Multi-Thread__Mutex_CV_Architecture" src="https://github.com/user-attachments/assets/9f77aa29-79c3-45df-b278-56927b90ec36" />
+```mermaid
+graph TD
+    %% 외부 클라이언트
+    subgraph External [External Clients]
+        Clients((Clients / Bots))
+    end
 
+    %% 메모리 풀 레이어
+    subgraph Memory_Layer [Memory Management]
+        MemPool[Object Memory Pool\nSession / Packet]
+    end
+
+    %% 네트워크 레이어 (IOCP)
+    subgraph Network_Layer [Network Layer]
+        IOCP[IOCompletionPort]
+        WorkerThreads[I/O Worker Threads]
+        SessionPool[Client Session Pool]
+        
+        IOCP --> WorkerThreads
+        WorkerThreads -->|Accept/Recv/Send| SessionPool
+    end
+
+    %% 로직 레이어 (Mutex & CV 기반 큐 + Strand)
+    subgraph Logic_Layer [Logic Layer]
+        GlobalQueue[(GlobalQueue_MutexCV\nstd::mutex + std::condition_variable)]
+        PacketManager[PacketManager]
+        StrandProcessor[Strand Processor]
+        RoomMgr[RoomManager]
+        UserMgr[UserManager]
+
+        WorkerThreads -->|Enqueue Packet\nLock Mutex + Notify CV| GlobalQueue
+        GlobalQueue -->|Dequeue Packet\nWait CV + Lock Mutex| PacketManager
+        PacketManager -->|Dispatch Task| StrandProcessor
+        StrandProcessor -->|Serialized Execution| RoomMgr
+        StrandProcessor -->|Serialized Execution| UserMgr
+    end
+
+    %% 비동기 DB 레이어
+    subgraph DB_Layer [Async DB Layer]
+        direction LR
+        RedisMgr[RedisManager Task]
+        MySQLMgr[MySQLManager Task]
+    end
+
+    %% 외부 데이터베이스
+    subgraph External_Database [External Database]
+        Redis[(Redis)]
+        MySQL[(MySQL RDS)]
+    end
+
+    %% 흐름 연결
+    External <-->|TCP Socket| IOCP
+    
+    MemPool -.->|Allocate / Free| SessionPool
+    MemPool -.->|Allocate / Free| PacketManager
+
+    RoomMgr -->|Push Auth Task| RedisMgr
+    RoomMgr -->|Push Log Task| MySQLMgr
+    UserMgr -->|Push Task| RedisMgr
+    UserMgr -->|Push Task| MySQLMgr
+
+    RedisMgr <-->|CRedisConn| Redis
+    MySQLMgr -->|MySQL C API| MySQL
+
+    %% 강조 스타일
+    classDef highlight fill:#ffcccc,stroke:#cc0000,stroke-width:2px;
+    class GlobalQueue highlight;
+```
 
 ### 🔹 v2 → v3: Multi-Thread (Lock-Free) ⭐️ 최종 아키텍처
 
 - **구현:** Mutex를 완전히 제거하고 **CAS 연산 기반의 Lock-Free 큐와 Object Pool, Strand 패턴**을 직접 구현하여 적용. 패킷 전송 시마다 발생하던 잦은 동적 할당(new/delete)을 Lock-Free Object Pool로 대체하여 힙 메모리 단편화와 Lock 경합 병목을 동시에 해소.
 - **최종 성과:** 2,000명 극한의 스트레스 테스트(Max TPS)에서 **초당 142,400 건의 패킷 처리를 무응답 에러 없이 달성**하며 동급 아키텍처 대비 압도적인 성능 증명.
+```mermaid
+graph TD
+    %% 외부 클라이언트
+    Clients((Clients))
 
-<img width="3378" height="2391" alt="v3 _Multi-Thread__Lock-Free_Architecture" src="https://github.com/user-attachments/assets/2fd419e8-6485-4b34-a9cb-484e65c6e381" />
+    %% 네트워크 레이어 (IOCP)
+    subgraph Network_Layer [Network Layer]
+        IOCP[IOCompletionPort]
+        ChatServer[ChatServer]
+        WorkerThreads[I/O Worker Threads]
+        SessionPool[Client Session Pool]
+        TimeoutThread[Timeout Check Thread]
 
+        ChatServer -- 상속 --> IOCP
+        IOCP --> WorkerThreads
+        WorkerThreads -->|Accept/Recv/Send| SessionPool
+        TimeoutThread -->|Ping / Kick| SessionPool
+    end
+
+    %% 로직 레이어 (Packet Manager)
+    subgraph Logic_Layer [Logic Layer]
+        PacketManager[PacketManager]
+        DoubleBuffer[(Double Buffering Queue)]
+        ProcessThread[Logic Process Thread]
+        RoomMgr[RoomManager]
+        UserMgr[UserManager]
+
+        PacketManager -->|Enqueue| DoubleBuffer
+        DoubleBuffer -->|Dequeue| ProcessThread
+        ProcessThread --> RoomMgr
+        ProcessThread --> UserMgr
+    end
+
+    %% 비동기 DB 레이어
+    subgraph DB_Layer [Async DB Layer]
+        direction LR
+        RedisMgr[RedisManager Task]
+        MySQLMgr[MySQLManager Task]
+    end
+
+    %% 외부 데이터베이스
+    subgraph External_Database [External Database]
+        Redis[(Redis)]
+        MySQL[(MySQL RDS)]
+    end
+
+    %% 흐름 연결
+    Clients <-->|TCP Socket| IOCP
+    WorkerThreads -->|OnConnect / OnReceive / OnClose| ChatServer
+    ChatServer -->|Push Packet| PacketManager
+    ProcessThread -->|SendPacketFunc| ChatServer
+
+    ProcessThread -->|Push Auth Task| RedisMgr
+    ProcessThread -->|Push Log Task| MySQLMgr
+
+    RedisMgr <-->|CRedisConn| Redis
+    MySQLMgr -->|MySQL C API| MySQL
+```
 
 ### 📊 아키텍처별 극한 부하 성능 비교 (2,000명 Stress Test)
 
