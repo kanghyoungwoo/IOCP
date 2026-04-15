@@ -51,20 +51,24 @@ PacketInfo User::GetPacket()
 		return PacketInfo();
 
 	char headerBuffer[PACKET_HEADER_LENGTH];
-	bool peekSuccess = true;
-	for (size_t i = 0; i < PACKET_HEADER_LENGTH; i++)
-	{
-		if (!mPacketDataBuffer.Peek(headerBuffer[i], i))
-		{
-			peekSuccess = false;
-			break;
-		}
-	}
-
-	if (!peekSuccess)
+	if (!mPacketDataBuffer.PeekBlock(headerBuffer, PACKET_HEADER_LENGTH))
 	{
 		return PacketInfo();
 	}
+	//bool peekSuccess = true;
+	//for (size_t i = 0; i < PACKET_HEADER_LENGTH; i++)
+	//{
+	//	if (!mPacketDataBuffer.Peek(headerBuffer[i], i))
+	//	{
+	//		peekSuccess = false;
+	//		break;
+	//	}
+	//}
+
+	//if (!peekSuccess)
+	//{
+	//	return PacketInfo();
+	//}
 
 	auto pHeader = (PACKET_HEADER*)headerBuffer;
 

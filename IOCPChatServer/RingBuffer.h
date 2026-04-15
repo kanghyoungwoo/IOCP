@@ -4,6 +4,7 @@
 template<size_t BufferSize>
 class RingBuffer
 {
+	static_assert(BufferSize > 0 && (BufferSize & (BufferSize - 1)) == 0, "RingBuffer: BufferSize must be a power of 2");
 private:
 	char buffer[BufferSize];
 	size_t head = 0;
@@ -77,20 +78,27 @@ public:
 		// 쓰여진 총 바이트 수 반환
 		if (data == nullptr || length == 0)
 			return 0;
-		size_t written_count = 0;
-		for (size_t i = 0;i < length;i++)
-		{
-			if (full)
-				break;
-			buffer[head] = data[i];
-			head = (head + 1) % BufferSize;
-			written_count++;
 
-			if (head == tail)
-				full = true;
+		size_t available = BufferSize - Size();
+		size_t toWrite = (length < available) ? length : available;
+		if (toWrite == 0)
+			return 0;
+
+		size_t firstChunk = BufferSize - head;	// head -> 버퍼 끝까지 남은공간
+		if (firstChunk >= toWrite)
+		{
+			memcpy(buffer + head, data, toWrite);
+		}
+		else
+		{
+			memcpy(buffer + head, data, firstChunk);	// 경계 전
+			memcpy(buffer, data + firstChunk, toWrite - firstChunk);	// wrap 후 
 		}
 
-		return written_count;
+		head = (head + toWrite) & (BufferSize - 1);
+		full = (head == tail);
+
+		return toWrite;
 	}
 
 	size_t Read(char* output, size_t max_length)
@@ -98,15 +106,22 @@ public:
 		// 읽어온 총 바이트 수 반환
 		if (output == nullptr || max_length == 0)
 			return 0;
-		size_t read_count = 0;
-		while (read_count < max_length && !IsEmpty())
+
+		size_t available = Size();
+		size_t toRead = (max_length < available) ? max_length : available;
+		if (toRead == 0)
+			return 0;
+		
+		size_t firstChuk = BufferSize - tail;	// tail -> 버퍼 끝까지 읽을 수 있는 양
+		if (firstChuk >= toRead)
 		{
-			output[read_count] = buffer[tail];
-			tail = (tail + 1) % BufferSize;
-			read_count++;
-			full = false;
+			memcpy(output, buffer + tail, firstChuk);	// 경계 전
+			memcpy(output + firstChuk, buffer, toRead - firstChuk);	// wrap 후
 		}
-		return read_count;
+		tail = (tail + toRead) & (BufferSize - 1);
+		full = false;
+
+		return toRead;
 	}
 
 	bool Peek(char& byte, size_t offset = 0) const
@@ -117,6 +132,25 @@ public:
 			return false;
 		size_t peek_pos = (tail + offset) % BufferSize;
 		byte = buffer[peek_pos];
+
+		return true;
+	}
+
+	bool PeekBlock(char* output, size_t length) const
+	{
+		if (output == nullptr || length == 0 || Size() < length)
+			return false;
+
+		size_t firstChunk = BufferSize - tail;
+		if (firstChunk >= length)
+		{
+			memcpy(output, buffer + tail, length);
+		}
+		else
+		{
+			memcpy(output, buffer + tail, firstChunk);
+			memcpy(output + firstChunk, buffer, length - firstChunk);
+		}
 
 		return true;
 	}
