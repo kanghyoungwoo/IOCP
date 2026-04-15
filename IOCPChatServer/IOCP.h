@@ -69,6 +69,8 @@ private:
 	// 클라이언트의 index로 해당 client의 info를 반환하는 함수
 	ClientSession* GetClientInfo(const UINT32 clientSessionIndex)
 	{
+		if (clientSessionIndex >= mClientInfos.size())
+			return nullptr;
 		return mClientInfos[clientSessionIndex].get();
 	}
 

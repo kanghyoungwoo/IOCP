@@ -187,7 +187,7 @@ bool ClientSession::BindIOCompletionPort(HANDLE iocpHandle)
 	// socket과 pClientInfo를 CompletionPort 객체에 연결시킴
 	auto hIOCP = CreateIoCompletionPort((HANDLE)GetSocket()
 		, iocpHandle
-		, (ULONG_PTR)(this), 0);
+		, (ULONG_PTR)(mIndex), 0);
 
 	if (hIOCP == INVALID_HANDLE_VALUE)
 	{
@@ -454,7 +454,7 @@ void ClientSession::DisconnectAsync(UINT32 expectedGeneration)
 				// 가짜 IO를 큐에 넣으므로 참조 카운트 증가
 				AddRef();
 
-				if (PostQueuedCompletionStatus(mIOCPHandle, 0, (ULONG_PTR)this, (LPOVERLAPPED)pMarker) == 0)
+				if (PostQueuedCompletionStatus(mIOCPHandle, 0, (ULONG_PTR)mIndex, (LPOVERLAPPED)pMarker) == 0)
 				{
 					// 만약 큐 삽입에 실패했다면 카운트를 다시 내리고 메모리 누수 방지
 					ReleaseRef();

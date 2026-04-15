@@ -460,10 +460,6 @@ void IOCompletionPort::WorkerThread()
 		for (ULONG i = 0; i < numEntriesRemoved; ++i)
 		{
 			auto& entry = completionEntries[i];
-			// 여기서 이미 해제된 메모리를 가리키게 된다면..?
-			// pClientSession이 이미 해제된 메모리를 가리킴 -> crash 발생 (Dangling pointer)
-
-			ClientSession* pClientSession = reinterpret_cast<ClientSession*>(entry.lpCompletionKey);
 
 			DWORD dwIoSize = entry.dwNumberOfBytesTransferred;
 			LPOVERLAPPED lpOverlapped = entry.lpOverlapped;
@@ -481,23 +477,54 @@ void IOCompletionPort::WorkerThread()
 			}
 
 			auto pOverlappedEx = (stOverlappedEx*)lpOverlapped;
-			//// client의 접속이 끊어졌을때(0바이트 수신(연결종료)
-			//if (dwIoSize == 0 && pOverlappedEx->m_eOperation != IOOperation::ACCEPT)
-			//{
-			//	CloseSocket(pClientSession);
+			auto op = pOverlappedEx->m_eOperation;
 
-			//	if (pClientSession->ReleaseRef())
-			//	{
-			//		PushFreeSessionIndex(pClientSession->GetIndex());
-			//		TryPostAcceptEx();
-			//	}
-			//	continue;
-			//}
-			//printf("[DEBUG] Operation=%d, ClientSessionIndex=%d\n",
-			//	(int)pOverlappedEx->m_eOperation, pOverlappedEx->clientSessionIndex);
-			if (IOOperation::ACCEPT == pOverlappedEx->m_eOperation)
+			// 단일 세션 조회
+			UINT32 sessionIndex;
+			if (op == IOOperation::ACCEPT || op == IOOperation::ZOMBIE_CLEANUP)
 			{
-				pClientSession = GetClientInfo(pOverlappedEx->clientSessionIndex);
+				sessionIndex = pOverlappedEx->clientSessionIndex;
+			}
+			else
+			{
+				sessionIndex = static_cast<UINT32>(entry.lpCompletionKey);
+			}
+			
+			ClientSession* pClientSession = GetClientInfo(sessionIndex);
+			if (pClientSession == nullptr)
+				continue;
+			
+			// 단일 generation 검증
+			if (op != IOOperation::ACCEPT)
+			{
+				if (pOverlappedEx->generation != pClientSession->GetGeneration())
+				{
+					LOG_DEBUG("[Stale I/O] 이전 세대 I/O 무시 - op: %d, gen: %d vs %d\n",(int)op, pOverlappedEx->generation, pClientSession->GetGeneration());
+				
+					// overlapped 리소스 정리
+					if (op == IOOperation::SEND)
+					{
+						pClientSession->SendComplete((SendOverlappedEx*)lpOverlapped);
+					}
+					else if (op == IOOperation::ZOMBIE_CLEANUP)
+					{
+						delete pOverlappedEx;
+					}
+					// recv는 세션 내장, 해제 불필요
+
+					// refcount감소, 마지막 참조일시 세션 반납
+					if (pClientSession->ReleaseRef())
+					{
+						PushFreeSessionIndex(sessionIndex);
+						TryPostAcceptEx();
+					}
+					continue;
+				}
+			}
+
+			//
+			if (IOOperation::ACCEPT == op)
+			{
 				--mPendingAcceptCount;
 
 
@@ -556,52 +583,30 @@ void IOCompletionPort::WorkerThread()
 
 			// Overlapped I/O Recv 작업 완료 시 처리
 			// workerthread accept 처리
-			else if (IOOperation::RECV == pOverlappedEx->m_eOperation)
+			else if (IOOperation::RECV == op)
 			{
-				// recv종료 처리
+				// 0바이트 수신, recv종료 처리
 				if (dwIoSize == 0)
 				{
 					CloseSocket(pClientSession);
-					if (pClientSession->ReleaseRef())
-					{
-						PushFreeSessionIndex(pClientSession->GetIndex());
-						TryPostAcceptEx();
-					}
-					continue;
 				}
-				// Stale I/O 방지
-				if (pOverlappedEx->generation != pClientSession->GetGeneration())
+				else
 				{
-					LOG_DEBUG("[Stale I/O] RECV 무시 - gen: %d vs %d\n",
-						pOverlappedEx->generation, pClientSession->GetGeneration());
-					if (pClientSession->ReleaseRef())
+					OnReceive(pClientSession->GetIndex(), pClientSession->GetGeneration(), dwIoSize, pClientSession->RecvBuff());
+					if (!pClientSession->BindRecv())
 					{
-						PushFreeSessionIndex(pClientSession->GetIndex());
-						TryPostAcceptEx();
+						CloseSocket(pClientSession, true);
 					}
-					continue;
 				}
 
-				//// 타임아웃 확인 위한 갱신
-				//pClientSession->UpdateActivity();
-
-				OnReceive(pClientSession->GetIndex(), pClientSession->GetGeneration(), dwIoSize, pClientSession->RecvBuff());
-				// 새 recv 등록
-				if (!pClientSession->BindRecv())
-				{
-					CloseSocket(pClientSession, true);
-				}
-
-				// 이 Recv 완료에 대한 ReleaseRef
 				if (pClientSession->ReleaseRef())
 				{
 					PushFreeSessionIndex(pClientSession->GetIndex());
 					TryPostAcceptEx();
 				}
-
 			}
 
-			else if (IOOperation::SEND == pOverlappedEx->m_eOperation) // 송신이 완료되면
+			else if (IOOperation::SEND == op) // 송신이 완료되면
 			{
 				auto pSendOvl = (SendOverlappedEx*)lpOverlapped;
 
@@ -623,14 +628,9 @@ void IOCompletionPort::WorkerThread()
 				}
 			}
 
-			else if (IOOperation::ZOMBIE_CLEANUP == pOverlappedEx->m_eOperation)
+			else if (IOOperation::ZOMBIE_CLEANUP == op)
 			{
-				// 세대 검증 : 이미 새 유저가 접속 했으면 무시
-				if (pOverlappedEx->generation == pClientSession->GetGeneration())
-				{
-					CloseSocket(pClientSession);
-				}
-
+				CloseSocket(pClientSession);
 				delete pOverlappedEx;
 
 				// 가짜 I/O 처리가 끝났으므로 참조 카운트 감소

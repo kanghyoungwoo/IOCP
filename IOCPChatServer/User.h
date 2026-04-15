@@ -10,7 +10,6 @@
 class User
 {
 	//const UINT32 PACKET_DATA_BUFFER_SIZE = 8096;
-	static constexpr size_t MAX_PACKET_DATA_BUFFER_SIZE = 8192;
 public:
 	enum class DOMAIN_STATE
 	{
