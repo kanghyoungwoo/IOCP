@@ -6,10 +6,16 @@
 #include "ClientSession.h"
 #include "Packet.h"
 #include "ConfigManager.h"
+#include "LockFreeStack.h"
 #include <thread>
 #include <vector>
 #include <mswsock.h>
 
+
+struct SessionNode
+{
+	uint32_t poolNext = NULL_INDEX;
+};
 
 class IOCompletionPort
 {
@@ -126,11 +132,8 @@ private:
 
 	ObjectPool<SendOverlappedEx> mSendBufferPool;
 
-	// FreeList
-	std::vector<UINT32>mFreeSessionList;
-
-	// FreeList 보호 뮤텍스
-	std::mutex mFreeListLock;
+	std::vector<SessionNode> mSessionNodes;
+	LockFreeStack<SessionNode> mFreeSessionStack;
 
 	// 초기 AcceptEx 대기 100개
 	//static constexpr UINT32 MAX_PENDING_ACCEPT = 100;

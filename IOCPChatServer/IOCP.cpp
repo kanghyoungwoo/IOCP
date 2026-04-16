@@ -298,13 +298,13 @@ void IOCompletionPort::CreateClient(const int maxClientCount)
 		mClientInfos.emplace_back(std::move(client));
 	}
 
-	// 최적화..재할당 방지를 위해 메모리 공간을 미리 확보 (Capacity = maxCount)
-	mFreeSessionList.reserve(maxClientCount);
+	mSessionNodes.resize(maxClientCount);
+	mFreeSessionStack.Init(mSessionNodes.data());
 
 	// 역순으로 스택에 채워넣기)
 	for (UINT32 i = maxClientCount; i > 0; --i)
 	{
-		mFreeSessionList.push_back(i - 1);
+		mFreeSessionStack.Push(&mSessionNodes[i - 1]);
 	}
 	//for (int i = 0;i < maxClientCount;++i)
 	//{
@@ -684,25 +684,16 @@ void IOCompletionPort::CloseSocket(ClientSession* pClientSession, bool bIsForce)
 // 빈 세션 하나 가져오는 함수
 UINT32 IOCompletionPort::PopFreeSessionIndex()
 {
-	// 잠금
-	std::lock_guard<std::mutex> lock(mFreeListLock);
-
-	// 큐가 비어있는지 확인 (빈거면 더 줄 수 없음 )
-	if (mFreeSessionList.empty())
-	{
+	SessionNode* pNode = mFreeSessionStack.Pop();
+	if (pNode == nullptr)
 		return UINT32_MAX;
-	}
-	auto index = mFreeSessionList.back();
-	mFreeSessionList.pop_back();
-	return index;
+	return static_cast<UINT32>(pNode - mSessionNodes.data());
 }
+
 
 // 세션 반납 함수
 void IOCompletionPort::PushFreeSessionIndex(const UINT32 index)
 {
-	// 잠금
-	std::lock_guard<std::mutex>lock(mFreeListLock);
-
-	// 빈 칸 반납
-	mFreeSessionList.push_back(index);
+	if (index < mSessionNodes.size())
+		mFreeSessionStack.Push(&mSessionNodes[index]);
 }
