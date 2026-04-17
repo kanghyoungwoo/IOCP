@@ -77,7 +77,7 @@ public:
 
 	bool SendIO();
 
-	void SendComplete(SendOverlappedEx* pCompletedOvl);
+	void SendComplete(SendOverlappedEx* pCompletedOvl, DWORD dwIoSize);
 
 	bool AcceptCompletion(SOCKET listenSock_);
 
@@ -187,4 +187,7 @@ private:
 	std::atomic<ULONGLONG> mLastPingTime{ 0 };
 
 	std::atomic<bool> mIsDisconnecting{ false };
+
+	static constexpr int MAX_PARTIAL_RETRY = 5;
+	int mPartialSendRetryCount = 0;
 };

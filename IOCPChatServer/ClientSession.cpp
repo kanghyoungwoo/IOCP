@@ -71,6 +71,7 @@ void ClientSession::Clear()
 	}
 	mPendingSendCount = 0;
 	mIsSending = false;
+	mPartialSendRetryCount = 0;
 	// 버퍼 초기화
 	ZeroMemory(mRecvBuf, sizeof(mRecvBuf));
 	//ZeroMemory(mSendBuf, sizeof(mSendBuf));
@@ -238,58 +239,163 @@ bool ClientSession::SendIO()
 	return true;
 }
 
-void ClientSession::SendComplete(SendOverlappedEx* pCompletedOvl)
+void ClientSession::SendComplete(SendOverlappedEx* pCompletedOvl, DWORD dwIoSize)
 {
 	// 1. 메모리 해제 전 gen 저장
 	const uint32_t completedGen = pCompletedOvl->base.generation;
 
-	// gathering된 패킷들 일괄 풀 반납
-	for (int i = 0;i < mPendingSendCount;++i)
+	// stale 또는 연결해제 -> 메모리만 반납하고 드랍
+	if (completedGen != GetGeneration() || !IsConnected())
+	{
+		for (int i = 0;i < mPendingSendCount; ++i)
+		{
+			mSendPool->Free(mPendingSendList[i]);
+			mPendingSendList[i] = nullptr;
+		}
+		mPendingSendCount = 0;
+		{
+			std::lock_guard<std::mutex> guard(mSendLock);
+			mIsSending = false;
+		}
+		return;
+	}
+
+	// dwIosize == 0 일시 연결 끊김, 반납 후 종료
+	if (dwIoSize == 0)
+	{
+		for (int i = 0;i < mPendingSendCount;++i)
+		{
+			mSendPool->Free(mPendingSendList[i]);
+			mPendingSendList[i] = nullptr;
+		}
+		mPendingSendCount = 0;
+		{
+			std::lock_guard<std::mutex> guard(mSendLock);
+			mIsSending = false;
+		}
+		DisconnectAsync(GetGeneration());
+		return;
+	}
+
+	// 총 요청 크기 계산 
+	DWORD totalRequested = 0;
+	for (int i = 0;i < mPendingSendCount; ++i)
+	{
+		totalRequested += mPendingSendList[i]->base.wsaBuf.len;
+	}
+
+	// partial send 감지
+	if (dwIoSize < totalRequested)
+	{
+		++mPartialSendRetryCount;
+
+		// 재시도 한계 초과 -> 연결 종료
+		if (mPartialSendRetryCount > MAX_PARTIAL_RETRY)
+		{
+			LOG_ERROR("[Partial Send] 재시도 한계(%d) 초과 → 연결 종료\n", MAX_PARTIAL_RETRY);
+			for (int i = 0; i < mPendingSendCount; ++i)
+			{
+				mSendPool->Free(mPendingSendList[i]);
+				mPendingSendList[i] = nullptr;
+			}
+			mPendingSendCount = 0;
+			{
+				std::lock_guard<std::mutex> guard(mSendLock);
+				mIsSending = false;
+			}
+			DisconnectAsync(GetGeneration());
+			return;
+		}
+		LOG_DEBUG("[Partial Send] 요청=%u 완료=%u 재시도=%d\n",totalRequested, dwIoSize, mPartialSendRetryCount);
+
+		// 완전 전송된 패킷은 반납, 부분 전송된 패킷은 포인터 전진
+		DWORD remaining = dwIoSize;
+		int writeIdx = 0;
+		for (int i = 0; i < mPendingSendCount; ++i)
+		{
+			DWORD packetLen = mPendingSendList[i]->base.wsaBuf.len;
+
+			if (remaining >= packetLen)
+			{
+				// 완전히 전송됨, 즉시 풀 반납
+				remaining -= packetLen;
+				mSendPool->Free(mPendingSendList[i]);
+			}
+			else
+			{
+				// 부분 전송 또는 미전송 → 포인터 전진 후 보존
+				mPendingSendList[i]->base.wsaBuf.buf += remaining;
+				mPendingSendList[i]->base.wsaBuf.len -= remaining;
+				remaining = 0;
+				mPendingSendList[writeIdx++] = mPendingSendList[i];
+			}
+		}
+		mPendingSendCount = writeIdx;
+
+		// 남은 패킷 즉시 재전송
+		WSABUF wsaBufs[MAX_GATHER_COUNT];
+		for (int i = 0; i < mPendingSendCount; ++i)
+		{
+			wsaBufs[i] = mPendingSendList[i]->base.wsaBuf;
+		}
+
+		ZeroMemory(&mPendingSendList[0]->base.wsaOverlapped, sizeof(WSAOVERLAPPED));
+		AddRef();   // 재전송 WSASend에 대한 RefCount
+
+		DWORD dwSendBytes = 0;
+		int nRet = WSASend(
+			m_socketClient,
+			wsaBufs,
+			mPendingSendCount,
+			&dwSendBytes,
+			0,
+			&(mPendingSendList[0]->base.wsaOverlapped),
+			NULL
+		);
+
+		if (nRet == SOCKET_ERROR && WSAGetLastError() != ERROR_IO_PENDING)
+		{
+			LOG_ERROR_ONCE("WSASend() 재전송 실패 : %d\n", WSAGetLastError());
+			for (int i = 0; i < mPendingSendCount; ++i)
+			{
+				mSendPool->Free(mPendingSendList[i]);
+				mPendingSendList[i] = nullptr;
+			}
+			mPendingSendCount = 0;
+			{
+				std::lock_guard<std::mutex> guard(mSendLock);
+				mIsSending = false;
+			}
+			ReleaseRef();   // WSASend 실패 → AddRef 상쇄
+			DisconnectAsync(GetGeneration());
+		}
+		return;	// 완료 이벤트의 releaseRef는 워커 쓰레드가 처리
+	}
+
+	// 정상 전송 완료
+	mPartialSendRetryCount = 0;     // 성공 시 재시도 카운터 리셋
+	for (int i = 0; i < mPendingSendCount; ++i)
 	{
 		mSendPool->Free(mPendingSendList[i]);
 		mPendingSendList[i] = nullptr;
 	}
 	mPendingSendCount = 0;
 
-	// stale 검사
-	if (completedGen != GetGeneration())
-	{
-		std::lock_guard<std::mutex> guard(mSendLock);
-		mIsSending = false;
-		return;
-	}
-
-	if (!IsConnected())
-	{
-		std::lock_guard<std::mutex> guard(mSendLock);
-		mIsSending = false;
-		return;
-	}
-
-	// 큐에 남은 패킷 확인 
+	// 큐에 남은 패킷 확인
 	bool hasMore = false;
 	{
-		std::lock_guard<std::mutex>guard(mSendLock);
+		std::lock_guard<std::mutex> guard(mSendLock);
 		if (!mSendDataqueue.empty())
-		{
 			hasMore = true;
-		}
 		else
-		{
-			mIsSending = false; // 전송완료
-		}
+			mIsSending = false;
 	}
 
-	// lock 밖에서 WSASend
 	if (hasMore)
 	{
 		if (!SendIO())
-		{
 			DisconnectAsync(GetGeneration());
-		}
 	}
-
-
 }
 
 bool ClientSession::AcceptCompletion(SOCKET listenSock_)

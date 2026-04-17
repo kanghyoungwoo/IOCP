@@ -504,7 +504,7 @@ void IOCompletionPort::WorkerThread()
 					// overlapped 리소스 정리
 					if (op == IOOperation::SEND)
 					{
-						pClientSession->SendComplete(reinterpret_cast<SendOverlappedEx*>(lpOverlapped));
+						pClientSession->SendComplete(reinterpret_cast<SendOverlappedEx*>(lpOverlapped), dwIoSize);
 					}
 					else if (op == IOOperation::ZOMBIE_CLEANUP)
 					{
@@ -610,16 +610,7 @@ void IOCompletionPort::WorkerThread()
 			{
 				auto pSendOvl = reinterpret_cast<SendOverlappedEx*>(lpOverlapped);
 
-				// Stale 여부 상관없이 무조건 SendComplete로 넘김
-				// 메모리 해제 + 큐 정리는 항상 다음 전송만 조건부
-				// 0바이트 취소든, 정상이든 일단 풀 반납
-				pClientSession->SendComplete(pSendOvl);
-
-				// 반납 후 끊김 처리
-				if (dwIoSize == 0)
-				{
-					CloseSocket(pClientSession);
-				}
+				pClientSession->SendComplete(pSendOvl, dwIoSize);
 
 				if (pClientSession->ReleaseRef())
 				{
