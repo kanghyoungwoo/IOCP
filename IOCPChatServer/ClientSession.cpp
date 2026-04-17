@@ -102,13 +102,12 @@ bool ClientSession::SendMsg(const UINT32 dataSize, char* pMsg)
 		LOG_ERROR_ONCE("SendPool 소진! dataSize=%d\n", dataSize);
 		return false;
 	}
-	ZeroMemory(&pSendOvl->wsaOverlapped, sizeof(WSAOVERLAPPED));
-	pSendOvl->wsaBuf.len = dataSize;
-	pSendOvl->wsaBuf.buf = pSendOvl->buffer;	// 내부 버퍼를 가리킴
+	ZeroMemory(&pSendOvl->base.wsaOverlapped, sizeof(WSAOVERLAPPED));
+	pSendOvl->base.wsaBuf.len = dataSize;
+	pSendOvl->base.wsaBuf.buf = pSendOvl->buffer;
 	CopyMemory(pSendOvl->buffer, pMsg, dataSize);
-	pSendOvl->operation = IOOperation::SEND;
-	//pSendOvl->generation = mGeneration;
-	pSendOvl->generation = mGeneration.load(std::memory_order_acquire);
+	pSendOvl->base.operation = IOOperation::SEND;
+	pSendOvl->base.generation = mGeneration.load(std::memory_order_acquire);
 
 	// lock 안에선 큐 조작 + 판단만
 	bool shouldSend = false;
@@ -141,21 +140,17 @@ bool ClientSession::BindRecv()
 	DWORD dwRecvNumBytes = 0;
 
 	// Overlapped I/O를 위한 각 정보를 세팅
-	m_stRecvOverlappedEx.m_wsaBuf.len = MAX_SOCKBUF;
-	m_stRecvOverlappedEx.m_wsaBuf.buf = mRecvBuf;
-	m_stRecvOverlappedEx.m_eOperation = IOOperation::RECV;
-	m_stRecvOverlappedEx.generation = mGeneration.load(std::memory_order_acquire);
-	//m_stRecvOverlappedEx.generation = mGeneration;
+	m_stRecvOverlappedEx.base.wsaBuf.len = MAX_SOCKBUF;
+	m_stRecvOverlappedEx.base.wsaBuf.buf = mRecvBuf;
+	m_stRecvOverlappedEx.base.operation = IOOperation::RECV;
+	m_stRecvOverlappedEx.base.generation = mGeneration.load(std::memory_order_acquire);
 
 	AddRef();
 
 	int nRet = WSARecv(m_socketClient,
-		&(m_stRecvOverlappedEx.m_wsaBuf),
-		1,
-		&dwRecvNumBytes,
-		&dwFlag,
-		(LPWSAOVERLAPPED) & (m_stRecvOverlappedEx),
-		NULL);
+		&(m_stRecvOverlappedEx.base.wsaBuf),
+		1, &dwRecvNumBytes, &dwFlag,
+		&(m_stRecvOverlappedEx.base.wsaOverlapped), NULL);
 
 	// socket_error 시 client socket이 끊어졌으므로 처리
 	if (nRet == SOCKET_ERROR && (WSAGetLastError() != ERROR_IO_PENDING))
@@ -199,7 +194,7 @@ bool ClientSession::SendIO()
 			auto pSendOvl = mSendDataqueue.front();
 			mSendDataqueue.pop();
 
-			wsaBufs[mPendingSendCount] = pSendOvl->wsaBuf;
+			wsaBufs[mPendingSendCount] = pSendOvl->base.wsaBuf;
 			mPendingSendList[mPendingSendCount] = pSendOvl;
 			++mPendingSendCount;
 		}
@@ -209,22 +204,15 @@ bool ClientSession::SendIO()
 		return true;
 
 	auto pFirstOvl = mPendingSendList[0];
-	ZeroMemory(&pFirstOvl->wsaOverlapped, sizeof(WSAOVERLAPPED));
+	ZeroMemory(&pFirstOvl->base.wsaOverlapped, sizeof(WSAOVERLAPPED));
 
 	AddRef();
 
 	// lock 박에서 커널 call
 	DWORD dwSendBytes = 0;
 
-	int nRet = WSASend(
-		m_socketClient,
-		wsaBufs,
-		mPendingSendCount,
-		&dwSendBytes,
-		0,
-		(LPWSAOVERLAPPED)pFirstOvl,
-		NULL
-	);
+	int nRet = WSASend(m_socketClient, wsaBufs, mPendingSendCount,
+		&dwSendBytes, 0, &(pFirstOvl->base.wsaOverlapped), NULL);
 
 	if (nRet == SOCKET_ERROR && (WSAGetLastError() != ERROR_IO_PENDING))
 	{
@@ -253,7 +241,7 @@ bool ClientSession::SendIO()
 void ClientSession::SendComplete(SendOverlappedEx* pCompletedOvl)
 {
 	// 1. 메모리 해제 전 gen 저장
-	const uint32_t completedGen = pCompletedOvl->generation;
+	const uint32_t completedGen = pCompletedOvl->base.generation;
 
 	// gathering된 패킷들 일괄 풀 반납
 	for (int i = 0;i < mPendingSendCount;++i)
@@ -331,40 +319,6 @@ bool ClientSession::AcceptCompletion(SOCKET listenSock_)
 	return true;
 }
 
-//bool ClientSession::PostAccept(SOCKET listenSock, const UINT64 curTimeSec)
-//{
-//	LOG_DEBUG("PostAccept Client Index : %d\n", GetIndex());
-//
-//	mLatestClosedTimeSec = UINT32_MAX;
-//	m_socketClient = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_IP, NULL, 0, WSA_FLAG_OVERLAPPED);
-//	if (m_socketClient == INVALID_SOCKET)
-//	{
-//		LOG_ERROR("Client Socket Error : %d \n", GetLastError());
-//		return false;
-//	}
-//
-//	ZeroMemory(&mAcceptContext, sizeof(stOverlappedEx));
-//	DWORD bytes = 0;
-//	DWORD flags = 0;
-//	mAcceptContext.m_wsaBuf.len = 0;
-//	mAcceptContext.m_wsaBuf.buf = nullptr;
-//	mAcceptContext.m_eOperation = IOOperation::ACCEPT;
-//	mAcceptContext.clientSessionIndex = mIndex;
-//
-//	bool bRet = AcceptEx(listenSock, m_socketClient, mAcceptbuf, 0, sizeof(SOCKADDR_IN) + 16, sizeof(SOCKADDR_IN) + 16, &bytes, (LPWSAOVERLAPPED) & (mAcceptContext));
-//
-//	if (bRet == FALSE)
-//	{
-//		if (WSAGetLastError() != WSA_IO_PENDING)
-//
-//		{
-//			LOG_ERROR("AcceptEx 실패! 에러 코드: %d\n", GetLastError());
-//
-//			return false;
-//		}
-//	}
-//	return true;
-//}
 
 bool ClientSession::PostImmediateAccept(SOCKET listenSock)
 {
@@ -383,11 +337,14 @@ bool ClientSession::PostImmediateAccept(SOCKET listenSock)
 	ZeroMemory(&mAcceptContext, sizeof(stOverlappedEx));
 	DWORD bytes = 0;
 	DWORD flags = 0;
-	mAcceptContext.m_wsaBuf.len = 0;
-	mAcceptContext.m_wsaBuf.buf = nullptr;
-	mAcceptContext.m_eOperation = IOOperation::ACCEPT;
-	mAcceptContext.clientSessionIndex = mIndex;
-	bool bRet = AcceptEx(listenSock, m_socketClient, mAcceptbuf, 0, sizeof(SOCKADDR_IN) + 16, sizeof(SOCKADDR_IN) + 16, &bytes, (LPWSAOVERLAPPED) & (mAcceptContext));
+	mAcceptContext.base.wsaBuf.len = 0;
+	mAcceptContext.base.wsaBuf.buf = nullptr;
+	mAcceptContext.base.operation = IOOperation::ACCEPT;
+	mAcceptContext.base.clientSessionIndex = mIndex;
+
+	bool bRet = AcceptEx(listenSock, m_socketClient, mAcceptbuf, 0,
+		sizeof(SOCKADDR_IN) + 16, sizeof(SOCKADDR_IN) + 16,
+		&bytes, &(mAcceptContext.base.wsaOverlapped));
 
 	if (bRet == FALSE)
 	{
@@ -458,15 +415,15 @@ void ClientSession::DisconnectAsync(UINT32 expectedGeneration)
 				// 3. 블랙홀 상태 → Worker에 즉시 정리
 				auto pMarker = new stOverlappedEx();
 				ZeroMemory(pMarker, sizeof(stOverlappedEx));
-				pMarker->m_eOperation = IOOperation::ZOMBIE_CLEANUP;
-				pMarker->clientSessionIndex = mIndex;
-				pMarker->generation = mGeneration.load(std::memory_order_acquire);
+				pMarker->base.operation = IOOperation::ZOMBIE_CLEANUP;
+				pMarker->base.clientSessionIndex = mIndex;
+				pMarker->base.generation = mGeneration.load(std::memory_order_acquire);
 
 
 				// 가짜 IO를 큐에 넣으므로 참조 카운트 증가
 				AddRef();
 
-				if (PostQueuedCompletionStatus(mIOCPHandle, 0, (ULONG_PTR)mIndex, (LPOVERLAPPED)pMarker) == 0)
+				if (PostQueuedCompletionStatus(mIOCPHandle, 0, (ULONG_PTR)mIndex,reinterpret_cast<LPOVERLAPPED>(&pMarker->base.wsaOverlapped)) == 0)
 				{
 					// 만약 큐 삽입에 실패했다면 카운트를 다시 내리고 메모리 누수 방지
 					ReleaseRef();

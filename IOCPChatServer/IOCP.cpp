@@ -476,14 +476,14 @@ void IOCompletionPort::WorkerThread()
 				continue;
 			}
 
-			auto pOverlappedEx = (stOverlappedEx*)lpOverlapped;
-			auto op = pOverlappedEx->m_eOperation;
+			auto pBase = reinterpret_cast<OverlappedBase*>(lpOverlapped);
+			auto op = pBase->operation;
 
 			// 단일 세션 조회
 			UINT32 sessionIndex;
 			if (op == IOOperation::ACCEPT || op == IOOperation::ZOMBIE_CLEANUP)
 			{
-				sessionIndex = pOverlappedEx->clientSessionIndex;
+				sessionIndex = pBase->clientSessionIndex;
 			}
 			else
 			{
@@ -497,18 +497,18 @@ void IOCompletionPort::WorkerThread()
 			// 단일 generation 검증
 			if (op != IOOperation::ACCEPT)
 			{
-				if (pOverlappedEx->generation != pClientSession->GetGeneration())
+				if (pBase->generation != pClientSession->GetGeneration())
 				{
-					LOG_DEBUG("[Stale I/O] 이전 세대 I/O 무시 - op: %d, gen: %d vs %d\n",(int)op, pOverlappedEx->generation, pClientSession->GetGeneration());
+					LOG_DEBUG("[Stale I/O] 이전 세대 I/O 무시 - op: %d, gen: %d vs %d\n",(int)op, pBase->generation, pClientSession->GetGeneration());
 				
 					// overlapped 리소스 정리
 					if (op == IOOperation::SEND)
 					{
-						pClientSession->SendComplete((SendOverlappedEx*)lpOverlapped);
+						pClientSession->SendComplete(reinterpret_cast<SendOverlappedEx*>(lpOverlapped));
 					}
 					else if (op == IOOperation::ZOMBIE_CLEANUP)
 					{
-						delete pOverlappedEx;
+						delete reinterpret_cast<stOverlappedEx*>(lpOverlapped);
 					}
 					// recv는 세션 내장, 해제 불필요
 
@@ -534,7 +534,7 @@ void IOCompletionPort::WorkerThread()
 
 					if (pClientSession->ReleaseRef())
 					{
-						PushFreeSessionIndex(pOverlappedEx->clientSessionIndex);
+						PushFreeSessionIndex(pBase->clientSessionIndex);
 					}
 					continue; // 조용히 다음으로 넘어감
 				}
@@ -573,7 +573,7 @@ void IOCompletionPort::WorkerThread()
 					// Accept IO의 ReleaseRef (PostImmediateAccept에서 AddRef한 것)
 					// 실패했으므로 OnConnect의 store(1)은 안 일어남 → 정상적으로 해제
 					pClientSession->ReleaseRef();
-					PushFreeSessionIndex(pOverlappedEx->clientSessionIndex);
+					PushFreeSessionIndex(pBase->clientSessionIndex);
 
 				}
 
@@ -608,7 +608,7 @@ void IOCompletionPort::WorkerThread()
 
 			else if (IOOperation::SEND == op) // 송신이 완료되면
 			{
-				auto pSendOvl = (SendOverlappedEx*)lpOverlapped;
+				auto pSendOvl = reinterpret_cast<SendOverlappedEx*>(lpOverlapped);
 
 				// Stale 여부 상관없이 무조건 SendComplete로 넘김
 				// 메모리 해제 + 큐 정리는 항상 다음 전송만 조건부
@@ -631,7 +631,7 @@ void IOCompletionPort::WorkerThread()
 			else if (IOOperation::ZOMBIE_CLEANUP == op)
 			{
 				CloseSocket(pClientSession);
-				delete pOverlappedEx;
+				delete reinterpret_cast<stOverlappedEx*>(lpOverlapped);
 
 				// 가짜 I/O 처리가 끝났으므로 참조 카운트 감소
 				if (pClientSession->ReleaseRef())

@@ -36,29 +36,27 @@ enum class IOOperation
 	ZOMBIE_CLEANUP
 };
 
-//WSAOVERLAPPED 
-typedef struct _stOverlappedEx
+// 1. 공통 헤더
+struct OverlappedBase
 {
-	WSAOVERLAPPED	m_wsaOverlapped;		// Overlapped I/O
-	//SOCKET			m_socketClient;		// Client
-	WSABUF			m_wsaBuf;				// Overlapped I/O
-	IOOperation		m_eOperation;			// 
-	UINT32			clientSessionIndex = 0;	//추가
-	UINT32			generation = 0;
-}stOverlappedEx;
-
-// Send 전용 통합 구조체: Overlapped + 데이터 버퍼를 하나로 합침
-// 메모리 풀에서 이 단위로 할당/반납하므로 힙 할당이 발생하지 않는다.
-struct SendOverlappedEx
-{
-	WSAOVERLAPPED	wsaOverlapped;
-	WSABUF			wsaBuf;
-	IOOperation		operation;
-	//UINT32			sessionIndex = 0;
-	UINT32			generation = 0;			// 추가
-	char			buffer[MAX_SOCKBUF];	// 고정 크기 내장 버퍼
-	//SendOverlappedEx* poolNext = nullptr;
-	uint32_t poolNext = UINT32_MAX;	//NULL_INDEX
+	WSAOVERLAPPED   wsaOverlapped;          // offset 0 - 반드시 첫 번째
+	WSABUF          wsaBuf;
+	IOOperation     operation;
+	UINT32          clientSessionIndex = 0;
+	UINT32          generation = 0;
 };
 
+// 2. RECV / ACCEPT / ZOMBIE_CLEANUP 용,  공통 헤더만 포함
+struct stOverlappedEx
+{
+    OverlappedBase  base;                   // 첫 번째 멤버
+};
+
+// 3. SEND 전용 - 공통 헤더 + 전용 필드
+struct SendOverlappedEx
+{
+    OverlappedBase  base;                   // 첫 번째 멤버 (offset 0)
+    char            buffer[MAX_SOCKBUF];
+    uint32_t        poolNext = UINT32_MAX;
+};
 

@@ -12,9 +12,9 @@ class ClientSession
 {
 public:
 	ClientSession()
+		: m_stRecvOverlappedEx{}
+		, m_socketClient(INVALID_SOCKET)
 	{
-		ZeroMemory(&m_stRecvOverlappedEx, sizeof(_stOverlappedEx));
-		m_socketClient = INVALID_SOCKET;
 	}
 
 	void Init(const UINT32 index, HANDLE iocpHandle, ObjectPool<SendOverlappedEx>* pSendPool)
