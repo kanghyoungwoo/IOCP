@@ -59,16 +59,18 @@ void ClientSession::Clear()
 
 	while (!mSendDataqueue.empty())
 	{
-		//delete[] mSendDataqueue.front()->m_wsaBuf.buf;
-		//delete mSendDataqueue.front();
-		//mSendDataqueue.pop();
 		mSendPool->Free(mSendDataqueue.front());	// 풀에 반납
 		mSendDataqueue.pop();
 	}
 
-	//mSendPos = 0;
-	//mIsSending = false;
-
+	// gathering 중이던 패킷 반납
+	for (int i = 0;i < mPendingSendCount;i++)
+	{
+		mSendPool->Free(mPendingSendList[i]);
+		mPendingSendList[i] = nullptr;
+	}
+	mPendingSendCount = 0;
+	mIsSending = false;
 	// 버퍼 초기화
 	ZeroMemory(mRecvBuf, sizeof(mRecvBuf));
 	//ZeroMemory(mSendBuf, sizeof(mSendBuf));
@@ -107,44 +109,29 @@ bool ClientSession::SendMsg(const UINT32 dataSize, char* pMsg)
 	pSendOvl->operation = IOOperation::SEND;
 	//pSendOvl->generation = mGeneration;
 	pSendOvl->generation = mGeneration.load(std::memory_order_acquire);
-	std::lock_guard<std::mutex> guard(mSendLock);
-	mSendDataqueue.push(pSendOvl);
 
-	//// overlapped 구조체 세팅
-	//auto sendOverlappedEx = new stOverlappedEx;
-	//ZeroMemory(sendOverlappedEx, sizeof(stOverlappedEx));
-	//sendOverlappedEx->m_wsaBuf.len = dataSize;
-	//sendOverlappedEx->m_wsaBuf.buf = new char[dataSize];
-	//CopyMemory(sendOverlappedEx->m_wsaBuf.buf, pMsg, dataSize);
-	//sendOverlappedEx->m_eOperation = IOOperation::SEND;
+	// lock 안에선 큐 조작 + 판단만
+	bool shouldSend = false;
+	{
+		std::lock_guard<std::mutex> guard(mSendLock);
+		mSendDataqueue.push(pSendOvl);
 
-	//std::lock_guard<std::mutex> guard(mSendLock);
-	//mSendDataqueue.push(sendOverlappedEx);
+		if (!mIsSending)
+		{
+			mIsSending = true;
+			shouldSend = true;
+		}
+	}
+
 
 	// 데이터가 1개이면 앞에 보내는 데이터가 없으니 바로 wsasend
-	if (mSendDataqueue.size() == 1)
+	if (shouldSend)
 	{
 		if (!SendIO())
 		{
 			DisconnectAsync(GetGeneration());
 		}
 	}
-
-	// buffer를 이용한 1-send
-	/*
-	std::lock_guard<std::mutex>guard(mSendLock);
-	if ((mSendPos + dataSize) > MAX_SOCK_SENDBUF)
-	{
-		mSendPos = 0;
-	}
-	auto pSendBuf = &mSendBuf[mSendPos];
-
-	// 보낼 메시지 복사
-	CopyMemory(pSendBuf, pMsg, dataSize);
-	mSendPos += dataSize;
-	*/
-
-
 	return true;
 }
 
@@ -201,63 +188,64 @@ bool ClientSession::BindIOCompletionPort(HANDLE iocpHandle)
 
 bool ClientSession::SendIO()
 {
-	auto sendOverlappedEx = mSendDataqueue.front();
-	DWORD dwRecvNumBytes = 0;
+	WSABUF wsaBufs[MAX_GATHER_COUNT];
+
+	// lock 안에서 큐 drain
+	{
+		std::lock_guard<std::mutex> guard(mSendLock);
+		mPendingSendCount = 0;
+		while (mPendingSendCount < MAX_GATHER_COUNT && !mSendDataqueue.empty())
+		{
+			auto pSendOvl = mSendDataqueue.front();
+			mSendDataqueue.pop();
+
+			wsaBufs[mPendingSendCount] = pSendOvl->wsaBuf;
+			mPendingSendList[mPendingSendCount] = pSendOvl;
+			++mPendingSendCount;
+		}
+	}
+
+	if (mPendingSendCount == 0)
+		return true;
+
+	auto pFirstOvl = mPendingSendList[0];
+	ZeroMemory(&pFirstOvl->wsaOverlapped, sizeof(WSAOVERLAPPED));
 
 	AddRef();
 
+	// lock 박에서 커널 call
+	DWORD dwSendBytes = 0;
+
 	int nRet = WSASend(
 		m_socketClient,
-		&(sendOverlappedEx->wsaBuf),
-		//&(sendOverlappedEx->m_wsaBuf),
-		1,
-		&dwRecvNumBytes,
+		wsaBufs,
+		mPendingSendCount,
+		&dwSendBytes,
 		0,
-		(LPWSAOVERLAPPED)sendOverlappedEx,
+		(LPWSAOVERLAPPED)pFirstOvl,
 		NULL
 	);
 
 	if (nRet == SOCKET_ERROR && (WSAGetLastError() != ERROR_IO_PENDING))
 	{
+		LOG_ERROR_ONCE("WSASend() 실패 : %d\n", WSAGetLastError());
+
+		//반납을 Releaseref보다 먼저, double free방지
+		for (int i = 0;i < mPendingSendCount;++i)
+		{
+			mSendPool->Free(mPendingSendList[i]);
+			mPendingSendList[i] = nullptr;
+		}
+		mPendingSendCount = 0;
+		{
+			std::lock_guard<std::mutex>guard(mSendLock);
+			mIsSending = false;
+		}
+
 		ReleaseRef();
-		// 큐정리 안함- > false -> 호출부에서 DisconnectAsync() -> CloseSocket -> Closed -> Clear()가 안전하게 큐 정리
-		LOG_ERROR_ONCE("WSASend() 실패 : %d\n", WSAGetLastError());
 		return false;
 	}
 
-	// buffer 방식의 1-send
-	/*
-	if (mSendPos <= 0 || mIsSending)
-	{
-		return true;
-	}
-	std::lock_guard<std::mutex> gurar(mSendLock);
-	mIsSending = true;
-	//CopyMemory(mSendingBuf, &mSendBuf[0], mSendPos);
-	CopyMemory(mSendingBuf, mSendBuf, mSendPos);
-
-	DWORD dwRecvNumBytes = 0;
-
-	m_stSendOverlappedEx.m_wsaBuf.len = mSendPos;
-	m_stSendOverlappedEx.m_wsaBuf.buf = mSendingBuf;
-	m_stSendOverlappedEx.m_eOperation = IOOperation::SEND;
-
-	int nRet = WSASend(m_socketClient,
-		&(m_stSendOverlappedEx.m_wsaBuf),
-		1,
-		&dwRecvNumBytes,
-		0,
-		(LPWSAOVERLAPPED)&(m_stSendOverlappedEx),
-		NULL);
-
-	// socket_error시 client socket이 끊어진 경우의 처리
-	if (nRet == SOCKET_ERROR && (WSAGetLastError() != ERROR_IO_PENDING))
-	{
-		LOG_ERROR_ONCE("WSASend() 실패 : %d\n", WSAGetLastError());
-		return false;
-	}
-	mSendPos = 0;
-	*/
 
 	return true;
 }
@@ -267,28 +255,52 @@ void ClientSession::SendComplete(SendOverlappedEx* pCompletedOvl)
 	// 1. 메모리 해제 전 gen 저장
 	const uint32_t completedGen = pCompletedOvl->generation;
 
-	std::lock_guard<std::mutex> guard(mSendLock);
+	// gathering된 패킷들 일괄 풀 반납
+	for (int i = 0;i < mPendingSendCount;++i)
+	{
+		mSendPool->Free(mPendingSendList[i]);
+		mPendingSendList[i] = nullptr;
+	}
+	mPendingSendCount = 0;
 
-	// 2. 큐에서 먼저 제거
-	if (!mSendDataqueue.empty())
-		mSendDataqueue.pop();
-
-	// 3. 큐에서 분리된 객체를 풀에 반납
-	mSendPool->Free(pCompletedOvl);
-
-	// 4. Stale 검사
+	// stale 검사
 	if (completedGen != GetGeneration())
+	{
+		std::lock_guard<std::mutex> guard(mSendLock);
+		mIsSending = false;
 		return;
+	}
 
 	if (!IsConnected())
+	{
+		std::lock_guard<std::mutex> guard(mSendLock);
+		mIsSending = false;
 		return;
+	}
 
-	// 5. 다음 데이터 전송
-	if (!mSendDataqueue.empty())
+	// 큐에 남은 패킷 확인 
+	bool hasMore = false;
+	{
+		std::lock_guard<std::mutex>guard(mSendLock);
+		if (!mSendDataqueue.empty())
+		{
+			hasMore = true;
+		}
+		else
+		{
+			mIsSending = false; // 전송완료
+		}
+	}
+
+	// lock 밖에서 WSASend
+	if (hasMore)
 	{
 		if (!SendIO())
+		{
 			DisconnectAsync(GetGeneration());
+		}
 	}
+
 
 }
 

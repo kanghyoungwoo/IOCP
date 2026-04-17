@@ -168,6 +168,12 @@ private:
 	//char mSendingBuf[MAX_SOCK_SENDBUF];	// 1-send 방식 미사용
 	//std::queue<stOverlappedEx*> mSendDataqueue;
 	std::queue<SendOverlappedEx*> mSendDataqueue;
+
+	static constexpr int MAX_GATHER_COUNT = 64;
+	bool mIsSending = false;	// 전송 진행 중인 플래그
+	SendOverlappedEx* mPendingSendList[MAX_GATHER_COUNT];	// 전송 중인 패킷 추적
+	int mPendingSendCount = 0;
+
 	//bool mIsConnected = false;			// Client의 접속 요청을 했는지 확인하는 변수
 	std::atomic<bool>mIsConnected{ false };
 	char mAcceptbuf[128];				// AcceptEx의 3번째 인자로 넘겨줄 버퍼

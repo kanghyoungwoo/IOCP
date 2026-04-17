@@ -112,11 +112,15 @@ public:
 		if (toRead == 0)
 			return 0;
 		
-		size_t firstChuk = BufferSize - tail;	// tail -> 버퍼 끝까지 읽을 수 있는 양
-		if (firstChuk >= toRead)
+		size_t firstChunk = BufferSize - tail;	// tail -> 버퍼 끝까지 읽을 수 있는 양
+		if (firstChunk >= toRead)
 		{
-			memcpy(output, buffer + tail, firstChuk);	// 경계 전
-			memcpy(output + firstChuk, buffer, toRead - firstChuk);	// wrap 후
+			memcpy(output, buffer + tail, toRead);
+		}
+		else
+		{
+			memcpy(output, buffer + tail, firstChunk);
+			memcpy(output + firstChunk, buffer, toRead - firstChunk);
 		}
 		tail = (tail + toRead) & (BufferSize - 1);
 		full = false;
