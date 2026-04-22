@@ -53,7 +53,7 @@ int main()
 	{
 		LOG_DEBUG("Pool: Lock-based mode\n");
 	}
-	//IOCompletionPort ioCompletionPort;
+	
 	ChatServer Server;
 	g_pServer = &Server;
 

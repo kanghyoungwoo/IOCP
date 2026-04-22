@@ -113,7 +113,7 @@ private:
 	HANDLE	mIOCPHandle = INVALID_HANDLE_VALUE;
 
 	// 작업 스레드 동작 플래그
-	bool	mIsWorkerRun = true;
+	std::atomic<bool> mIsWorkerRun{ true };
 
 	//// 접속 스레드 동작 플래그
 	//bool	mIsAccepterRun = true;

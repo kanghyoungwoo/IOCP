@@ -324,8 +324,8 @@ void ClientSession::SendComplete(SendOverlappedEx* pCompletedOvl, DWORD dwIoSize
 			else
 			{
 				// 부분 전송 또는 미전송 → 포인터 전진 후 보존
-				mPendingSendList[i]->base.wsaBuf.buf += remaining;
-				mPendingSendList[i]->base.wsaBuf.len -= remaining;
+				mPendingSendList[i]->base.wsaBuf.buf += remaining;	// 시작 주소 밀고
+				mPendingSendList[i]->base.wsaBuf.len -= remaining;	// 길이 줄임
 				remaining = 0;
 				mPendingSendList[writeIdx++] = mPendingSendList[i];
 			}

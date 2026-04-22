@@ -133,6 +133,7 @@ void IOCompletionPort::DestroyThread()
 	LOG_DEBUG("TimeoutThread 종료 완료\n");
 
 	//Todo: GracefulShutDown 구현하기
+	//  Accept 중지 
 	SOCKET tempListen = mListenSocket;
 	mListenSocket = INVALID_SOCKET;
 
@@ -142,15 +143,9 @@ void IOCompletionPort::DestroyThread()
 	}
 	LOG_DEBUG("step1 Accept 종료 완료\n");
 
-	// step1. Accept 중지
-	//mIsAccepterRun = false;
-	closesocket(mListenSocket);		// AcceptEx 대기 해제
-	mListenSocket = INVALID_SOCKET;
-	//if (mAccepterThread.joinable())
-	//	mAccepterThread.join();
-	LOG_DEBUG("step1 Accept 종료 완료\n");
 
-	// step2. 클라이언트 강제종료 + IO 취소
+
+	//  클라이언트 강제종료 + IO 취소
 	for (auto& client : mClientInfos)
 	{
 		// 1. 소켓이 아직 살아있다면, 걸려있는 비동기 I/O들을 강제로 취소
@@ -166,7 +161,7 @@ void IOCompletionPort::DestroyThread()
 	LOG_DEBUG("step2 모든 클라이언트 강제 종료 완료\n");
 
 
-	// step3. 잔여 IO Draining
+	//  잔여 IO Draining
 	// 이미 커널에서 OS 한 잔여 완료 신호가 IOCP queue에 도착
 	// 짧은 대기 후 처리 시간줌
 	//std::this_thread::sleep_for(std::chrono::milliseconds(500));
@@ -194,7 +189,7 @@ void IOCompletionPort::DestroyThread()
 	if (!allDrained)
 		LOG_ERROR("step3: IO Draining 타임아웃\n");
 
-	// step4. 워커 스레드 종료 - PQCS로 신호
+	//  워커 스레드 종료 - PQCS로 신호
 	mIsWorkerRun = false;
 	for (size_t i = 0;i < mIOWorkerThreads.size();++i)
 	{
@@ -206,7 +201,7 @@ void IOCompletionPort::DestroyThread()
 			th.join();
 	}
 	LOG_DEBUG("step4: worker thread 종료 완료\n");
-	// step5. IOCP Handle 닫기
+	// IOCP Handle 닫기
 	CloseHandle(mIOCPHandle);
 	mIOCPHandle = INVALID_HANDLE_VALUE;
 	LOG_DEBUG("step5: 자원 정리 완료\n");
@@ -515,8 +510,11 @@ void IOCompletionPort::WorkerThread()
 					// refcount감소, 마지막 참조일시 세션 반납
 					if (pClientSession->ReleaseRef())
 					{
-						PushFreeSessionIndex(sessionIndex);
-						TryPostAcceptEx();
+						if (!mIsShuttingDown.load(std::memory_order_acquire))
+						{
+							PushFreeSessionIndex(sessionIndex);
+							TryPostAcceptEx();
+						}
 					}
 					continue;
 				}
