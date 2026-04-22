@@ -510,7 +510,7 @@ void IOCompletionPort::WorkerThread()
 					// refcount감소, 마지막 참조일시 세션 반납
 					if (pClientSession->ReleaseRef())
 					{
-						if (!mIsShuttingDown.load(std::memory_order_acquire))
+						if (!mIsShuttingDown.load(std::memory_order_relaxed))
 						{
 							PushFreeSessionIndex(sessionIndex);
 							TryPostAcceptEx();
