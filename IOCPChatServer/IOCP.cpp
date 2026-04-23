@@ -501,11 +501,6 @@ void IOCompletionPort::WorkerThread()
 					{
 						pClientSession->SendComplete(reinterpret_cast<SendOverlappedEx*>(lpOverlapped), dwIoSize);
 					}
-					else if (op == IOOperation::ZOMBIE_CLEANUP)
-					{
-						delete reinterpret_cast<stOverlappedEx*>(lpOverlapped);
-					}
-					// recv는 세션 내장, 해제 불필요
 
 					// refcount감소, 마지막 참조일시 세션 반납
 					if (pClientSession->ReleaseRef())

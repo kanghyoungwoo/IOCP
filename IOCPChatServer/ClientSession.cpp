@@ -522,21 +522,20 @@ void ClientSession::DisconnectAsync(UINT32 expectedGeneration)
 			if (err == ERROR_NOT_FOUND)
 			{
 				// 3. 블랙홀 상태 → Worker에 즉시 정리
-				auto pMarker = new stOverlappedEx();
-				ZeroMemory(pMarker, sizeof(stOverlappedEx));
-				pMarker->base.operation = IOOperation::ZOMBIE_CLEANUP;
-				pMarker->base.clientSessionIndex = mIndex;
-				pMarker->base.generation = mGeneration.load(std::memory_order_acquire);
+				//auto pMarker = new stOverlappedEx();
+				ZeroMemory(&mZombieContext, sizeof(stOverlappedEx));
+				mZombieContext.base.operation = IOOperation::ZOMBIE_CLEANUP;
+				mZombieContext.base.clientSessionIndex = mIndex;
+				mZombieContext.base.generation = mGeneration.load(std::memory_order_acquire);
 
 
 				// 가짜 IO를 큐에 넣으므로 참조 카운트 증가
 				AddRef();
 
-				if (PostQueuedCompletionStatus(mIOCPHandle, 0, (ULONG_PTR)mIndex,reinterpret_cast<LPOVERLAPPED>(&pMarker->base.wsaOverlapped)) == 0)
+				if (PostQueuedCompletionStatus(mIOCPHandle, 0, (ULONG_PTR)mIndex,reinterpret_cast<LPOVERLAPPED>(&mZombieContext.base.wsaOverlapped)) == 0)
 				{
 					// 만약 큐 삽입에 실패했다면 카운트를 다시 내리고 메모리 누수 방지
 					ReleaseRef();
-					delete pMarker;
 				}
 			}
 		}
