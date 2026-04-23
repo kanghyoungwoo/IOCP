@@ -6,19 +6,12 @@ void RoomManager::Init(const INT32 beginRoomNumber_, const INT32 maxRoomCount_, 
 	mMaxRoomCount = maxRoomCount_;
 	mEndRoomNumber = beginRoomNumber_ + maxRoomCount_;
 
-	//mRoomList = std::vector <Room*> (mMaxRoomCount);
-
-	//for (int i = 0;i < maxRoomCount_; i++)
-	//{
-	//	mRoomList[i] = new Room;
-	//	mRoomList[i]->SendPacketFunc = SendPacketFunc;
-	//	mRoomList[i]->Init(i + beginRoomNumber_, maxRoomUserCount_);
-	//}
 	mRooms.reserve(maxRoomCount_);	
 	for (int i = 0;i < maxRoomCount_;i++)
 	{
 		auto room = std::make_unique<Room>();
 		room->SendPacketFunc = SendPacketFunc;
+		room->FreeJobFunc = FreeJobFunc;
 		room->Init(i + beginRoomNumber_, maxRoomUserCount_);
 		mRooms.push_back(std::move(room));
 	}

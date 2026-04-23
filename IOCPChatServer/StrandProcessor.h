@@ -67,6 +67,8 @@ public:
         mJobPool.Free(p);
     }
 
+    void FreeJob(PacketJob* p) { mJobPool.Free(p); }
+
     // 로드 테스트 용도
     uint64_t GetAllocFailCount() const { return mAllocFailCount.load(); }
     uint32_t GetJobPoolSize() const { return mJobPool.GetPoolSize(); }

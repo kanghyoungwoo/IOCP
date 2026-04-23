@@ -79,10 +79,10 @@ void Room::Reset(INT32 roomNumber_, INT32 maxUserCount_)
 	mIsBroken.store(false, std::memory_order_relaxed);
 
 	// localQueue에 남은 잔여 Job drain
-	// 나중에 ObjectPool<PacketJob>이 준비되면 여기서 Free
-	while (mLocalQueue.Pop() != nullptr)
+	// ObjectPool<PacketJob>이 준비되면 여기서 Free
+	while (auto* pJob = mLocalQueue.Pop())
 	{
-
+		FreeJobFunc(pJob);
 	}
 }
 

@@ -31,15 +31,6 @@ public:
 		mRoomNumber = roomNumber_;
 	}
 
-	//INT32 GetMaxUserCount()
-	//{
-	//	return mMaxUserCount;
-	//}
-
-	//INT32 GetCurrentUserCount()
-	//{
-	//	return mCurrentUserCount;
-	//}
 
 	INT32 GetRoomNumber()
 	{
@@ -52,7 +43,7 @@ public:
 	void NotifyChat(INT32 clientIndex_, const char* userID_, const char* msg_);
 
 	std::function<void(UINT32, UINT32, UINT32, char*)> SendPacketFunc;
-
+	std::function<void(PacketJob*)> FreeJobFunc;
 	void Reset(INT32 roomNumber_, INT32 maxUserCount_);
 
 	EnqueueResult EnqueueJob(PacketJob* pJob);

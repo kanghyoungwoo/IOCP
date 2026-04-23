@@ -22,6 +22,7 @@ public:
 	Room* GetRoomByNumber(INT32 number_);
 
 	std::function<void(UINT32, UINT32, UINT32, char*)> SendPacketFunc;
+	std::function<void(PacketJob*)>FreeJobFunc;
 
 private:
 	//std::vector<Room*> mRoomList;

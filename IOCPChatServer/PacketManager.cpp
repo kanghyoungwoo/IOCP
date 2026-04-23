@@ -76,6 +76,7 @@ void PacketManager::CreateComponent(const UINT32 maxClient_)
 	//mRoomManager = new RoomManager;
 	mRoomManager = std::make_unique <RoomManager>();
 	mRoomManager->SendPacketFunc = SendPacketFunc;
+	mRoomManager->FreeJobFunc = [this](PacketJob* p) { m_strandProcessor.FreeJob(p); };
 	mRoomManager->Init(startRoomNumber, maxRoomCount, maxRoomUserCount);
 
 	m_strandProcessor.Init(config.JobPoolSize, config.MaxRoomCount);
