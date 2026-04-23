@@ -11,7 +11,7 @@ void User::Clear()
 		roomIndex = -1;
 		mIsDisconnecting.store(false);
 
-		mSessionGeneration = 0;
+		mSessionGeneration.store(0, std::memory_order_relaxed);
 }
 
 int User::SetLogin(char* userID_)
@@ -40,11 +40,8 @@ bool User::SetPacketData(const UINT32 dataSize_, char* pData_)
 	return true;
 }
 
-PacketInfo User::GetPacket()
+PacketInfo User::GetPacket(char* outBuf, size_t bufSize)
 {
-	const int PACKET_SIZE_LENGTH = 2;
-	const int PACKET_TYPE_LENGTH = 2;
-
 	std::lock_guard<std::mutex>lock(mPacketRingBuffMutex);
 
 	if (mPacketDataBuffer.Size() < PACKET_HEADER_LENGTH)
@@ -55,20 +52,6 @@ PacketInfo User::GetPacket()
 	{
 		return PacketInfo();
 	}
-	//bool peekSuccess = true;
-	//for (size_t i = 0; i < PACKET_HEADER_LENGTH; i++)
-	//{
-	//	if (!mPacketDataBuffer.Peek(headerBuffer[i], i))
-	//	{
-	//		peekSuccess = false;
-	//		break;
-	//	}
-	//}
-
-	//if (!peekSuccess)
-	//{
-	//	return PacketInfo();
-	//}
 
 	auto pHeader = (PACKET_HEADER*)headerBuffer;
 
@@ -91,7 +74,7 @@ PacketInfo User::GetPacket()
 	// 패킷 데이터를 임시 버퍼에 읽어오기
 	//static char tempPacketBuffer[MAX_PACKET_DATA_BUFFER_SIZE];
 
-	size_t readBytes = mPacketDataBuffer.Read(m_tempPacketBuffer, pHeader->PacketLength);
+	size_t readBytes = mPacketDataBuffer.Read(outBuf, pHeader->PacketLength);
 
 	if (readBytes != pHeader->PacketLength)
 	{
@@ -103,7 +86,7 @@ PacketInfo User::GetPacket()
 	packetInfo.PacketId = pHeader->PacketId;
 	packetInfo.DataSize = pHeader->PacketLength;
 
-	packetInfo.pDataPtr = m_tempPacketBuffer;
+	packetInfo.pDataPtr = outBuf;
 
 	return packetInfo;
 }

@@ -57,12 +57,6 @@ private:
 
 	void NotifyPacketEvent();
 
-
-	//UserManager* mUserManager;
-	//RedisManager* mRedisManager;
-	//RoomManager* mRoomManager;
-	//MySQLManager* mMySQLManager;
-
 	std::unique_ptr<UserManager> mUserManager;
 	std::unique_ptr<RedisManager> mRedisManager;
 	std::unique_ptr<RoomManager> mRoomManager;
@@ -91,4 +85,5 @@ private:
 	std::deque<PacketTask> mWriteBuffer;	// IOCP Worker Thread가 push
 	std::deque<PacketTask> mReadBuffer;		// ProcessThread가 소비
 
+	char m_tempPacketBuffer[MAX_PACKET_DATA_BUFFER_SIZE];
 };

@@ -4,7 +4,7 @@ void StrandProcessor::Init(uint32_t jobPoolSize, uint32_t maxRoomCount)
 {
     mJobPool.Init(jobPoolSize);
 #ifdef USE_LOCKFREE_GLOBAL_QUEUE
-    // Lock-Free 방식은 2의 거듭제곱 크기의 바운디드 큐를 초기화합니다.
+    // Lock-Free 방식은 2의 거듭제곱 크기의 바운디드 큐를 초기화a
     uint32_t globalQueueSize = GetNextPowerOf2(maxRoomCount);
     mGlobalQueue.Init(globalQueueSize);
 #endif
@@ -156,20 +156,6 @@ void StrandProcessor::ProcessRoom(Room* pRoom)
 
                     pRoom->NotifyChat(pJob->clientIndex, leaverID.c_str(), (char*)&tempChatPacket);
 
-
-
-                    //// 2. 글로벌 스레드에 콜백으로 전달
-                    //StrandCallback* cb = mCallbackPool.Alloc();
-                    //if (cb == nullptr)// cb이 nullptr이면 crash 방지
-                    //{
-                    //    LOG_ERROR_ONCE("Callback Pool 소진! callback drop.\n");
-                    //    mJobPool.Free(pJob);
-                    //    continue;
-                    //}
-                    //cb->type = StrandCallbackType::FREE_USER; 
-                    //cb->sessionGeneration = pJob->sessionGeneration;
-                    //mCallbackQueue.Push(cb);
-
                     pJob->phase = PacketJob::Phase::STRAND_CALLBACK;
                     pJob->cb.type = StrandCallbackType::FREE_USER;
                     mCallbackQueue.Push(pJob);
@@ -297,21 +283,6 @@ void StrandProcessor::ProcessRoom(Room* pRoom)
                 // 응답 전송
                 pRoom->SendPacketFunc(pJob->clientIndex, pEnterUser->GetSessionGeneration(), sizeof(ROOM_ENTER_RESPONSE_PACKET), (char*)&resPacket);
 
-                // 콜백 미리 할당
-                //StrandCallback* cb = mCallbackPool.Alloc();
-                //if (cb == nullptr)
-                //{
-                //    LOG_ERROR_ONCE("Callback Pool 소진! callback drop.\n");
-                //    mJobPool.Free(pJob);
-                //    continue;
-                //}
-
-                //cb->type = StrandCallbackType::USER_ENTERED_ROOM;
-                //cb->clientIndex = pJob->clientIndex;
-                //cb->roomNumber = pRoom->GetRoomNumber();
-                //cb->result = resPacket.Result;
-                //cb->sessionGeneration = pJob->sessionGeneration;
-                //mCallbackQueue.Push(cb);
                 int32_t  savedRoomNumber = pRoom->GetRoomNumber();
                 uint16_t savedResult = resPacket.Result;
 

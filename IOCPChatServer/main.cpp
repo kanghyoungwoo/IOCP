@@ -58,11 +58,17 @@ int main()
 	g_pServer = &Server;
 
 	// 서버 초기화
-	Server.Init(config.MaxIOWorkerThread);
-
+	if (!Server.Init(config.MaxIOWorkerThread))
+	{
+		LOG_ERROR("서버 초기화 실패\n");
+		return -1;
+	}
 	// 소켓과 서버 주소를 바인딩하고 리슨
-	Server.BindandListen(config.ServerPort);
-
+	if (!Server.BindandListen(config.ServerPort))
+	{
+		LOG_ERROR("BindandListen 실패\n");
+		return -1;
+	}
 	Server.Run(config.MaxClient);
 
 	printf("'quit' 입력으로 서버 종료.\n");

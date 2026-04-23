@@ -44,7 +44,7 @@ public:
         uint32_t MySQLPort = 3306;
         std::string RedisHost = "127.0.0.1";
         uint32_t RedisPort = 6379;
-        bool TestMode = false;
+        bool TestMode = true;
     };
 
     static ConfigManager& GetInstance()

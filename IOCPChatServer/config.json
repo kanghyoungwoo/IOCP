@@ -2,7 +2,7 @@
     "Network": {
         "ServerPort": 11021,
         "MaxClient": 10000,
-        "MaxIOWorkerThread": 8
+        "MaxIOWorkerThread": 4
     },
     "Thread": {
         "MaxWorkerThread": 4,
@@ -17,11 +17,11 @@
     },
     "Room": {
         "StartRoomNumber": 0,
-        "MaxRoomUserCount": 8,
-        "MaxRoomCount": 1250
+        "MaxRoomUserCount": 1000,
+        "MaxRoomCount": 10
     },
     "Pool": {
-        "JobPoolSize": 100000,
+        "JobPoolSize": 200000,
         "CallbackPoolSize": 4000
     },
     "Database": {

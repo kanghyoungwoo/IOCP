@@ -186,6 +186,7 @@ bool PacketManager::ReceivePacketData(const UINT32 clientIndex_, const UINT32 ge
 
 void PacketManager::ProcessPacket()
 {
+	char packetBuf[MAX_PACKET_DATA_BUFFER_SIZE];
 	while (mIsRunProcessThread)
 	{
 		// 1. wait + swap (lock은 1회만)
@@ -262,7 +263,7 @@ void PacketManager::ProcessPacket()
 				continue;
 			}
 
-			auto packetData = pUser->GetPacket();
+			auto packetData = pUser->GetPacket(packetBuf, sizeof(packetBuf));
 			if (packetData.PacketId == 0)
 				continue;
 
@@ -319,7 +320,7 @@ void PacketManager::ProcessPacket()
 			// 같은 유저의 링버퍼에 남은 패킷 있으면 계속 처리
 			while (true)
 			{
-				auto nextPacket = pUser->GetPacket();
+				auto nextPacket = pUser->GetPacket(packetBuf, sizeof(packetBuf));
 				if (nextPacket.PacketId == 0)
 				{
 					break;

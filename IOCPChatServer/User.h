@@ -63,7 +63,7 @@ public:
 	// TODO: 링버퍼 구조체로 바꾸기
 	bool SetPacketData(const UINT32 dataSize_, char* pData_);
 
-	PacketInfo GetPacket();
+	PacketInfo GetPacket(char* outBuf, size_t bufSize);
 
 	void EnterRoom(INT32 roomIndex_)
 	{
@@ -82,21 +82,6 @@ public:
 	{
 		roomIndex = -1;
 	}
-
-	//size_t GetBufferSize() const
-	//{
-	//	return mPacketDataBuffer.Size();
-	//}
-
-	//bool IsBufferEmpty() const
-	//{
-	//	return mPacketDataBuffer.IsEmpty();
-	//}
-
-	//bool IsBufferFull() const
-	//{
-	//	return mPacketDataBuffer.IsFull();
-	//}
 
 
 	bool IsDisconnecting() const
@@ -138,7 +123,7 @@ private:
 	std::mutex mPacketRingBuffMutex;
 
 	// 한 스레드만 사용할 패킷 임시 버퍼
-	char m_tempPacketBuffer[MAX_PACKET_DATA_BUFFER_SIZE];
+	//char m_tempPacketBuffer[MAX_PACKET_DATA_BUFFER_SIZE];
 
 	std::atomic<bool> mIsDisconnecting{ false };
 
