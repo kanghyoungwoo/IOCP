@@ -72,7 +72,7 @@ private:
 
 	//std::function<void(int, char*)>mSendMQDataFunc;
 
-	bool mIsRunProcessThread = false;
+	std::atomic<bool> mIsRunProcessThread { false };
 	std::thread mProcessThead;
 	std::mutex mLock;
 	std::condition_variable mPacketEventCV;

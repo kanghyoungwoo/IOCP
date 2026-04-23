@@ -1,9 +1,8 @@
 ﻿#include "StrandProcessor.h"
 
-void StrandProcessor::Init(uint32_t jobPoolSize, uint32_t callbackPoolSize, uint32_t maxRoomCount)
+void StrandProcessor::Init(uint32_t jobPoolSize, uint32_t maxRoomCount)
 {
     mJobPool.Init(jobPoolSize);
-    mCallbackPool.Init(callbackPoolSize);
 #ifdef USE_LOCKFREE_GLOBAL_QUEUE
     // Lock-Free 방식은 2의 거듭제곱 크기의 바운디드 큐를 초기화합니다.
     uint32_t globalQueueSize = GetNextPowerOf2(maxRoomCount);
@@ -48,12 +47,13 @@ void StrandProcessor::EnqueueJob(Room* pRoom, uint32_t clientIndex, uint32_t tar
         return;
     }
 
+    pJob->phase = PacketJob::Phase::JOB;
     pJob->clientIndex = clientIndex;
     //pJob->roomIndex = pRoom->GetRoomNumber();
-    pJob->targetGeneration = targetGeneration;
+    pJob->job.targetGeneration = targetGeneration;
     pJob->sessionGeneration = sessionGeneration;
-    pJob->packetId = packetId;
-    pJob->dataSize = dataSize;
+    pJob->job.packetId = packetId;
+    pJob->job.dataSize = dataSize;
 
     // 비정상적으로 큰 패킷 방어 및 누수 방지
     if (dataSize > MAX_SOCKBUF)
@@ -73,7 +73,7 @@ void StrandProcessor::EnqueueJob(Room* pRoom, uint32_t clientIndex, uint32_t tar
 
     if (dataSize > 0 && data != nullptr)
     {
-        memcpy(pJob->body, data, dataSize);
+        memcpy(pJob->job.body, data, dataSize);
     }
     auto result = pRoom->EnqueueJob(pJob);
     switch (result)
@@ -127,7 +127,7 @@ void StrandProcessor::ProcessRoom(Room* pRoom)
         }
 
         // generation 세대 검사
-        if (pJob->targetGeneration != pRoom->GetGeneration())
+        if (pJob->job.targetGeneration != pRoom->GetGeneration())
         {
             // 세대불일치 -> skip
             LOG_DEBUG("세대 패킷 무시\n");
@@ -141,7 +141,7 @@ void StrandProcessor::ProcessRoom(Room* pRoom)
             if (pUser != nullptr)
             {
                 // 강제접속 종료 (DISCONNECT)
-                if (pJob->packetId == (uint16_t)PACKET_ID::SYS_USER_DISCONNECT)
+                if (pJob->job.packetId == (uint16_t)PACKET_ID::SYS_USER_DISCONNECT)
                 {
                     // 1. 방 내부 정리 (유저 삭제, 퇴장 알림 브로드캐스트)
                     std::string leaverID = pUser->GetUserID();
@@ -158,35 +158,39 @@ void StrandProcessor::ProcessRoom(Room* pRoom)
 
 
 
-                    // 2. 글로벌 스레드에 콜백으로 전달
-                    StrandCallback* cb = mCallbackPool.Alloc();
-                    if (cb == nullptr)// cb이 nullptr이면 crash 방지
-                    {
-                        LOG_ERROR_ONCE("Callback Pool 소진! callback drop.\n");
-                        mJobPool.Free(pJob);
-                        continue;
-                    }
-                    cb->type = StrandCallbackType::FREE_USER; 
-                    cb->clientIndex = pJob->clientIndex;
-                    cb->sessionGeneration = pJob->sessionGeneration;
-                    mCallbackQueue.Push(cb);
+                    //// 2. 글로벌 스레드에 콜백으로 전달
+                    //StrandCallback* cb = mCallbackPool.Alloc();
+                    //if (cb == nullptr)// cb이 nullptr이면 crash 방지
+                    //{
+                    //    LOG_ERROR_ONCE("Callback Pool 소진! callback drop.\n");
+                    //    mJobPool.Free(pJob);
+                    //    continue;
+                    //}
+                    //cb->type = StrandCallbackType::FREE_USER; 
+                    //cb->sessionGeneration = pJob->sessionGeneration;
+                    //mCallbackQueue.Push(cb);
+
+                    pJob->phase = PacketJob::Phase::STRAND_CALLBACK;
+                    pJob->cb.type = StrandCallbackType::FREE_USER;
+                    mCallbackQueue.Push(pJob);
+                    continue;
                 }
                 // 방 채팅
-                else if (pJob->packetId == (uint16_t)PACKET_ID::ROOM_CHAT_REQUEST)
+                else if (pJob->job.packetId == (uint16_t)PACKET_ID::ROOM_CHAT_REQUEST)
                 {
                     constexpr uint16_t MIN_CHAT_PACKET_SIZE = sizeof(PACKET_HEADER);
 
-                    if (pJob->dataSize <= MIN_CHAT_PACKET_SIZE)
+                    if (pJob->job.dataSize <= MIN_CHAT_PACKET_SIZE)
                     {
                         // 메시지가 아예없는 빈 패킷 무시
                         mJobPool.Free(pJob);
                         continue;
                     }
                     // 나중에 printf와 strcpy를 쓸 때 메모리 오버플로우 방지.
-                    ROOM_CHAT_REQUEST_PACKET* pChatReq = (ROOM_CHAT_REQUEST_PACKET*)pJob->body;
+                    ROOM_CHAT_REQUEST_PACKET* pChatReq = (ROOM_CHAT_REQUEST_PACKET*)pJob->job.body;
 
                     // 수신받은 바이트의 Null로 덮어쓰기 (안전)
-                    uint16_t messageLen = pJob->dataSize - sizeof(PACKET_HEADER);
+                    uint16_t messageLen = pJob->job.dataSize - sizeof(PACKET_HEADER);
                     if (messageLen < 256) {
                         pChatReq->Message[messageLen] = '\0';
                     }
@@ -203,10 +207,10 @@ void StrandProcessor::ProcessRoom(Room* pRoom)
                     pRoom->SendPacketFunc(pJob->clientIndex, pUser->GetSessionGeneration(), sizeof(resPacket), (char*)&resPacket);
 
                     // 방 전체에 브로드캐스트
-                    pRoom->NotifyChat(pJob->clientIndex, pUser->GetUserID().c_str(), pJob->body);
+                    pRoom->NotifyChat(pJob->clientIndex, pUser->GetUserID().c_str(), pJob->job.body);
                 }
                 // 방에서의 퇴장
-                else if (pJob->packetId == (uint16_t)PACKET_ID::ROOM_LEAVE_REQUEST)
+                else if (pJob->job.packetId == (uint16_t)PACKET_ID::ROOM_LEAVE_REQUEST)
                 {
                     // 퇴장 처리
 
@@ -230,23 +234,27 @@ void StrandProcessor::ProcessRoom(Room* pRoom)
                     pRoom->SendPacketFunc(pJob->clientIndex, pUser->GetSessionGeneration(), sizeof(resPacket), (char*)&resPacket);
 
                     // 패킷 매니저에게 상태 변경 요청 콜백
-                    StrandCallback* cb = mCallbackPool.Alloc();
-                    if (cb == nullptr)// cb이 nullptr이면 crash 방지
-                    {
-                        LOG_ERROR_ONCE("Callback Pool 소진! callback drop.\n");
-                        mJobPool.Free(pJob);
-                        continue;
-                    }
-                    cb->type = StrandCallbackType::USER_LEFT_ROOM;
-                    cb->clientIndex = pJob->clientIndex;
-                    cb->sessionGeneration = pJob->sessionGeneration;
-                    mCallbackQueue.Push(cb);
+                    //StrandCallback* cb = mCallbackPool.Alloc();
+                    //if (cb == nullptr)// cb이 nullptr이면 crash 방지
+                    //{
+                    //    LOG_ERROR_ONCE("Callback Pool 소진! callback drop.\n");
+                    //    mJobPool.Free(pJob);
+                    //    continue;
+                    //}
+                    //cb->type = StrandCallbackType::USER_LEFT_ROOM;
+                    //cb->clientIndex = pJob->clientIndex;
+                    //cb->sessionGeneration = pJob->sessionGeneration;
+                    //mCallbackQueue.Push(cb);
+                    pJob->phase = PacketJob::Phase::STRAND_CALLBACK;
+                    pJob->cb.type = StrandCallbackType::USER_LEFT_ROOM;
+                    mCallbackQueue.Push(pJob);
+                    continue;
 
                 }
 
             }
             // 입장 처리
-            else if (pJob->packetId == (uint16_t)PACKET_ID::ROOM_ENTER_REQUEST)
+            else if (pJob->job.packetId == (uint16_t)PACKET_ID::ROOM_ENTER_REQUEST)
             {
                 // UserManager에서 유저 포인터 획득
                 User* pEnterUser = mUserManager->GetUserByConnIdx(pJob->clientIndex);
@@ -290,20 +298,30 @@ void StrandProcessor::ProcessRoom(Room* pRoom)
                 pRoom->SendPacketFunc(pJob->clientIndex, pEnterUser->GetSessionGeneration(), sizeof(ROOM_ENTER_RESPONSE_PACKET), (char*)&resPacket);
 
                 // 콜백 미리 할당
-                StrandCallback* cb = mCallbackPool.Alloc();
-                if (cb == nullptr)
-                {
-                    LOG_ERROR_ONCE("Callback Pool 소진! callback drop.\n");
-                    mJobPool.Free(pJob);
-                    continue;
-                }
+                //StrandCallback* cb = mCallbackPool.Alloc();
+                //if (cb == nullptr)
+                //{
+                //    LOG_ERROR_ONCE("Callback Pool 소진! callback drop.\n");
+                //    mJobPool.Free(pJob);
+                //    continue;
+                //}
 
-                cb->type = StrandCallbackType::USER_ENTERED_ROOM;
-                cb->clientIndex = pJob->clientIndex;
-                cb->roomNumber = pRoom->GetRoomNumber();
-                cb->result = resPacket.Result;
-                cb->sessionGeneration = pJob->sessionGeneration;
-                mCallbackQueue.Push(cb);
+                //cb->type = StrandCallbackType::USER_ENTERED_ROOM;
+                //cb->clientIndex = pJob->clientIndex;
+                //cb->roomNumber = pRoom->GetRoomNumber();
+                //cb->result = resPacket.Result;
+                //cb->sessionGeneration = pJob->sessionGeneration;
+                //mCallbackQueue.Push(cb);
+                int32_t  savedRoomNumber = pRoom->GetRoomNumber();
+                uint16_t savedResult = resPacket.Result;
+
+                pJob->phase = PacketJob::Phase::STRAND_CALLBACK;
+                pJob->cb.type = StrandCallbackType::USER_ENTERED_ROOM;
+                pJob->cb.roomNumber = savedRoomNumber;
+                pJob->cb.result = savedResult;
+                mCallbackQueue.Push(pJob);
+                continue;
+
             }
 
         }

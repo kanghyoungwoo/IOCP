@@ -78,7 +78,7 @@ void PacketManager::CreateComponent(const UINT32 maxClient_)
 	mRoomManager->SendPacketFunc = SendPacketFunc;
 	mRoomManager->Init(startRoomNumber, maxRoomCount, maxRoomUserCount);
 
-	m_strandProcessor.Init(config.JobPoolSize, config.CallbackPoolSize, config.MaxRoomCount);
+	m_strandProcessor.Init(config.JobPoolSize, config.MaxRoomCount);
 	m_strandProcessor.SetUserManager(mUserManager.get());
 }
 
@@ -135,9 +135,9 @@ void PacketManager::End()
 	// 라우터 멈춤이 보장된 후 Strand 종료 (방에 남은 패킷 마저 처리)
 	m_strandProcessor.Stop();
 	// Stop 과정에서 마지막으로 밀어넣어진 콜백 찌꺼기 청소
-	while (auto* cb = m_strandProcessor.PopCallback())
+	while (auto* pNotify = m_strandProcessor.PopCallback())
 	{
-		m_strandProcessor.FreeCallback(cb);
+		m_strandProcessor.FreeCallback(pNotify);
 	}
 
 	// DB 쓰레드 종료(큐 소진후)
@@ -149,7 +149,7 @@ void PacketManager::End()
 	if (fp) {
 		fprintf(fp, "=== Benchmark Result ===\n");
 		fprintf(fp, "Job Pool Size: %u\n", m_strandProcessor.GetJobPoolSize());
-		fprintf(fp, "Alloc Fail Count: %llu\n", m_strandProcessor.GetAllocFailCount());
+		fprintf(fp, "Alloc Fail Count: %llu\n", m_strandProcessor.GetAllocFailCount()); // 유지결정?
 		fprintf(fp, "========================\n\n");
 
 		fprintf(fp, "=== Benchmark Result ===\n");
@@ -172,13 +172,13 @@ void PacketManager::End()
 bool PacketManager::ReceivePacketData(const UINT32 clientIndex_, const UINT32 generation_, const UINT32 dataSize_, char* pData_)
 {
 	auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
+	// 링버퍼에 raw bytes 저장
 	if (!pUser->SetPacketData(dataSize_, pData_))
 	{
 		LOG_ERROR("[ReceivePacketData] Client(%d) 버퍼 오버플로우 → 연결 해제 요청\n", clientIndex_);
 		return false;
 	}
-	//pUser->SetPacketData(dataSize_, pData_); // 링버퍼에 저장 후
-	// queue에 알려줌 어떤 client의 요청이 왔는지
+	// 인덱스만 큐에 push
 	EnqueuePacketData(clientIndex_, generation_);
 	return true;
 }
@@ -196,12 +196,6 @@ void PacketManager::ProcessPacket()
 			{
 				if (!mIsRunProcessThread)
 					return true;
-
-				//if (!mSystemPacketQueue.empty())
-				//	return true;
-
-				//if (!mInComingPacketUserIndex.empty())
-				//	return true;
 
 				if (!mSystemWriteBuffer.empty())
 					return true;
@@ -349,17 +343,17 @@ void PacketManager::ProcessPacket()
 			//task.release();
 		}
 
-		while (auto* cb = m_strandProcessor.PopCallback())
+		while (auto* pNotify = m_strandProcessor.PopCallback())
 		{
-			auto pUser = mUserManager->GetUserByConnIdx(cb->clientIndex);
+			auto pUser = mUserManager->GetUserByConnIdx(pNotify->clientIndex);
 
 			// 유저 없음 or 세대 불일치
-			if (!pUser || pUser->GetSessionGeneration() != cb->sessionGeneration)
+			if (!pUser || pUser->GetSessionGeneration() != pNotify->sessionGeneration)
 			{
-				m_strandProcessor.FreeCallback(cb);
+				m_strandProcessor.FreeCallback(pNotify);
 				continue;
 			}
-			switch (cb->type)
+			switch (pNotify->cb.type)
 			{
 			case StrandCallbackType::FREE_USER:
 			{
@@ -374,19 +368,19 @@ void PacketManager::ProcessPacket()
 			}
 			case StrandCallbackType::USER_ENTERED_ROOM:
 			{
-				if (cb->result == (UINT16)ERROR_CODE::NONE)
+				if (pNotify->cb.result == (UINT16)ERROR_CODE::NONE)
 				{
-					pUser->EnterRoom(cb->roomNumber);
+					pUser->EnterRoom(pNotify->cb.roomNumber);
 
 					// MySQL 로그
 					MySQLRoomEventReq req{};
 					strcpy_s(req.UserID, pUser->GetUserID().c_str());
-					req.RoomNumber = cb->roomNumber;
+					req.RoomNumber = pNotify->cb.roomNumber;
 					req.EventType = RoomEventType::ENTER;
 					req.TimeStampSec = (UINT64)time(nullptr);
 
 					MySQLTask task{};
-					task.UserIndex = cb->clientIndex;
+					task.UserIndex = pNotify->clientIndex;
 					task.TaskID = MySQLTaskID::INSERT_ROOM_EVENT;
 					task.DataSize = sizeof(MySQLRoomEventReq);
 					//task.pData = new char[task.DataSize];
@@ -400,7 +394,7 @@ void PacketManager::ProcessPacket()
 				break;
 			}
 			}// switch의 }
-			m_strandProcessor.FreeCallback(cb);
+			m_strandProcessor.FreeCallback(pNotify);
 		}
 
 	}
@@ -415,7 +409,7 @@ void PacketManager::EnqueuePacketData(const UINT32 clientIndex_, const UINT32 ge
 		std::lock_guard<std::mutex> guard(mLock);
 		PacketTask task;
 		task.clientIndex = clientIndex_;
-		task.generation = generation_;  // ★ ClientSession의 세대를 사용
+		task.generation = generation_;  // ClientSession의 세대를 사용
 		mWriteBuffer.push_back(task);
 	}
 	// 큐에 새로운 패킷이 들어왔다고 처리 쓰레드 깨움

@@ -96,10 +96,12 @@ Room::EnqueueResult Room::EnqueueJob(PacketJob* pJob)
 	if (mIsBroken.load(std::memory_order_acquire))
 		return EnqueueResult::FAILED_DROPPED;
 
-	if (pJob->targetGeneration != mGeneration.load(std::memory_order_acquire))
+	if (pJob->job.targetGeneration != mGeneration.load(std::memory_order_acquire))
 		return EnqueueResult::FAILED_DROPPED;
 
 	// 큐에 삽입
+	// 런타임 검증
+	assert(pJob->phase == PacketJob::Phase::JOB);
 	mLocalQueue.Push(pJob);
 
 	// 카운터로 첫번째 여부 판별

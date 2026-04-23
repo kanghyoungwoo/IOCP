@@ -3,7 +3,7 @@
 #include "PacketJob.h"
 #include "Room.h"
 #include "StrandCallback.h"
-#include<vector>
+#include <vector>
 #include <thread>
 #include <intrin.h>
 
@@ -28,7 +28,7 @@ public:
         //Stop();
     }
 
-    void Init(uint32_t jobPoolSize, uint32_t callbackPoolSize, uint32_t maxRoomCount);
+    void Init(uint32_t jobPoolSize, uint32_t maxRoomCount);
     
     void SetUserManager(UserManager* pUserManager)
     {
@@ -53,21 +53,18 @@ public:
     void EnqueueJob(Room* pRoom, uint32_t clientIndex, uint32_t targetGeneration, UINT32 sessionGeneration, uint16_t packetId, uint16_t dataSize, const char* data);
 
     // 로직 스레드가 완료한 콜백 작업 꺼내기
-    StrandCallback* PopCallback()
+    PacketJob* PopCallback()
     {
         return mCallbackQueue.Pop();
     }
 
     // 처리가 끝난 콜백 메모리 다시 풀에 반납
-    void FreeCallback(StrandCallback* pCallback)
+    void FreeCallback(PacketJob* p)
     {
-        // 재사용을 위해 내부 상태를 초기화하고 반납
-        pCallback->clientIndex = 0;
-        pCallback->roomNumber = -1;
-        pCallback->result = 0;
-        pCallback->mpscNext.store(nullptr, std::memory_order_relaxed);
-
-        mCallbackPool.Free(pCallback);
+#ifdef _DEBUG
+        p->phase = PacketJob::Phase::JOB;
+#endif
+        mJobPool.Free(p);
     }
 
     // 로드 테스트 용도
@@ -91,8 +88,9 @@ private:
     std::vector<std::thread> mLogicThreads;  // 처리 스레드 풀
     GlobalQueue mGlobalQueue;
 
-    MPSCQueue<StrandCallback> mCallbackQueue;   // Logic Thread 용 결과물
-    ObjectPool<StrandCallback> mCallbackPool;   // 콜백용 메모리풀
+    MPSCQueue<PacketJob> mCallbackQueue;    // Logic Thread용 결과물
+
+    //MPSCQueue<PacketJob> mCallbackQueue;   // Logic Thread 용 결과물
 
     // 모니터링 용도
     std::atomic<uint64_t> mAllocFailCount{ 0 };

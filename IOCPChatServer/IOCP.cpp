@@ -525,7 +525,7 @@ void IOCompletionPort::WorkerThread()
 			{
 				--mPendingAcceptCount;
 
-
+				// 종료중 or listensocket 닫힘
 				if (mIsShuttingDown.load(std::memory_order_acquire) || mListenSocket == INVALID_SOCKET)
 				{
 					pClientSession->CloseAcceptSocket();	// 열려있을 수 있는 Accept 소켓 닫기
@@ -536,17 +536,6 @@ void IOCompletionPort::WorkerThread()
 					}
 					continue; // 조용히 다음으로 넘어감
 				}
-				//// 서버 종료중이거나 Listen Socket이 닫혀있다면 즉시 탈출
-				//if (!mIsWorkerRun || mListenSocket == INVALID_SOCKET)
-				//{
-				//	pClientSession->CloseAcceptSocket();	// 혹시 열려있을 수 있는 Accept 소켓 닫기
-
-				//	if (pClientSession->ReleaseRef())
-				//	{
-				//		PushFreeSessionIndex(pOverlappedEx->clientSessionIndex);
-				//	}
-				//	continue;
-				//}
 
 				if (pClientSession->AcceptCompletion(mListenSocket))
 				{

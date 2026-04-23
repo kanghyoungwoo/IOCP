@@ -81,6 +81,7 @@ void ClientSession::Clear()
 // WSASend Overlapped I/O 작업을 수행
 bool ClientSession::SendMsg(const UINT32 dataSize, char* pMsg)
 {
+	// 연결 확인
 	if (!IsConnected())
 		return false;
 
@@ -98,7 +99,7 @@ bool ClientSession::SendMsg(const UINT32 dataSize, char* pMsg)
 	auto pSendOvl = mSendPool->Alloc();
 	if (pSendOvl == nullptr)
 	{
-		// 풀 소진
+		// 풀 소진시 드랍
 		mSendPool->IncrementAllocFail();
 		LOG_ERROR_ONCE("SendPool 소진! dataSize=%d\n", dataSize);
 		return false;
@@ -116,6 +117,7 @@ bool ClientSession::SendMsg(const UINT32 dataSize, char* pMsg)
 		std::lock_guard<std::mutex> guard(mSendLock);
 		mSendDataqueue.push(pSendOvl);
 
+		// wsasend를 한 번에 하나만 걸어야함
 		if (!mIsSending)
 		{
 			mIsSending = true;
@@ -201,7 +203,7 @@ bool ClientSession::SendIO()
 		}
 	}
 
-	if (mPendingSendCount == 0)
+	if (mPendingSendCount == 0) // 큐가 비어있음
 		return true;
 
 	auto pFirstOvl = mPendingSendList[0];
@@ -241,10 +243,10 @@ bool ClientSession::SendIO()
 
 void ClientSession::SendComplete(SendOverlappedEx* pCompletedOvl, DWORD dwIoSize)
 {
-	// 1. 메모리 해제 전 gen 저장
+	// 메모리 해제 전 gen 저장
 	const uint32_t completedGen = pCompletedOvl->base.generation;
 
-	// stale 또는 연결해제 -> 메모리만 반납하고 드랍
+	// 1. stale 또는 연결해제 -> 메모리만 반납하고 드랍
 	if (completedGen != GetGeneration() || !IsConnected())
 	{
 		for (int i = 0;i < mPendingSendCount; ++i)
@@ -260,7 +262,7 @@ void ClientSession::SendComplete(SendOverlappedEx* pCompletedOvl, DWORD dwIoSize
 		return;
 	}
 
-	// dwIosize == 0 일시 연결 끊김, 반납 후 종료
+	// 2. dwIosize == 0 일시 연결 끊김, 반납 후 종료
 	if (dwIoSize == 0)
 	{
 		for (int i = 0;i < mPendingSendCount;++i)
@@ -284,7 +286,7 @@ void ClientSession::SendComplete(SendOverlappedEx* pCompletedOvl, DWORD dwIoSize
 		totalRequested += mPendingSendList[i]->base.wsaBuf.len;
 	}
 
-	// partial send 감지
+	// 3. partial send 감지
 	if (dwIoSize < totalRequested)
 	{
 		++mPartialSendRetryCount;
@@ -372,7 +374,7 @@ void ClientSession::SendComplete(SendOverlappedEx* pCompletedOvl, DWORD dwIoSize
 		return;	// 완료 이벤트의 releaseRef는 워커 쓰레드가 처리
 	}
 
-	// 정상 전송 완료
+	// 4. 정상 전송 완료
 	mPartialSendRetryCount = 0;     // 성공 시 재시도 카운터 리셋
 	for (int i = 0; i < mPendingSendCount; ++i)
 	{
@@ -400,6 +402,7 @@ void ClientSession::SendComplete(SendOverlappedEx* pCompletedOvl, DWORD dwIoSize
 
 bool ClientSession::AcceptCompletion(SOCKET listenSock_)
 {
+	// acceptex로 받은 소켓에 listen 소켓의 속성 복사
 	if (setsockopt(m_socketClient, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT,
 		(char*)&listenSock_, sizeof(SOCKET)) == SOCKET_ERROR)
 	{
