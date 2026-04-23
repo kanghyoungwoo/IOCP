@@ -10,7 +10,7 @@ private:
 	size_t head = 0;
 	size_t tail = 0;
 
-	bool full = false;
+	size_t mSize = 0;
 public:
 	RingBuffer() = default;
 	~RingBuffer() = default;
@@ -24,51 +24,41 @@ public:
 
 	bool IsEmpty() const
 	{
-		// 버퍼가 비어있는지 확인
-		if ((head == tail) && !full)
-			return true;
-		else
-			return false;
+		return mSize == 0;
 	}
 
 	bool IsFull() const
 	{
 		// 버퍼가 완전히 찼는지 확인
-		return full;
+		return mSize == BufferSize;
 	}
 
 	size_t Size() const
 	{
-		// 현재 저장된 데이터 크기 반환
-		if (full)
-			return BufferSize;
-		if (head >= tail)
-			return head - tail;
-		//if (tail > head)
-		return BufferSize - tail + head;
+		return mSize;
 	}
 
 	bool WriteByte(char byte)
 	{
-		// 성공 true, 실패 false
-		if (full)
+		if (IsFull())
 			return false;
+
 		buffer[head] = byte;
-		head = (head + 1) % BufferSize;
-		if (head == tail)
-			full = true;
+		head = (head + 1) & (BufferSize - 1);
+
+		mSize++;
 
 		return true;
 	}
 
 	bool ReadByte(char& byte)
 	{
-		// 성공 true, 실패 false
 		if (IsEmpty())
 			return false;
+
 		byte = buffer[tail];
-		tail = (tail + 1) % BufferSize;
-		full = false;
+		tail = (tail + 1) & (BufferSize - 1);
+		mSize--;
 
 		return true;
 	}
@@ -79,7 +69,7 @@ public:
 		if (data == nullptr || length == 0)
 			return 0;
 
-		size_t available = BufferSize - Size();
+		size_t available = BufferSize - mSize;
 		size_t toWrite = (length < available) ? length : available;
 		if (toWrite == 0)
 			return 0;
@@ -96,7 +86,8 @@ public:
 		}
 
 		head = (head + toWrite) & (BufferSize - 1);
-		full = (head == tail);
+
+		mSize += toWrite;
 
 		return toWrite;
 	}
@@ -107,7 +98,7 @@ public:
 		if (output == nullptr || max_length == 0)
 			return 0;
 
-		size_t available = Size();
+		size_t available = mSize;
 		size_t toRead = (max_length < available) ? max_length : available;
 		if (toRead == 0)
 			return 0;
@@ -123,18 +114,17 @@ public:
 			memcpy(output + firstChunk, buffer, toRead - firstChunk);
 		}
 		tail = (tail + toRead) & (BufferSize - 1);
-		full = false;
+		mSize -= toRead;
 
 		return toRead;
 	}
 
 	bool Peek(char& byte, size_t offset = 0) const
 	{
-		// offset: tail로부터 몇 번째 데이터를 볼지 (기본값 0 = 첫 번째)
-		// 성공 true, 실패 false
-		if (IsEmpty() || offset >= Size())
+		if (offset >= mSize)
 			return false;
-		size_t peek_pos = (tail + offset) % BufferSize;
+
+		size_t peek_pos = (tail + offset) & (BufferSize - 1);
 		byte = buffer[peek_pos];
 
 		return true;
@@ -163,6 +153,6 @@ public:
 	{
 		head = 0;
 		tail = 0;
-		full = false;
+		mSize = 0;
 	}
 };
