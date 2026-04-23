@@ -21,16 +21,12 @@ UINT16 Room::EnterUser(User* user_)
 
 void Room::LeaveUser(User* leaveUser_)
 {
-	//std::lock_guard<std::mutex> lock(mUserListMutex);
+	auto prevSize = mUserList.size();
 	auto leaveUserID = leaveUser_->GetUserID();
-
 	mUserList.remove(leaveUser_);
 
-	//mUserList.remove_if([leaveUser_](std::shared_ptr<User> pUser) {
-	//	return leaveUser_.get() == pUser.get();  // 포인터 주소 비교
-	//	});
-
-	--mCurrentUserCount;
+	if(mUserList.size() < prevSize)
+		--mCurrentUserCount;
 }
 
 void Room::NotifyChat(INT32 clientIndex_, const char* userID_, const char* msg_)
