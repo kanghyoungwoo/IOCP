@@ -395,7 +395,14 @@ void PacketManager::ProcessPacket()
 				
 				break;
 			}
-			}// switch의 }
+			case StrandCallbackType::ROOM_BROKEN:
+			{
+				auto pRoom = mRoomManager->GetRoomByNumber(pNotify->cb.roomNumber);
+				if (pRoom)
+					pRoom->Reset();
+				break;
+			}
+			}
 			m_strandProcessor.FreeCallback(pNotify);
 		}
 

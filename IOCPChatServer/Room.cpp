@@ -29,7 +29,7 @@ void Room::LeaveUser(User* leaveUser_)
 		--mCurrentUserCount;
 }
 
-void Room::NotifyChat(INT32 clientIndex_, const char* userID_, const char* msg_)
+void Room::NotifyChat(INT32 clientIndex_, const char* userID_, const ROOM_CHAT_REQUEST_PACKET* pChatPacket)
 {
 	ROOM_CHAT_NOTIFY_PACKET roomChatNotifyPacket;
 	roomChatNotifyPacket.PacketId = (UINT16)PACKET_ID::ROOM_CHAT_NOTIFY;
@@ -39,29 +39,23 @@ void Room::NotifyChat(INT32 clientIndex_, const char* userID_, const char* msg_)
 	memset(roomChatNotifyPacket.Message, 0, sizeof(roomChatNotifyPacket.Message));
 	memset(roomChatNotifyPacket.UserID, 0, sizeof(roomChatNotifyPacket.UserID));
 
-	//strncpy_s(roomChatNotifyPacket.UserID, sizeof(roomChatNotifyPacket.UserID), userID_, _TRUNCATE);
-	//strncpy_s(roomChatNotifyPacket.Message, sizeof(roomChatNotifyPacket.Message), msg_, _TRUNCATE);
+	strncpy_s(roomChatNotifyPacket.UserID, sizeof(roomChatNotifyPacket.UserID), userID_, _TRUNCATE);
+	strncpy_s(roomChatNotifyPacket.Message, sizeof(roomChatNotifyPacket.Message), pChatPacket->Message, _TRUNCATE);
 
 
 
 	// 문자열 안전 복사 (방법 1 - strcpy_s 사용)
-	strcpy_s(roomChatNotifyPacket.UserID, sizeof(roomChatNotifyPacket.UserID), userID_);
+	//strcpy_s(roomChatNotifyPacket.UserID, sizeof(roomChatNotifyPacket.UserID), userID_);
 
 	// msg_는 ROOM_CHAT_REQUEST_PACKET 포맷이므로 Message 필드를 추출해야 함
-	auto pChatReqPacket = reinterpret_cast<const ROOM_CHAT_REQUEST_PACKET*>(msg_);
-	strcpy_s(roomChatNotifyPacket.Message, sizeof(roomChatNotifyPacket.Message), pChatReqPacket->Message);
+	//auto pChatReqPacket = reinterpret_cast<const ROOM_CHAT_REQUEST_PACKET*>(msg_);
+	//strcpy_s(roomChatNotifyPacket.Message, sizeof(roomChatNotifyPacket.Message), pChatPacket->Message);
 
 	// 디버그 로그
 	LOG_DEBUG("Chat Notify: UserID='%s', Message='%s'\n", roomChatNotifyPacket.UserID, roomChatNotifyPacket.Message);
 
 	SendToAllUser(sizeof(roomChatNotifyPacket), (char*)&roomChatNotifyPacket, clientIndex_, false);
 
-	/*CopyMemory(roomChatNotifyPacket.Message, msg_, sizeof(roomChatNotifyPacket.Message));
-	CopyMemory(roomChatNotifyPacket.UserID, userID_, sizeof(roomChatNotifyPacket.UserID));
-
-	SendToAllUser(sizeof(roomChatNotifyPacket), (char*)&roomChatNotifyPacket, clientIndex_, false);
-	printf("채팅 알림: UserID='%s', Message='%s'\n", roomChatNotifyPacket.UserID, roomChatNotifyPacket.Message);
-	printf("메세지가 전송되었습니다 !\n");*/
 }
 
 
@@ -86,6 +80,8 @@ void Room::Reset(INT32 roomNumber_, INT32 maxUserCount_)
 	}
 }
 
+// EnqueueJob은 단일 PacketManager 스레드에서만 호출 가정
+// 멀티스레드 호출 시 버그
 Room::EnqueueResult Room::EnqueueJob(PacketJob* pJob)
 {
 	// 고장 시 즉시 거절
@@ -137,4 +133,9 @@ void Room::SendToAllUser(const UINT16 dataSize_, char* data_, const INT32 skipUs
 		SendPacketFunc((UINT32)pUser->GetNetConnIndex(), pUser->GetSessionGeneration(), (UINT32)dataSize_, data_);
 	}
 
+}
+
+void Room::Reset()
+{
+	Reset(mRoomNumber, mMaxUserCount);
 }

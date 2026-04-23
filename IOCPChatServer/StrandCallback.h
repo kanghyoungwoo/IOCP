@@ -5,7 +5,8 @@ enum class StrandCallbackType
 {
 	FREE_USER,			//	DISCONNECT -> UserManager에서 제거
 	USER_LEFT_ROOM,		//	ROOM_LEAVE -> DomainState를 Login으로 복원
-	 USER_ENTERED_ROOM,	//	ROOM_ENTER -> DomainState를 Room으로 변경
+	USER_ENTERED_ROOM,	//	ROOM_ENTER -> DomainState를 Room으로 변경
+	ROOM_BROKEN
 	// 추후 확장
 };
 

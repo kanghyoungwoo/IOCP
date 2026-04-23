@@ -7,6 +7,7 @@
 #include <vector>
 #include <atomic>
 #include <memory>
+#include <cassert>
 //#include <string>
 
 
@@ -45,6 +46,7 @@ public:
 	ERROR_CODE Adduser(char* userID_, UINT32 clientIndex_);
 	User* GetUserByConnIdx(INT32 clientIndex_)
 	{
+		assert(clientIndex_ >= 0 && (size_t)clientIndex_ < mUserObjPool.size());
 		return mUserObjPool[clientIndex_].get();
 	}
 	void DeleteUserInfo(User* user_);
@@ -56,6 +58,5 @@ private:
 	INT32 mMaxUserCnt = -1;
 	std::vector<std::unique_ptr<User>>mUserObjPool;
 	std::unordered_map<std::string, int>mUserIDDictionary;
-	std::mutex mLock;
 	//std::mutex mUserDictMutex;
 };

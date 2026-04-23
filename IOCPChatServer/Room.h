@@ -40,10 +40,11 @@ public:
 	UINT16 EnterUser(User* user_);
 	void LeaveUser(User* leaveUser_);
 
-	void NotifyChat(INT32 clientIndex_, const char* userID_, const char* msg_);
+	void NotifyChat(INT32 clientIndex_, const char* userID_, const ROOM_CHAT_REQUEST_PACKET* pChatPacket);
 
 	std::function<void(UINT32, UINT32, UINT32, char*)> SendPacketFunc;
 	std::function<void(PacketJob*)> FreeJobFunc;
+	void Reset();
 	void Reset(INT32 roomNumber_, INT32 maxUserCount_);
 
 	EnqueueResult EnqueueJob(PacketJob* pJob);

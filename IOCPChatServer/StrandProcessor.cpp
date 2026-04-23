@@ -154,7 +154,7 @@ void StrandProcessor::ProcessRoom(Room* pRoom)
                     memset(tempChatPacket.Message, 0, sizeof(tempChatPacket.Message));
                     strcpy_s(tempChatPacket.Message, sizeof(tempChatPacket.Message), "has left the room.");
 
-                    pRoom->NotifyChat(pJob->clientIndex, leaverID.c_str(), (char*)&tempChatPacket);
+                    pRoom->NotifyChat(pJob->clientIndex, leaverID.c_str(), &tempChatPacket);
 
                     pJob->phase = PacketJob::Phase::STRAND_CALLBACK;
                     pJob->cb.type = StrandCallbackType::FREE_USER;
@@ -166,7 +166,8 @@ void StrandProcessor::ProcessRoom(Room* pRoom)
                 {
                     constexpr uint16_t MIN_CHAT_PACKET_SIZE = sizeof(PACKET_HEADER);
 
-                    if (pJob->job.dataSize <= MIN_CHAT_PACKET_SIZE)
+                    //if (pJob->job.dataSize <= MIN_CHAT_PACKET_SIZE)
+                    if (pJob->job.dataSize < sizeof(ROOM_CHAT_REQUEST_PACKET))
                     {
                         // 메시지가 아예없는 빈 패킷 무시
                         mJobPool.Free(pJob);
@@ -193,7 +194,7 @@ void StrandProcessor::ProcessRoom(Room* pRoom)
                     pRoom->SendPacketFunc(pJob->clientIndex, pUser->GetSessionGeneration(), sizeof(resPacket), (char*)&resPacket);
 
                     // 방 전체에 브로드캐스트
-                    pRoom->NotifyChat(pJob->clientIndex, pUser->GetUserID().c_str(), pJob->job.body);
+                    pRoom->NotifyChat(pJob->clientIndex, pUser->GetUserID().c_str(), reinterpret_cast<const ROOM_CHAT_REQUEST_PACKET*>(pJob->job.body));
                 }
                 // 방에서의 퇴장
                 else if (pJob->job.packetId == (uint16_t)PACKET_ID::ROOM_LEAVE_REQUEST)
@@ -210,7 +211,7 @@ void StrandProcessor::ProcessRoom(Room* pRoom)
                     memset(tempChatPacket.Message, 0, sizeof(tempChatPacket.Message));
                     strcpy_s(tempChatPacket.Message, sizeof(tempChatPacket.Message), "has left the room.");
 
-                    pRoom->NotifyChat(pJob->clientIndex, leaverID.c_str(), (char*)&tempChatPacket);
+                    pRoom->NotifyChat(pJob->clientIndex, leaverID.c_str(), &tempChatPacket);
 
                     // 클라이언트에 퇴장 응답 전송
                     ROOM_LEAVE_RESPONSE_PACKET resPacket;
@@ -277,7 +278,7 @@ void StrandProcessor::ProcessRoom(Room* pRoom)
                     memset(tempChatPacket.Message, 0, sizeof(tempChatPacket.Message));
 
                     sprintf_s(tempChatPacket.Message, sizeof(tempChatPacket.Message), "[%s] entered the room.", pEnterUser->GetUserID().c_str());
-                    pRoom->NotifyChat(pJob->clientIndex, pEnterUser->GetUserID().c_str(), (char*)&tempChatPacket);
+                    pRoom->NotifyChat(pJob->clientIndex, pEnterUser->GetUserID().c_str(), &tempChatPacket);
                 }
 
                 // 응답 전송
@@ -333,11 +334,22 @@ PacketJob* StrandProcessor::PopWithBackoff(Room* pRoom)
 
 void StrandProcessor::DrainRoom(Room* pRoom)
 {
+    PacketJob* pRecycled = nullptr;
     do {
         PacketJob* pJob = pRoom->GetLocalQueue().Pop();
         if (pJob != nullptr)
-            mJobPool.Free(pJob);
-        // nullptr이어도 msgcount는 감소시켜야함
+        {
+            if (pRecycled == nullptr)
+                pRecycled = pJob;       // 첫 번째 job 재활용
+            else
+                mJobPool.Free(pJob);    // 나머지 반납
+        }
     } while (pRoom->GetMsgCount().fetch_sub(1, std::memory_order_acq_rel) > 1);
-
+    if (pRecycled != nullptr)
+    {
+        pRecycled->phase = PacketJob::Phase::STRAND_CALLBACK;
+        pRecycled->cb.type = StrandCallbackType::ROOM_BROKEN;
+        pRecycled->cb.roomNumber = pRoom->GetRoomNumber();
+        mCallbackQueue.Push(pRecycled);
+    }
 }
