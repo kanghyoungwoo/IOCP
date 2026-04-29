@@ -128,18 +128,23 @@ case Room::EnqueueResult::FAILED_DROPPED:
 
 ---
 
-## 핵심 기술 도전: Mutex 병목 → Lock-Free 전환
+## 핵심 기술 도전: 측정 기반의 병목 추적과 Lock-Free 아키텍처 전환
 
-처음부터 Lock-Free로 설계한 것이 아닙니다. `std::mutex` 기반으로 먼저 구현하고, 부하 테스트에서 병목을 측정한 뒤 교체했습니다.
+처음부터 Lock-Free를 도입하지 않았습니다. `std::mutex` 기반의 멀티스레딩 모델로 먼저 구현한 뒤, 부하 한계점을 측정하고 프로파일링하여 병목 지점만을 타겟팅해 최적화했습니다.
 
-| 단계 | 내용 |
-|------|------|
-| **증상** | 멀티스레드 도입 후 2,000명 부하에서 p99 지연시간 **500ms 폭등**, 초당 23만 건 패킷 Drop |
-| **진단** | VS 프로파일러로 `GlobalQueue`의 `std::mutex` 경합 지점 특정 — IO Worker 4개가 단일 큐에 동시에 Push할 때 락 충돌 집중 |
-| **해결** | `std::mutex` → **CAS 기반 MPSC Lock-Free Queue** + **Strand 패턴** 직접 구현 |
-| **결과** | p99 **500ms → 15.5ms (97% 개선)**, 142,400 TPS, 무응답 0건 |
+**[Issue]** 2,000명 동시 접속 부하 테스트 중 p99 지연시간이 **500ms**로 폭등하며, 처리 지연으로 인해 초당 23만 건의 패킷 유실(Drop) 발생
 
-> v0(싱글스레드 Mutex) → v1(더블버퍼링) → v2(멀티스레드 Mutex) → v3(Lock-Free) 전 과정 → [아키텍처 진화 문서](Docs/architecture-evolution.md)
+**[Analyze]** VS Profiler 진단 결과, 아키텍처의 양 끝단에서 `std::mutex` 경합 병목을 교차 확인
+- **생산자 경합**: I/O 워커들이 패킷을 중앙 큐에 밀어 넣는 과정
+- **동기화 병목**: 로직 스레드들이 방(Room) 객체에 접근할 때 발생
+
+**[Action]** 두 가지 병목을 각각 다른 전략으로 락(Lock) 없이 해소
+- **수신부**: CAS 연산 기반의 MPSC(Multi-Producer Single-Consumer) Lock-Free Queue를 직접 구현하여 워커 스레드 간의 Lock 경합 제거
+- **로직부**: Boost.Asio의 Strand 패턴을 착안·구현하여, 방(Room) 단위의 브로드캐스트 연산을 락 없이 안전하게 직렬화 보장
+
+**[Result]** p99 지연시간 **500ms → 15.5ms (97% 개선)**. 이후 10,000명 동시 접속 환경에서 브로드캐스트 연산량 최대 **884,000 ops/s**를 무응답 및 크래시 없이 안정적으로 소화
+
+> 📌 아키텍처 리팩토링 전 과정(v0 싱글스레드 → v1 더블버퍼링 → v2 Mutex → v3 Lock-Free)의 상세 지표는 [아키텍처 진화 문서](Docs/architecture-evolution.md)에서 확인할 수 있습니다.
 
 ---
 
