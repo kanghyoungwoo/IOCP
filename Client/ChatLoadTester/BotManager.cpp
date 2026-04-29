@@ -186,13 +186,20 @@ void BotManager::OnTimerEvent(uint32_t botIndex, TimerEventType eventType)
 		break;
 
 	case TimerEventType::SEND_CHAT:
+		if (mBots[botIndex].GetState() == BotState::CHATTING)
+			mBots[botIndex].SetState(BotState::IN_ROOM);  // 응답 미수신 시 강제 복귀
 		mBots[botIndex].DoSendChat();
-		// 채팅 전송 성공/실패 무관하게 다음 채팅 타이머 예약
-		if (mBots[botIndex].GetState() == BotState::IN_ROOM ||
-			mBots[botIndex].GetState() == BotState::CHATTING)
+		if (mBots[botIndex].GetState() == BotState::IN_ROOM ||mBots[botIndex].GetState() == BotState::CHATTING)
 		{
 			mTimerScheduler.Schedule(botIndex, TimerEventType::SEND_CHAT, RandomChatInterval());
 		}
+		mBots[botIndex].DoSendChat();
+		//// 채팅 전송 성공/실패 무관하게 다음 채팅 타이머 예약
+		//if (mBots[botIndex].GetState() == BotState::IN_ROOM ||
+		//	mBots[botIndex].GetState() == BotState::CHATTING)
+		//{
+		//	mTimerScheduler.Schedule(botIndex, TimerEventType::SEND_CHAT, RandomChatInterval());
+		//}
 		break;
 
 	case TimerEventType::LEAVE_ROOM:

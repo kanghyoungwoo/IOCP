@@ -574,6 +574,7 @@ void IOCompletionPort::WorkerThread()
 				}
 				else
 				{
+					pClientSession->UpdateActivity();
 					OnReceive(pClientSession->GetIndex(), pClientSession->GetGeneration(), dwIoSize, pClientSession->RecvBuff());
 					if (!pClientSession->BindRecv())
 					{

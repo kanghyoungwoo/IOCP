@@ -57,7 +57,8 @@ int main(int argc, char* argv[])
 	printf("  서버: %s:%u\n", config.ServerIP.c_str(), config.ServerPort);
 	printf("  인스턴스 ID: %u\n", config.InstanceId);
 	printf("  봇 수: %u\n", config.BotCount);
-	printf("  Worker 스레드: %u\n", config.WorkerThreadCount);
+	//printf("  Worker 스레드: %u\n", config.WorkerThreadCount);
+	printf("  -workers <count>     IOCP Worker 스레드 수 (기본: 2)\n");
 	printf("  채팅 간격: %u~%u ms\n", config.ChatIntervalMinMs, config.ChatIntervalMaxMs);
 	printf("  방 수: %u (방당 %u명)\n", config.RoomCount, config.MaxUsersPerRoom);
 	printf("  CSV: %s\n", config.CsvFilePath.c_str());
