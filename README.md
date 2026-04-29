@@ -1,15 +1,15 @@
-# IOCP-Core: C++17 Lock-Free 네트워크 엔진 (142,400 TPS)
+# IOCP-Core: C++17 Lock-Free 네트워크 엔진 — 권장 288K / 한계 884K broadcast ops/s
 
 Windows IOCP 기반 네트워크 엔진을 직접 설계하고, 채팅 서비스를 데모 애플리케이션으로 구현한 프로젝트입니다.
 엔진 레이어(Lock-Free 자료구조, Strand 패턴, Object Pool)와 서비스 레이어(채팅방, 인증, 로그)를 분리 설계하여, Contents/ 레이어를 교체하면 다른 실시간 서비스(게임, 알림 등)에 적용 가능한 구조입니다.
 
 ## Key Results
 
-- **142,400 TPS** — Lock-Free 아키텍처로 Mutex 대비 p99 지연시간 97% 개선 (500ms → 16.1ms), 무응답 0건
-- **10,000명 동시접속** — AWS EC2 4대에서 82분간 연속 부하 테스트, 연결 유실 0건
-- **Zero-Allocation Hot-path** — Lock-Free Object Pool로 740만 회 작업 처리 후 반환 누락 0건. VS 프로파일러 힙 스냅샷으로 교차 검증
-- **스레드 최적 비율 도출** — 4코어 환경에서 IO/Worker/Logic 4가지 조합 실측 비교, `IO4/W2/L4`가 CPU 87% 헤드룸 + p99 17ms로 최적 확인
-- **엔진 물리 한계 측정** — 방당 1,000명 브로드캐스트 환경에서 수신 TPS 118,000 pkts/s가 4코어 IOCP의 포화 한계임을 교차 검증
+- **권장 운영 처리량 ~288K broadcast ops/s** — 200방 × 50명 구성, CPU 50% / Avg 20.7ms / p99 1.31s. 헤드룸을 충분히 확보한 안정 영역
+- **절대 한계 처리량 ~884K broadcast ops/s** — 500방 × 20명 구성, CPU 90% / Avg 49.2ms / p99 344ms. c6i.4xlarge(16 vCPU) IOCP 엔진의 포화 한계
+- **10,000명 동시접속 안정성** — c6i.4xlarge 1대 + c6i.xlarge 4대(각 2,500봇) 환경에서 연결 실패 < 2건 / 10,000, 메모리 394MB 고정(누수 0)
+- **Zero-Allocation Hot-path** — Lock-Free Object Pool로 SendPool Alloc Fail 0건. VS 힙 스냅샷 +0 Bytes로 OS 레벨 교차 검증
+- **스레드 프로파일 도출** — 4-core c6i.xlarge에서 `IO4/W2/L4` (p99 17ms, CPU 87% 헤드룸), 16-core c6i.4xlarge에서 `IO8/W8/L=방개수`를 단계별 부하 시험으로 도출
 
 ---
 
