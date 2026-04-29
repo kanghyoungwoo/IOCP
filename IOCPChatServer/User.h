@@ -116,7 +116,7 @@ private:
 	//UINT32 mPacketDataBufferReadPos = 0; // 읽기 위치
 
 	// ringbuffer로 패킷 데이터 교체
-	RingBuffer<MAX_PACKET_DATA_BUFFER_SIZE> mPacketDataBuffer;
+	RingBuffer<RING_BUFFER_SIZE> mPacketDataBuffer;
 
 	DOMAIN_STATE mCurDomainState = DOMAIN_STATE::NONE;
 

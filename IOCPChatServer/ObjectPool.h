@@ -15,12 +15,18 @@ public:
 	ObjectPool() = default;
 	~ObjectPool()
 	{
-		// 풀에 할당된 메모리 해제
-		if (m_poolBlock != nullptr)
+		// 소멸자가 할 일이 있는 타입인 경우만
+		if constexpr (!std::is_trivially_destructible_v<T>)
 		{
-			std::free(m_poolBlock);
-			m_poolBlock = nullptr;
+			for (uint32_t i = 0;i < mPoolSize;++i)
+			{
+				m_poolBlock[i].~T();
+			}
 		}
+		// 풀에 할당된 메모리 해제
+		std::free(m_poolBlock);
+		m_poolBlock = nullptr;
+		
 
 	}
 
@@ -56,11 +62,6 @@ public:
 			new (&m_poolBlock[i]) T();
 			mFreeStack.Push(&m_poolBlock[i]);
 		}
-		mFreeCount.store(poolSize, std::memory_order_relaxed);
-
-
-
-		// 디버깅
 		mFreeCount.store(poolSize, std::memory_order_relaxed);
 	}
 

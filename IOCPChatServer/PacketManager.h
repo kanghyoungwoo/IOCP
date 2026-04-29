@@ -85,5 +85,4 @@ private:
 	std::deque<PacketTask> mWriteBuffer;	// IOCP Worker Thread가 push
 	std::deque<PacketTask> mReadBuffer;		// ProcessThread가 소비
 
-	char m_tempPacketBuffer[MAX_PACKET_DATA_BUFFER_SIZE];
 };

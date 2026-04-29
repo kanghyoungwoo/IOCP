@@ -34,7 +34,7 @@ public:
 
         // Pool
         uint32_t JobPoolSize = 100000;
-        uint32_t CallbackPoolSize = 4000;
+        //uint32_t CallbackPoolSize = 4000;
 
         // Database
         std::string MySQLHost = "127.0.0.1";
@@ -113,7 +113,7 @@ public:
 
             // Pool
             mConfig.JobPoolSize = j.value("/Pool/JobPoolSize"_json_pointer, mConfig.JobPoolSize);
-            mConfig.CallbackPoolSize = j.value("/Pool/CallbackPoolSize"_json_pointer, mConfig.CallbackPoolSize);
+            //mConfig.CallbackPoolSize = j.value("/Pool/CallbackPoolSize"_json_pointer, mConfig.CallbackPoolSize);
 
             // Database
             mConfig.MySQLHost = j.value("/Database/MySQLHost"_json_pointer, mConfig.MySQLHost);
@@ -200,12 +200,12 @@ private:
             mConfig.JobPoolSize = 100000;
             valid = false;
         }
-        if (mConfig.CallbackPoolSize == 0)
-        {
-            LOG_ERROR("[Config] CallbackPoolSize cannot be 0, reset to default(4000)\n");
-            mConfig.CallbackPoolSize = 4000;
-            valid = false;
-        }
+        //if (mConfig.CallbackPoolSize == 0)
+        //{
+        //    LOG_ERROR("[Config] CallbackPoolSize cannot be 0, reset to default(4000)\n");
+        //    mConfig.CallbackPoolSize = 4000;
+        //    valid = false;
+        //}
 
         // 타임아웃: PingInterval이 Timeout보다 크면 논리 오류
         if (mConfig.PingIntervalMs >= mConfig.TimeoutMs)

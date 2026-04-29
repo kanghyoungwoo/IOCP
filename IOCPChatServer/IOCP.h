@@ -11,7 +11,6 @@
 #include <vector>
 #include <mswsock.h>
 
-
 struct SessionNode
 {
 	uint32_t poolNext = NULL_INDEX;
@@ -95,7 +94,7 @@ private:
 	//std::vector<ClientSession*> mClientInfos;
 
 	// 클라이언트의 접속을 받기 위한 리슨 소켓
-	SOCKET mListenSocket = INVALID_SOCKET;
+	std::atomic<SOCKET> mListenSocket = INVALID_SOCKET;
 
 	// 접속 되어있는 클라이언트 수
 	std::atomic<int>mClientCnt = 0;

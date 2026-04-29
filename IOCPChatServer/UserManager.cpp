@@ -20,29 +20,17 @@ ERROR_CODE UserManager::Adduser(char* userID_, UINT32 clientIndex_)
 	//std::lock_guard<std::mutex> lock(mUserDictMutex);
 
 	// 중복 검사 후 삽입
-	auto result = mUserIDDictionary.insert(std::pair<std::string, int>(userIDStr, clientIndex_));
+	auto result = mUserIDDictionary.insert(std::pair<std::string, int>(userIDStr, clientIndex_));	// 맵에 먼저 등록
 
 	if (!result.second) // 이미 존재하면 삽입 실패
 	{
-		LOG_DEBUG("Duplicate login attempt! :%s\n", userID_);
+		LOG_DEBUG("중복 로그인 시도 ! :%s\n", userID_);
 		return ERROR_CODE::LOGIN_USER_ALREADY;
 	}
 
 	// 삽입 성공 시 user 객체 설정
-	mUserObjPool[clientIndex_]->SetLogin(userID_);
+	mUserObjPool[clientIndex_]->SetLogin(userID_);	// 그 후 user 상태 변경
 	LOG_DEBUG("User registered : %s (ClientIndex : %d)\n", userID_, clientIndex_);
-
-	//UINT32 user_index = clientIndex_;
-	//// 새로운 접속 발생할때 usermanager가 갖고있는 user객체 할당해줌
-	//auto userIndex = clientIndex_;
-	//mUserObjPool[userIndex]->SetLogin(userID_);
-
-	//// string으로 변환해서 저장
-	//std::string userIDStr = userID_;
-	//mUserIDDictionary.insert(std::pair<std::string, int>(userIDStr, clientIndex_));
-
-
-	////mUserIDDictionary.insert(std::pair<char*, int>(userID_, clientIndex_));
 
 	return ERROR_CODE::NONE;
 }
@@ -50,9 +38,9 @@ ERROR_CODE UserManager::Adduser(char* userID_, UINT32 clientIndex_)
 void UserManager::DeleteUserInfo(User* user_)
 {
 	LOG_DEBUG("User info deleted : %s\n", user_->GetUserID().c_str());
-	mUserIDDictionary.erase(user_->GetUserID());
-	user_->Clear();
-	DecreaseUserCnt();
+	mUserIDDictionary.erase(user_->GetUserID());	// id로 맵에서 제거
+	user_->Clear();		// clear() -> mUserid = ""
+	DecreaseUserCnt();	// 카운트 감소
 }
 
 

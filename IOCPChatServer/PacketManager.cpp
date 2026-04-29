@@ -187,7 +187,7 @@ bool PacketManager::ReceivePacketData(const UINT32 clientIndex_, const UINT32 ge
 
 void PacketManager::ProcessPacket()
 {
-	char packetBuf[MAX_PACKET_DATA_BUFFER_SIZE];
+	char packetBuf[MAX_SINGLE_PACKET_SIZE];
 	while (mIsRunProcessThread)
 	{
 		// 1. wait + swap (lock은 1회만)
@@ -256,24 +256,23 @@ void PacketManager::ProcessPacket()
 			if (pUser->IsDisconnecting())
 			{
 				// 링버퍼에 남은 데이터 전부 소진(drain)
-				if (pUser->IsDisconnecting())
-				{
-					pUser->ClearPacketBuffer();  // 링버퍼 한방에 초기화
-					continue;
-				}
+				pUser->ClearPacketBuffer();  // 링버퍼 한방에 초기화
 				continue;
+				
+
 			}
 
 			auto packetData = pUser->GetPacket(packetBuf, sizeof(packetBuf));
 			if (packetData.PacketId == 0)
 				continue;
 
-			if (packetData.DataSize == 0 || packetData.DataSize > MAX_PACKET_DATA_BUFFER_SIZE)
+			if (packetData.DataSize == 0 || packetData.DataSize > MAX_SINGLE_PACKET_SIZE)
 			{
-				LOG_ERROR("비정상적인 패킷 크기 수신 (해킹 시도)! Size: %d\n", packetData.DataSize);
-				pUser->SetDisconnecting();
-				// 악성 유저이므로 연결을 끊어버림 (Strand를 통해 안전하게 종료 처리)
-				m_strandProcessor.EnqueueJob(nullptr, task.clientIndex, 0, pUser->GetSessionGeneration(), (UINT16)PACKET_ID::SYS_USER_DISCONNECT, 0, nullptr);
+				//LOG_ERROR("비정상적인 패킷 크기 수신 (해킹 시도)! Size: %d\n", packetData.DataSize);
+				//pUser->SetDisconnecting();
+				//// 악성 유저이므로 연결을 끊어버림 (Strand를 통해 안전하게 종료 처리)
+				//m_strandProcessor.EnqueueJob(nullptr, task.clientIndex, 0, pUser->GetSessionGeneration(), (UINT16)PACKET_ID::SYS_USER_DISCONNECT, 0, nullptr);
+				ClearConnectionInfo(task.clientIndex);
 				continue;
 			}
 

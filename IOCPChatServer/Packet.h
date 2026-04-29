@@ -52,8 +52,8 @@ struct PacketInfo
 {
 	UINT32 ClientIndex = 0;
 	UINT32 Generation = 0;
-	UINT32 PacketId = 0;
-	UINT32 DataSize = 0;
+	UINT16 PacketId = 0;
+	UINT16 DataSize = 0;
 	char* pDataPtr = nullptr;
 };
 
@@ -98,7 +98,8 @@ struct PACKET_HEADER
 };
 
 const UINT32 PACKET_HEADER_LENGTH = sizeof(PACKET_HEADER);
-const UINT32 MAX_PACKET_DATA_BUFFER_SIZE = 8192;
+const UINT32 RING_BUFFER_SIZE = 4096;
+const UINT32 MAX_SINGLE_PACKET_SIZE = 512;
 
 // 로그인
 const int MAX_USER_ID_LENGTH = 32;

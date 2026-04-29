@@ -56,10 +56,10 @@ PacketInfo User::GetPacket(char* outBuf, size_t bufSize)
 	auto pHeader = (PACKET_HEADER*)headerBuffer;
 
 	// 패킷 크기 유효성 검증
-	if (pHeader->PacketLength < PACKET_HEADER_LENGTH || pHeader->PacketLength > MAX_PACKET_DATA_BUFFER_SIZE)
+	if (pHeader->PacketLength < PACKET_HEADER_LENGTH || pHeader->PacketLength > MAX_SINGLE_PACKET_SIZE)
 	{
 		LOG_ERROR("Invalid PacketLength: %d (valid: %u~%u) → 버퍼 초기화\n",
-			pHeader->PacketLength, PACKET_HEADER_LENGTH, MAX_PACKET_DATA_BUFFER_SIZE);
+			pHeader->PacketLength, PACKET_HEADER_LENGTH, MAX_SINGLE_PACKET_SIZE);
 		mPacketDataBuffer.Clear();  // 오염된 버퍼 폐기
 		return PacketInfo();
 	}

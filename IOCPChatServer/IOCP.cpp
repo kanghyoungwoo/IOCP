@@ -36,7 +36,7 @@ bool IOCompletionPort::BindandListen(int nBindPort)
 	stServerAddr.sin_addr.s_addr = htonl(INADDR_ANY);
 
 	// 지정한 소켓의 로컬 주소 정보를 cIOCompletionPort 소켓에 연결
-	int nRet = bind(mListenSocket, (SOCKADDR*)&stServerAddr, sizeof(SOCKADDR_IN));
+	int nRet = bind(mListenSocket.load(), (SOCKADDR*)&stServerAddr, sizeof(SOCKADDR_IN));
 
 	if (nRet != 0)
 	{
@@ -62,7 +62,7 @@ bool IOCompletionPort::BindandListen(int nBindPort)
 		return false;
 	}
 
-	auto hIOCPHandle = CreateIoCompletionPort((HANDLE)mListenSocket, mIOCPHandle, (UINT32)0, 0);
+	auto hIOCPHandle = CreateIoCompletionPort((HANDLE)mListenSocket.load(), mIOCPHandle, (UINT32)0, 0);
 
 	if (hIOCPHandle == nullptr)
 	{
