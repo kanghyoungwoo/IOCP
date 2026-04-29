@@ -128,6 +128,21 @@ case Room::EnqueueResult::FAILED_DROPPED:
 
 ---
 
+## 핵심 기술 도전: Mutex 병목 → Lock-Free 전환
+
+처음부터 Lock-Free로 설계한 것이 아닙니다. `std::mutex` 기반으로 먼저 구현하고, 부하 테스트에서 병목을 측정한 뒤 교체했습니다.
+
+| 단계 | 내용 |
+|------|------|
+| **증상** | 멀티스레드 도입 후 2,000명 부하에서 p99 지연시간 **500ms 폭등**, 초당 23만 건 패킷 Drop |
+| **진단** | VS 프로파일러로 `GlobalQueue`의 `std::mutex` 경합 지점 특정 — IO Worker 4개가 단일 큐에 동시에 Push할 때 락 충돌 집중 |
+| **해결** | `std::mutex` → **CAS 기반 MPSC Lock-Free Queue** + **Strand 패턴** 직접 구현 |
+| **결과** | p99 **500ms → 15.5ms (97% 개선)**, 142,400 TPS, 무응답 0건 |
+
+> v0(싱글스레드 Mutex) → v1(더블버퍼링) → v2(멀티스레드 Mutex) → v3(Lock-Free) 전 과정 → [아키텍처 진화 문서](Docs/architecture-evolution.md)
+
+---
+
 ## 시연 영상
 
 ![서로다른채팅방](https://github.com/user-attachments/assets/1d0586ef-4a7d-4af5-ab42-e74c615e3a07)
