@@ -157,6 +157,7 @@ case Room::EnqueueResult::FAILED_DROPPED:
 | [카오스 엔지니어링](Docs/chaos-engineering.md) | ABA 방어, Strand Race, 악성 네트워크 공격 테스트 |
 | [기술적 도전과 해결](Docs/technical-challenges.md) | TCP 경계 파싱, Graceful Shutdown, Edge Case 방어 |
 | [빌드 상세 가이드](Docs/build-guide.md) | 환경 설정, DB 연동, DLL 의존성, 테스터 실행법 |
+| [AI 활용 최적화 회고](Docs/ai-assisted-optimization-review.md) | SharedSendBuffer 도입·실패 분석, AI 교차 검증의 한계, 교훈 |
 
 ---
 

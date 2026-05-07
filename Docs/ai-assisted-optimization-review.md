@@ -1,3 +1,5 @@
+[← README로 돌아가기](../README.md)
+
 # AI 활용 최적화 회고: SharedSendBuffer 도입과 실패, 그리고 교훈
 
 ## 1. 배경
@@ -105,7 +107,7 @@ void ClientSession::FreeSendOverlapped(SendOverlappedEx* pOvl)
 ### 환경
 
 - 서버: c6i.4xlarge (16 vCPU, 32GB RAM), Windows Server 2022
-- 클라이언트: 4 × c5.xlarge Spot, 각 2500봇 (총 10,000 유저)
+- 클라이언트: 4 × c6i.xlarge Spot, 각 2500봇 (총 10,000 유저)
 - 네트워크: Cluster Placement Group, 동일 AZ
 
 ### 시나리오별 결과
