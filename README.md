@@ -179,10 +179,23 @@ git clone https://github.com/kanghyoungwoo/IOCPChatServer.git
 
 ## 향후 개선 방향
 
-- [ ] 브로드캐스트 구조 개선 (SendToAllUser Strand 외부 비동기화)
-- [ ] 멀티서버 구조 확장
-- [ ] epoll/kqueue 크로스 플랫폼 지원
-- [ ] Protocol Buffers 직렬화 전환
+**단기 개선 (엔진 레벨)**
+
+- [ ] **Room Sharding (대형 방 분할)** — 500명 방 1개 → 100명 서브그룹 5개로 분할
+  ```
+  채팅 1건 → 5개 서브그룹에 병렬 브로드캐스트
+  각 서브그룹은 별도 스레드에서 독립 WSASend
+  ```
+  Strand 직렬화 병목을 해소하면서 대형 방 지원이 가능해짐
+
+**장기 개선 (아키텍처 수준)**
+
+- [ ] **수평 확장 (Multi-Process Sharding)** — 방 번호 기반으로 여러 서버 프로세스에 분산
+  ```
+  Server A: Room 0~9
+  Server B: Room 10~19
+  Load Balancer: 방 번호 → 서버 라우팅
+  ```
 
 ## 개발자
 
