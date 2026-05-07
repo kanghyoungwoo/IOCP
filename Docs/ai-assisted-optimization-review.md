@@ -227,6 +227,7 @@ mSendQueueDepth.fetch_sub(1, std::memory_order_relaxed);
 ### 6-3. 잔여 원인
 
 백프레셔 임계값이 `MAX_GATHER_COUNT = 64`로 설정되어, 기존 코드의 유효 한도(~20)보다 3배 높다.
+
 임계값을 16~20으로 낮추면 기존 코드 수준의 레이턴시에 근접할 가능성이 있다.
 
 ---
