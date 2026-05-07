@@ -125,7 +125,7 @@ void Push(T* node)
     prev->mpscNext.store(node, std::memory_order_release);       // Hole 구간 (Pop에서 3-state로 처리)
 }
 ```
-[전체 구현 보기 → `MPSCQueue.h`](IOCPChatServer/IOCPChatServer/MPSCQueue.h) | Pop에서 sentinel/hole/정상 3가지 상태를 처리하는 로직 포함
+[전체 구현 보기 → `MPSCQueue.h`](IOCPChatServer/MPSCQueue.h) | Pop에서 sentinel/hole/정상 3가지 상태를 처리하는 로직 포함
 
 ### Strand 패턴 — 방(Room) 단위 브로드캐스트를 Lock 없이 직렬화
 
@@ -144,7 +144,7 @@ case Room::EnqueueResult::FAILED_DROPPED:
     break;
 }
 ```
-[전체 구현 보기 → `StrandProcessor.cpp`](IOCPChatServer/IOCPChatServer/StrandProcessor.cpp)
+[전체 구현 보기 → `StrandProcessor.cpp`](IOCPChatServer/StrandProcessor.cpp)
 
 ---
 

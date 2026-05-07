@@ -202,7 +202,7 @@ void Push(T* node)
 
 Pop에서는 sentinel(파수꾼) 노드와 hole(Push 중간 상태) 3가지 상황을 처리합니다.
 
-[전체 구현 보기 → `IOCPChatServer/MPSCQueue.h`](../IOCPChatServer/MPSCQueue.h)
+[전체 구현 보기 → `MPSCQueue.h`](../IOCPChatServer/MPSCQueue.h)
 
 ### 핵심 코드: Lock-Free Object Pool
 
@@ -225,7 +225,7 @@ void Free(T* obj)
 }
 ```
 
-[전체 구현 보기 → `IOCPChatServer/ObjectPool.h`](../IOCPChatServer/ObjectPool.h)
+[전체 구현 보기 → `ObjectPool.h`](../IOCPChatServer/ObjectPool.h)
 
 ---
 
