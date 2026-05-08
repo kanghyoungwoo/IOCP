@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include<atomic>
+#include<thread>
 
 template<typename T>
 class MPSCQueue
@@ -21,6 +22,14 @@ public:
 
 	T* Pop()
 	{
+#ifdef _DEBUG
+		// 단일 Consumer 불변식 검증: 동일 스레드만 Pop() 호출해야 함
+		thread_local std::thread::id tl_consumerThread;
+		auto currentThread = std::this_thread::get_id();
+		if (tl_consumerThread == std::thread::id{})
+			tl_consumerThread = currentThread;
+		assert(tl_consumerThread == currentThread && "MPSC 위반: Pop()은 단일 Consumer에서만 호출 가능");
+#endif
 		T* head = m_head;
 		T* next = head->mpscNext.load(std::memory_order_acquire);
 
@@ -57,9 +66,14 @@ public:
 	}
 
 private:
-	T m_stub;					// 파수꾼 역할, 빈 큐 상태를 명확히 구분하기 위한 센티넬
+	T m_stub;					//  빈 큐 상태를 명확히 구분하기 위한 센티넬
 
 	// alignas(64) 로 거짓 캐시 무효화 방지
 	alignas(64) std::atomic<T*> m_tail;		// Producer들이 exchange
+
+	// m_head는 의도적으로 non-atomic:
+	// MPSC 설계상 Consumer는 반드시 1개여야 함
+	// 이 큐는 StrandProcessor::ProcessRoom()에서만 Pop() 호출 (Strand = 방 별 전용 스레드)
+	// 다중 Consumer에서 Pop()을 호출하면 데이터 레이스 발생
 	alignas(64) T* m_head;					// Consumer만 접근(atomic 불필요)
 };

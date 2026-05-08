@@ -206,26 +206,6 @@ void IOCompletionPort::DestroyThread()
 	mIOCPHandle = INVALID_HANDLE_VALUE;
 	LOG_DEBUG("step5: 자원 정리 완료\n");
 
-
-	// 기존 종료 방식
-	//mIsWorkerRun = false;
-
-	//CloseHandle(mIOCPHandle);
-
-	//for (auto& th : mIOWorkerThreads)
-	//{
-	//	if (th.joinable())
-	//	{
-	//		th.join();
-	//	}
-	//}
-
-	//mIsAccepterRun = false;
-	//closesocket(mListenSocket);
-	//if (mAccepterThread.joinable())
-	//{
-	//	mAccepterThread.join();
-	//}
 }
 
 // 클라이언트의 데이터를 받아서
@@ -301,17 +281,7 @@ void IOCompletionPort::CreateClient(const int maxClientCount)
 	{
 		mFreeSessionStack.Push(&mSessionNodes[i - 1]);
 	}
-	//for (int i = 0;i < maxClientCount;++i)
-	//{
-	//	auto client = std::make_unique<ClientSession>();
-	//	client->Init(i, mIOCPHandle);
-	//	mClientInfos.emplace_back(std::move(client));
 
-	//	//auto client = new ClientSession(); // 메모리 누수 가능성
-	//	//client->Init(i,mIOCPHandle);
-	//	//mClientInfos.emplace_back(client);
-
-	//}
 }
 
 // WaitingThread Queue에서 대기할 스레드들을 생성
@@ -345,10 +315,12 @@ void IOCompletionPort::TimeoutCheckThread()
 			ClientSession* pSession = GetClientInfo(i);
 
 			// 연결이 안되었으면 건너뜀
-			if (pSession == nullptr || !pSession->IsConnected())
+			if (pSession == nullptr)
 				continue;
 
 			UINT32 genBefore = pSession->GetGeneration();	// gen 캡쳐
+			if (!pSession->IsConnected())
+				continue;
 
 			ULONGLONG lastActivity = pSession->GetLastActivityTime();
 			ULONGLONG elapsed = now - lastActivity;

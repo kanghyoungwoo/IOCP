@@ -127,10 +127,15 @@ private:
 
 	// 클라이언트 접속 정보 구조체
 	//std::vector<ClientSession*> mClientInfos;
+
+	// ClientSession 객체는 서버 수명 동안 유지 (unique_ptr로 소유)
+	// raw pointer로 접근하지만 생명주기는 unique_ptr이 관리
 	std::vector<std::unique_ptr<ClientSession>> mClientInfos;
 
 	ObjectPool<SendOverlappedEx> mSendBufferPool;
 
+	// SessionNode는 free-list 인덱스 관리용 intrusive node (재활용 추적 전용)
+	// ClientSession과 달리 값 타입으로 저장 — poolNext 링크 하나만 필요하기 때문
 	std::vector<SessionNode> mSessionNodes;
 	LockFreeStack<SessionNode> mFreeSessionStack;
 

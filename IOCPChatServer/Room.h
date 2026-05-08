@@ -6,6 +6,7 @@
 #include "MPSCQueue.h"
 #include <functional>
 #include <atomic>
+#include <unordered_map>
 
 template<typename T>
 class LockFreeStack;
@@ -62,7 +63,8 @@ private:
 
 	void SendToAllUser(const UINT16 dataSize_, char* data_, const INT32 skipUserIndex_, bool skip_);
 
-	std::list<User*> mUserList;	// 유저 리스트 -> 멀티스레드 접근 없음
+	//std::list<User*> mUserList;	// 유저 리스트 -> 멀티스레드 접근 없음
+	std::unordered_map<uint32_t, User*> mUserMap; //유저 리스트 -> 멀티스레드 접근 없음
 	//std::list<std::shared_ptr<User>>mUserList;
 	//std::mutex mUserListMutex;
 

@@ -44,15 +44,15 @@ int main()
 	const auto& config = ConfigManager::GetInstance().Get();
 	
 	SetConsoleCtrlHandler(ConsoleCtrlHandler, TRUE);
-	ObjectPool<SendOverlappedEx> pool;
-	if (pool.IsLockFree())
-	{
-		LOG_DEBUG("Pool: Lock-Free mode\n");
-	}
-	else
-	{
-		LOG_DEBUG("Pool: Lock-based mode\n");
-	}
+	//ObjectPool<SendOverlappedEx> pool;
+	//if (pool.IsLockFree())
+	//{
+	//	LOG_DEBUG("Pool: Lock-Free mode\n");
+	//}
+	//else
+	//{
+	//	LOG_DEBUG("Pool: Lock-based mode\n");
+	//}
 	
 	ChatServer Server;
 	g_pServer = &Server;

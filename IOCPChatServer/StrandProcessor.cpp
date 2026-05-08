@@ -56,7 +56,7 @@ void StrandProcessor::EnqueueJob(Room* pRoom, uint32_t clientIndex, uint32_t tar
     pJob->job.dataSize = dataSize;
 
     // 비정상적으로 큰 패킷 방어 및 누수 방지
-    if (dataSize > MAX_SOCKBUF)
+    if (dataSize > MAX_PACKET_BODY_SIZE)
     {
         LOG_ERROR("비정상적인 패킷 크기 수신 (해킹 시도)! Size: %d\n", dataSize);
         mJobPool.Free(pJob);
@@ -209,7 +209,7 @@ void StrandProcessor::ProcessRoom(Room* pRoom)
                     tempChatPacket.PacketId = (UINT16)PACKET_ID::ROOM_CHAT_REQUEST;
                     tempChatPacket.PacketLength = sizeof(tempChatPacket);
                     memset(tempChatPacket.Message, 0, sizeof(tempChatPacket.Message));
-                    strcpy_s(tempChatPacket.Message, sizeof(tempChatPacket.Message), "has left the room.");
+                    strncpy_s(tempChatPacket.Message, sizeof(tempChatPacket.Message), "has left the room.", _TRUNCATE);
 
                     pRoom->NotifyChat(pJob->clientIndex, leaverID.c_str(), &tempChatPacket);
 
@@ -277,7 +277,10 @@ void StrandProcessor::ProcessRoom(Room* pRoom)
                     tempChatPacket.PacketLength = sizeof(ROOM_CHAT_REQUEST_PACKET);
                     memset(tempChatPacket.Message, 0, sizeof(tempChatPacket.Message));
 
-                    sprintf_s(tempChatPacket.Message, sizeof(tempChatPacket.Message), "[%s] entered the room.", pEnterUser->GetUserID().c_str());
+                    //sprintf_s(tempChatPacket.Message, sizeof(tempChatPacket.Message), "[%s] entered the room.", pEnterUser->GetUserID().c_str());
+                    int written = sprintf_s(tempChatPacket.Message, sizeof(tempChatPacket.Message),"[%s] entered the room.", pEnterUser->GetUserID().c_str());
+                    if (written < 0)
+                        tempChatPacket.Message[sizeof(tempChatPacket.Message) - 1] = '\0';
                     pRoom->NotifyChat(pJob->clientIndex, pEnterUser->GetUserID().c_str(), &tempChatPacket);
                 }
 

@@ -12,7 +12,8 @@ UINT16 Room::EnterUser(User* user_)
 		return (UINT16)ERROR_CODE::ENTER_ROOM_FULL_USER;
 	}
 	// 유저 리스트에 추가하고 count 증가
-	mUserList.push_back(user_);
+	//mUserList.push_back(user_);
+	mUserMap[user_->GetNetConnIndex()] = user_;
 	++mCurrentUserCount;
 
 
@@ -21,12 +22,18 @@ UINT16 Room::EnterUser(User* user_)
 
 void Room::LeaveUser(User* leaveUser_)
 {
-	auto prevSize = mUserList.size();
-	auto leaveUserID = leaveUser_->GetUserID();
-	mUserList.remove(leaveUser_);
-
-	if(mUserList.size() < prevSize)
+	auto it = mUserMap.find(leaveUser_->GetNetConnIndex());
+	if (it != mUserMap.end())
+	{
+		mUserMap.erase(it);
 		--mCurrentUserCount;
+	}
+	//auto prevSize = mUserList.size();
+	//auto leaveUserID = leaveUser_->GetUserID();
+	//mUserList.remove(leaveUser_);
+
+	//if(mUserList.size() < prevSize)
+	//	--mCurrentUserCount;
 }
 
 void Room::NotifyChat(INT32 clientIndex_, const char* userID_, const ROOM_CHAT_REQUEST_PACKET* pChatPacket)
@@ -65,8 +72,8 @@ void Room::Reset(INT32 roomNumber_, INT32 maxUserCount_)
 	mRoomNumber = roomNumber_;
 	mMaxUserCount = maxUserCount_;
 	mCurrentUserCount = 0;
-	mUserList.clear();
-
+	//mUserList.clear();
+	mUserMap.clear();
 	// Strand 상태 초기화
 	mMsgCount.store(0, std::memory_order_relaxed);
 	mGeneration.fetch_add(1, std::memory_order_release);	// generation 증가
@@ -107,12 +114,14 @@ Room::EnqueueResult Room::EnqueueJob(PacketJob* pJob)
 
 User* Room::FindUserByClientIndex(uint32_t clientIndex)
 {
-	for (auto pUser : mUserList)
-	{
-		if (pUser != nullptr && pUser->GetNetConnIndex() == clientIndex)
-			return pUser;
-	}
-	return nullptr;
+	auto it = mUserMap.find(clientIndex);
+	return (it != mUserMap.end()) ? it->second : nullptr;
+	//for (auto pUser : mUserList)
+	//{
+	//	if (pUser != nullptr && pUser->GetNetConnIndex() == clientIndex)
+	//		return pUser;
+	//}
+	//return nullptr;
 }
 
 void Room::SendToAllUser(const UINT16 dataSize_, char* data_, const INT32 skipUserIndex_, bool skip_)
@@ -124,7 +133,8 @@ void Room::SendToAllUser(const UINT16 dataSize_, char* data_, const INT32 skipUs
 
 	//std::lock_guard<std::mutex> lock(mUserListMutex);
 
-	for (auto pUser : mUserList)
+	//for (auto pUser : mUserList)
+	for(auto& [idx, pUser] : mUserMap)
 	{
 		if (pUser == nullptr)
 			continue;
