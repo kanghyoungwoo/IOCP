@@ -179,8 +179,9 @@ git clone https://github.com/kanghyoungwoo/IOCPChatServer.git
 ---
 
 ## 향후 개선 방향
+- [ ] 단위테스트 도임
 
-**단기 개선 (엔진 레벨)**
+**단기 개선**
 
 - [ ] **Room Sharding (대형 방 분할)** — 500명 방 1개 → 100명 서브그룹 5개로 분할
   ```
