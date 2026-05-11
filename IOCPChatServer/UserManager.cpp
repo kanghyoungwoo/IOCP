@@ -17,7 +17,6 @@ void UserManager::Init(const UINT32 maxUserCount_)
 ERROR_CODE UserManager::Adduser(char* userID_, UINT32 clientIndex_)
 {
 	std::string userIDStr = userID_;
-	//std::lock_guard<std::mutex> lock(mUserDictMutex);
 
 	// 중복 검사 후 삽입
 	auto result = mUserIDDictionary.insert(std::pair<std::string, int>(userIDStr, clientIndex_));	// 맵에 먼저 등록
@@ -46,7 +45,6 @@ void UserManager::DeleteUserInfo(User* user_)
 
 INT32 UserManager::FindUserIndexByID(char* userID_)
 {
-	//std::lock_guard<std::mutex>lock(mUserDictMutex);
 
 	auto res = mUserIDDictionary.find(userID_);
 

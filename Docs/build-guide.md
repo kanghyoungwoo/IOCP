@@ -32,6 +32,21 @@ git clone https://github.com/kanghyoungwoo/IOCPChatServer.git
 
 서버가 시작되면 포트 `11021`에서 TCP 연결을 수신합니다.
 
+## 단위 테스트 빌드 및 실행
+
+Google Test(vcpkg)를 사용한 단위 테스트 프로젝트가 솔루션에 포함되어 있습니다.
+
+```powershell
+# 테스트 프로젝트 빌드
+msbuild IOCPChatServer.sln /p:Configuration=Debug /p:Platform=x64 /t:IOCPChatServer_Tests
+
+# 테스트 실행
+& ".\Tests\x64\Debug\IOCPChatServer_Tests.exe"
+```
+
+> vcpkg 필요: `vcpkg install gtest:x64-windows` 후 `vcpkg integrate install`
+> 상세 테스트 목록은 [단위 테스트 문서](unit-testing.md)를 참조하세요.
+
 ## 아키텍처 전환 (매크로)
 
 `Define.h`에서 전처리기 매크로를 변경하여 내부 아키텍처를 전환할 수 있습니다:

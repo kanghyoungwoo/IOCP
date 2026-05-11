@@ -28,19 +28,19 @@ void RoomManager::Init(const INT32 beginRoomNumber_, const INT32 maxRoomCount_, 
 //	return room->EnterUser(user_);
 //}
 
-INT16 RoomManager::LeaveUser(INT32 roomNumber_, User* user_)
-{
-	auto room = GetRoomByNumber(roomNumber_);
-	if (room == nullptr)
-	{
-		return (INT16)ERROR_CODE::ROOM_INVALID_INDEX;
-	}
-	// 다시 로비로 상태 변경
-	user_->SetDomainState(User::DOMAIN_STATE::LOGIN);
-	room->LeaveUser(user_);
-
-	return (INT16)ERROR_CODE::NONE;
-}
+//INT16 RoomManager::LeaveUser(INT32 roomNumber_, User* user_)
+//{
+//	auto room = GetRoomByNumber(roomNumber_);
+//	if (room == nullptr)
+//	{
+//		return (INT16)ERROR_CODE::ROOM_INVALID_INDEX;
+//	}
+//	// 다시 로비로 상태 변경
+//	user_->SetDomainState(User::DOMAIN_STATE::LOGIN);
+//	room->LeaveUser(user_);
+//
+//	return (INT16)ERROR_CODE::NONE;
+//}
 
 Room* RoomManager::GetRoomByNumber(INT32 number_)
 {
