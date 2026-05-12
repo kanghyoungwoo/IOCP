@@ -28,7 +28,7 @@ Lock-Free 자료구조(MPSC Queue), Strand 패턴, Object Pool을 라이브러�
 | 메모리 누수 | **0 bytes** | VS 힙 스냅샷 +0 Bytes 교차 검증 |
 | Zero-Allocation | **Alloc Fail 0건** | Lock-Free Object Pool, 핫패스 할당 없음 |
 
-> 스레드 프로파일: 4-core에서 `IO4/W2/L4` (p99 17ms), 16-core에서 `IO8/W8/L=방개수`를 단계별 부하 시험으로 도출
+> 스레드 프로파일: 4-core에서 `IO4/W2/L4` (p99 17ms), 16-core에서 `IO8/W8/L=방개수`를 단계별 부하 시험으로 도출했습니다.
 
 ---
 
@@ -41,17 +41,17 @@ p99 500ms, 2,000명 동접       →    p99 15.5ms, 10,000명 동접
 
 처음부터 Lock-Free를 도입하지 않았습니다. `std::mutex` 기반의 멀티스레딩 모델로 먼저 구현한 뒤, 부하 한계점을 측정하고 프로파일링하여 병목 지점만을 타겟팅해 최적화했습니다.
 
-**[Issue]** 2,000명 동시 접속 부하 테스트 중 p99 지연시간이 **500ms**로 폭등하며, 처리 지연으로 인해 초당 23만 건의 패킷 유실(Drop) 발생
+**[Issue]** 2,000명 동시 접속 부하 테스트 중 p99 지연시간이 **500ms**로 폭등하며, 처리 지연으로 인해 초당 23만 건의 패킷 유실(Drop)이 발생했습니다.
 
-**[Analyze]** VS Profiler 진단 결과, 아키텍처의 양 끝단에서 `std::mutex` 경합 병목을 교차 확인
-- **생산자 경합**: I/O 워커들이 패킷을 중앙 큐에 밀어 넣는 과정
-- **동기화 병목**: 로직 스레드들이 방(Room) 객체에 접근할 때 발생
+**[Analyze]** VS Profiler 진단 결과, 아키텍처의 양 끝단에서 `std::mutex` 경합 병목을 교차로 확인했습니다.
+- **생산자 경합**: I/O 워커들이 패킷을 중앙 큐에 밀어 넣는 과정에서 병목이 발생했습니다.
+- **동기화 병목**: 로직 스레드들이 방(Room) 객체에 접근할 때 병목이 발생했습니다.
 
-**[Action]** 두 가지 병목을 각각 다른 전략으로 락(Lock) 없이 해소
-- **수신부**: CAS 연산 기반의 MPSC(Multi-Producer Single-Consumer) Lock-Free Queue를 직접 구현하여 워커 스레드 간의 Lock 경합 제거
-- **로직부**: Boost.Asio의 Strand 패턴을 착안·구현하여, 방(Room) 단위의 브로드캐스트 연산을 락 없이 안전하게 직렬화 보장
+**[Action]** 두 가지 병목을 각각 다른 전략으로 락(Lock) 없이 해소했습니다.
+- **수신부**: CAS 연산 기반의 MPSC(Multi-Producer Single-Consumer) Lock-Free Queue를 구현하여 워커 스레드 간의 Lock 경합을 제거했습니다.
+- **로직부**: Strand 패턴을 적용하여, 방(Room) 단위의 브로드캐스트 연산을 락 없이 안전하게 직렬화하도록 보장했습니다.
 
-**[Result]** p99 지연시간 **500ms → 15.5ms (97% 개선)**. 이후 10,000명 동시 접속 환경에서 브로드캐스트 연산량 최대 **884,000 ops/s**를 무응답 및 크래시 없이 안정적으로 소화
+**[Result]** p99 지연시간을 **500ms에서 15.5ms로 97% 개선**했습니다. 이후 10,000명 동시 접속 환경에서 브로드캐스트 연산량을 최대 **884,000 ops/s**까지 무응답 및 크래시 없이 안정적으로 소화했습니다.
 
 > 아키텍처 리팩토링 전 과정(v0 싱글스레드 → v1 더블버퍼링 → v2 Mutex → v3 Lock-Free)의 상세 지표는 [아키텍처 진화 문서](Docs/architecture-evolution.md)에서 확인할 수 있습니다.
 
@@ -152,13 +152,13 @@ case Room::EnqueueResult::FAILED_DROPPED:
 
 | 문서 | 내용 |
 |------|------|
-| [아키텍처 진화 과정](Docs/architecture-evolution.md) | Single-Thread → Lock-Free까지 3단계 리팩토링 + 벤치마크 |
-| [부하 테스트 리포트](Docs/load-test-results.md) | 10,000명 수용량 테스트, 스레드 최적화, CPU 포화 한계 |
-| [단위 테스트](Docs/unit-testing.md) | Google Test 100개: 자료구조, 패킷, User/Room/RoomManager 도메인 로직 검증 |
-| [카오스 엔지니어링](Docs/chaos-engineering.md) | ABA 방어, Strand Race, 악성 네트워크 공격 테스트 |
-| [기술적 도전과 해결](Docs/technical-challenges.md) | TCP 경계 파싱, Graceful Shutdown, Edge Case 방어 |
-| [빌드 상세 가이드](Docs/build-guide.md) | 환경 설정, DB 연동, DLL 의존성, 테스터 실행법 |
-| [AI 활용 최적화 회고](Docs/ai-assisted-optimization-review.md) | SharedSendBuffer 도입·실패 분석, AI 교차 검증의 한계, 교훈 |
+| [아키텍처 진화 과정](Docs/architecture-evolution.md) | Single-Thread에서 Lock-Free까지의 3단계 리팩토링 및 벤치마크 결과를 정리했습니다 |
+| [부하 테스트 리포트](Docs/load-test-results.md) | 10,000명 수용량 테스트, 스레드 최적화, CPU 포화 한계 분석을 담았습니다 |
+| [단위 테스트](Docs/unit-testing.md) | Google Test 100개 항목을 통한 자료구조, 패킷, User/Room/RoomManager 도메인 로직 검증 결과를 포함했습니다 |
+| [카오스 엔지니어링](Docs/chaos-engineering.md) | ABA 방어, Strand Race, 악성 네트워크 공격 테스트 결과를 기록했습니다 |
+| [기술적 도전과 해결](Docs/technical-challenges.md) | TCP 경계 파싱, Graceful Shutdown, Edge Case 방어 사례를 정리했습니다 |
+| [빌드 상세 가이드](Docs/build-guide.md) | 환경 설정, DB 연동, DLL 의존성, 테스터 실행법을 안내합니다 |
+| [AI 활용 최적화 회고](Docs/ai-assisted-optimization-review.md) | SharedSendBuffer 도입 및 실패 분석, AI 교차 검증의 한계와 교훈을 작성했습니다 |
 
 ---
 
@@ -170,7 +170,7 @@ case Room::EnqueueResult::FAILED_DROPPED:
 git clone https://github.com/kanghyoungwoo/IOCPChatServer.git
 ```
 
-1. Visual Studio 2022에서 `IOCP/IOCPChatServer/IOCPChatServer.sln` 열기
+1. Visual Studio 2022에서 `IOCP/IOCPChatServer/IOCPChatServer.sln` 파일을 열기
 2. `Release | x64` 빌드
 3. `F5` 실행 — `config.json`의 `TestMode=true`(기본값)로 Redis/MySQL 없이 순수 엔진 모드로 동작
 
