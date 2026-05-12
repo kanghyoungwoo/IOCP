@@ -1,6 +1,6 @@
 # IOCP 기반 Lock-Free 채팅서버
 
-> C++17 | 10,000명 동시접속 | 최대 884K broadcast ops/s
+> C++17 | 10,000명 동시접속 | 288K~884K broadcast ops/s
 
 Windows IOCP 기반 네트워크 엔진과 채팅 서비스를 **직접 설계·구현**한 프로젝트입니다.
 Lock-Free 자료구조(MPSC Queue), Strand 패턴, Object Pool을 라이브러리 없이 직접 구현하여 엔진 레이어를 구성하고, Contents 레이어(채팅방, 인증, DB 연동)를 분리 설계하여 다른 실시간 서비스(게임, 알림 등)에도 적용 가능한 구조입니다.
@@ -21,14 +21,14 @@ Lock-Free 자료구조(MPSC Queue), Strand 패턴, Object Pool을 라이브러�
 
 | 지표 | 수치 | 조건 |
 |------|------|------|
-| 권장 처리량 | **288K ops/s** | 200방 × 50명, CPU 50%, Avg 20.7ms |
-| 한계 처리량 | **884K ops/s** | 500방 × 20명, CPU 90%, Avg 49.2ms |
+| 측정 처리량 (CPU 50%) | **288K ops/s** | 200방 × 50명, Avg 20.7ms (W8/IO8/L4) |
+| 측정 처리량 (CPU 90%) | **884K ops/s** | 500방 × 20명, Avg 49.2ms (W8/IO8/L4) |
 | 동시접속 | **10,000명** | 연결실패 < 2건, 메모리 394MB 고정 |
 | p99 지연시간 개선 | **500ms → 15.5ms** | 97% 개선 (Lock-Free 전환 후) |
 | 메모리 누수 | **0 bytes** | VS 힙 스냅샷 +0 Bytes 교차 검증 |
 | Zero-Allocation | **Alloc Fail 0건** | Lock-Free Object Pool, 핫패스 할당 없음 |
 
-> 스레드 프로파일: 4-core에서 `IO4/W2/L4` (p99 17ms), 16-core에서 `IO8/W8/L=방개수`를 단계별 부하 시험으로 도출했습니다.
+> 스레드 프로파일: 4-core에서 `IO4/W2/L4` (p99 17ms)를 도출했으며, 16-core에서는 시나리오별로 스레드 비율을 조정해야 한다는 결론을 단계별 부하 시험으로 확인했습니다. 방 인원이 많으면 IOCP Worker에, 방 수가 많으면 Logic Thread에 코어를 집중합니다. 상세 권장값은 [부하 테스트 리포트](Docs/load-test-results.md)를 참조해 주십시오.
 
 ---
 
