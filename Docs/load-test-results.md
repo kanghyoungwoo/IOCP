@@ -106,7 +106,7 @@ c6i.xlarge 클라이언트 4대(각 2,500봇)로 10,000명의 더미 클라이�
 ```
 MaxIOWorkerThread = 8
 MaxWorkerThread   = 8
-MaxLogicThread    = 방 개수와 동일 (예: 100방→16, 200방→50, 500방→20)
+MaxLogicThread    = 4
 ```
 
 ---
