@@ -130,7 +130,7 @@ void Push(T* node)
 ### Strand 패턴 — 방(Room) 단위 브로드캐스트를 Lock 없이 직렬화
 
 ```cpp
-// StrandProcessor.cpp — Boost.Asio strand 개념의 직접 구현
+// StrandProcessor.cpp
 auto result = pRoom->EnqueueJob(pJob);
 switch (result)
 {
@@ -141,6 +141,10 @@ case Room::EnqueueResult::SUCCESS_APPENDED:
     break;                          // 이미 처리 중인 Room → 추가만 하고 끝
 case Room::EnqueueResult::FAILED_DROPPED:
     mJobPool.Free(pJob);            // Room이 파손 상태 → Job 반납
+    break;
+default:
+    assert(false && "unknown EnqueueResult");
+    mJobPool.Free(pJob);
     break;
 }
 ```
