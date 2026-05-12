@@ -32,24 +32,9 @@ git clone https://github.com/kanghyoungwoo/IOCPChatServer.git
 
 서버가 시작되면 포트 `11021`에서 TCP 연결을 수신합니다.
 
-## 단위 테스트 빌드 및 실행
+~~## 아키텍처 전환 (매크로)~~
 
-Google Test(vcpkg)를 사용한 단위 테스트 프로젝트가 솔루션에 포함되어 있습니다.
-
-```powershell
-# 테스트 프로젝트 빌드
-msbuild IOCPChatServer.sln /p:Configuration=Debug /p:Platform=x64 /t:IOCPChatServer_Tests
-
-# 테스트 실행
-& ".\Tests\x64\Debug\IOCPChatServer_Tests.exe"
-```
-
-> vcpkg 필요: `vcpkg install gtest:x64-windows` 후 `vcpkg integrate install`
-> 상세 테스트 목록은 [단위 테스트 문서](unit-testing.md)를 참조하세요.
-
-## 아키텍처 전환 (매크로)
-
-`Define.h`에서 전처리기 매크로를 변경하여 내부 아키텍처를 전환할 수 있습니다:
+~~`Define.h`에서 전처리기 매크로를 변경하여 내부 아키텍처를 전환할 수 있습니다:~~
 
 ```cpp
 #define USE_LOCK_FREE_ARCH  // Lock-Free 모드 (기본값, 최고 성능)
@@ -94,14 +79,10 @@ msbuild IOCPChatServer.sln /p:Configuration=Debug /p:Platform=x64 /t:IOCPChatSer
 1. Redis 7.0+ 설치 (Windows: WSL 또는 Memurai 사용)
 2. `config.json`의 `RedisHost`/`RedisPort` 설정
 
-### 3. AWS 모드
+~~### 3. AWS 모드~~
 
-`Define.h`에서 AWS 환경용 매크로를 활성화합니다:
+~~`Define.h`에서 AWS 환경용 매크로를 활성화합니다:~~
 
 ```cpp
 #define USE_AMAZON_AWS_DB    // AWS RDS + ElastiCache 연결 모드
 ```
-
-### DLL 의존성
-
-`hiredis.dll`이 실행 파일과 같은 디렉토리에 있어야 합니다. 프로젝트의 `lib/` 폴더에 포함되어 있으며, 빌드 시 자동으로 복사됩니다.
