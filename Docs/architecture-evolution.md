@@ -26,7 +26,7 @@
 ## v0 → v1: Single-Thread (단일 큐 → 더블 버퍼링)
 
 - **Problem:** IOCP 스레드와 패킷 처리 스레드가 단일 패킷 큐를 공유하며 `std::mutex`로 보호 → 패킷 삽입/처리마다 락 경합이 발생하여 처리 지연 누적, 1,000명 이상에서 처리 스타베이션(Starvation) 발생
-- **Solution:** 더블 버퍼링(Double Buffering) 기법 도입. 수신용 큐와 처리용 큐를 분리하고, 로직 스레드가 처리를 시작할 때 두 큐를 O(1) swap하여 락 경합 제거. IOCP I/O 워커 스레드도 4개 → 8개로 최적화.
+- **Solution:** 더블 버퍼링(Double Buffering) 기법 도입. 수신용 큐와 처리용 큐를 분리하고, 로직 스레드가 처리를 시작 때 두 큐를 O(1) swap하여 락 경합 제거. IOCP I/O 워커 스레드도 4개 → 8개로 최적화
 - **Result:** 초당 처리량(TPS) 83% 증가 및 평균 지연시간 76% 단축. 최대 1,500명 부하까지 안정적 처리.
 
 ```mermaid
@@ -107,8 +107,8 @@ graph TD
 
 ## v1 → v2: Multi-Thread (Mutex + CV)
 
-- **목표:** 1,500명 이상에서 발생하는 단일 코어의 한계(CPU 100% 및 처리 스타베이션)를 극복하기 위해 스레드 풀(Thread Pool) 도입.
-- **이슈:** 채팅 서버 특성상 브로드캐스트를 위한 공유 자원(Room, Session) 접근이 잦아 Mutex Lock/Unlock 과정에서 심각한 병목 발생. 2,000명 부하 시 p99 지연시간이 500ms까지 튀는 현상 확인.
+- **목표:** 1,500명 이상에서 발생하는 단일 코어의 한계(CPU 100% 및 처리 스타베이션)를 극복하기 위해 스레드 풀(Thread Pool) 도입
+- **이슈:** 채팅 서버 특성상 브로드캐스트를 위한 공유 자원(Room, Session) 접근이 잦아 Mutex Lock/Unlock 과정에서 심각한 병목 발생. 2,000명 부하 시 p99 지연시간이 500ms까지 튀는 현상 확인
 
 ```mermaid
 graph TD
@@ -230,12 +230,12 @@ graph TD
     classDef core fill:#f9f,stroke:#333,stroke-width:2px;
     class StrandProcessor,GlobalQueue,MemPool core;
 ```
-- **구현:** Mutex를 제거하고 **CAS 연산 기반의 Lock-Free 큐와 Object Pool, Strand 패턴**을 직접 구현하여 적용. 패킷 전송 시마다 발생하던 동적 할당(new/delete)을 Lock-Free Object Pool로 대체하여 힙 메모리 단편화와 Lock 경합 병목을 동시에 해소.
-- **결과:** 2,000명 스트레스 테스트에서 초당 142,400건의 패킷을 무응답 0건으로 처리.
+- **구현:** Mutex를 제거하고 **CAS 연산 기반의 Lock-Free 큐와 Object Pool, Strand 패턴**을 직접 구현하여 적용. 패킷 전송 시마다 발생하던 동적 할당(new/delete)을 Lock-Free Object Pool로 대체하여 힙 메모리 단편화와 Lock 경합 병목을 동시에 해소
+- **결과:** 2,000명 스트레스 테스트에서 초당 142,400건의 패킷을 무응답 0건으로 처리
 
 ### 핵심 코드: Lock-Free MPSC Queue
 
-CAS(Compare-And-Swap) exchange 연산으로 Producer 간 경합 없이 Lock-Free Push를 구현합니다.
+CAS(Compare-And-Swap) exchange 연산을 활용하여 Producer 간의 경합 없이 Lock-Free Push를 구현했습니다
 
 ```cpp
 // MPSCQueue.h — Lock-Free Multi-Producer Single-Consumer Queue
@@ -247,13 +247,13 @@ void Push(T* node)
 }
 ```
 
-Pop에서는 sentinel(파수꾼) 노드와 hole(Push 중간 상태) 3가지 상황을 처리합니다.
+Pop 연산에서는 sentinel(파수꾼) 노드와 hole(Push 중간 상태)을 포함한 3가지 상태를 처리하도록 구성했습니다
 
 [전체 구현 보기 → `MPSCQueue.h`](../IOCPChatServer/MPSCQueue.h)
 
 ### 핵심 코드: Lock-Free Object Pool
 
-서버 시작 시 `malloc + placement new`로 N개 객체를 통째로 사전 할당하고, Lock-Free 스택으로 O(1) 할당/반납합니다. Hot-path에서 new/delete가 발생하지 않아 OS 힙 락 경합을 제거합니다.
+서버 시작 시 `malloc + placement new`를 통해 N개의 객체를 사전에 할당하고, Lock-Free 스택을 이용하여 O(1) 속도로 할당 및 반납을 수행합니다. Hot-path에서 new/delete 호출이 발생하지 않아 OS 힙 락 경합을 원천적으로 제거했습니다
 
 ```cpp
 // ObjectPool.h — Alloc/Free (Lock-Free Stack 기반)
@@ -282,12 +282,12 @@ void Free(T* obj)
 
 **3가지 아키텍처 모델**
 
-1. **v1. Single-Thread (Double Buffering):** 로직 처리를 단일 스레드가 전담하여 락 오버헤드가 없으나, 코어의 물리적 한계가 존재.
-2. **v2. Multi-Thread (Mutex + CV):** 스레드 풀을 도입했으나, 브로드캐스트 시 공유 자원(방, 세션) 접근으로 인한 Lock 경합 발생.
-3. **v3. Multi-Thread (Lock-Free) — 최종:** CAS 연산 기반의 Lock-Free 글로벌 큐와 Strand 패턴을 결합하여 경합 제거.
+1. **v1. Single-Thread (Double Buffering):** 로직 처리를 단일 스레드가 전담하여 락 오버헤드가 없으나, 코어의 물리적 한계가 존재
+2. **v2. Multi-Thread (Mutex + CV):** 스레드 풀을 도입했으나, 브로드캐스트 시 공유 자원(방, 세션) 접근으로 인한 Lock 경합 발생
+3. **v3. Multi-Thread (Lock-Free) — 최종:** CAS 연산 기반의 Lock-Free 글로벌 큐와 Strand 패턴을 결합하여 경합 제거
 
 **분석**
 
-- **Single-Thread의 붕괴:** 1,500명까지는 싱글 스레드가 효율적이었으나, 2,000명 부하에서 단일 코어(CPU 100%) 병목으로 초당 23만 건의 패킷이 Drop(무응답)되는 붕괴가 발생.
-- **Mutex의 한계 (Lock Contention):** 멀티 스레드로 붕괴는 방지했으나, 동일 방(Room) 접근 시 락 획득/해제 과정에서 병목 발생. p99 지연시간 500ms.
-- **Lock-Free:** 초당 142,400건의 패킷을 15.5ms 지연시간, 무응답 0건으로 처리. 대규모 트래픽에서 가장 안정적인 지연시간을 기록.
+- **Single-Thread의 붕괴:** 1,500명까지는 싱글 스레드가 효율적이었으나, 2,000명 부하에서 단일 코어(CPU 100%) 병목으로 초당 23만 건의 패킷이 Drop(무응답)되는 붕괴가 발생
+- **Mutex의 한계 (Lock Contention):** 멀티 스레드로 붕괴는 방지했으나, 동일 방(Room) 접근 시 락 획득/해제 과정에서 병목 발생. p99 지연시간 500ms
+- **Lock-Free:** 초당 142,400건의 패킷을 15.5ms 지연시간, 무응답 0건으로 처리. 대규모 트래픽에서 가장 안정적인 지연시간을 기록
