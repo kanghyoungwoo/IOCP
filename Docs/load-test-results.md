@@ -10,7 +10,7 @@
 | **Client** | AWS EC2 c6i.xlarge (4 vCPU, 8GB RAM) x 4대, Windows Server 2022 (각 2,500봇 = 총 10,000봇) |
 | **Network** | 동일 리전, 동일 클러스터 배치 그룹 (Cluster Placement Group) |
 | **채팅 시나리오** | 로그인 → 방 입장 → 채팅(3~5초 간격, 평균 4초) → 퇴장 → 재입장 반복 |
-| **권장 스레드** | `MaxIOWorkerThread=8 / MaxWorkerThread=8 / MaxLogicThread=방 개수와 동일` |
+| **권장 스레드** | `MaxIOWorkerThread=8 / MaxWorkerThread=8 / MaxLogicThread=4` |
 | **테스트 모드** | `TestMode=true` — Redis/MySQL I/O 우회, 순수 엔진 성능 측정 |
 
 > Scenario A(스레드 황금 비율)는 4-core c6i.xlarge에서 측정한 과거 데이터로, 환경이 다르므로 본문에 별도 표기합니다.
