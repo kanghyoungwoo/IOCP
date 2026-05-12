@@ -181,6 +181,7 @@ git clone https://github.com/kanghyoungwoo/IOCPChatServer.git
 
 ## 향후 개선 방향
 - [ ] 단위테스트 도임
+- [ ] 테스트 파이프라인을 기반으로, 검증 자동화
 
 **단기 개선**
 
