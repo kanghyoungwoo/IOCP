@@ -154,7 +154,7 @@ case Room::EnqueueResult::FAILED_DROPPED:
 |------|------|
 | [아키텍처 진화 과정](Docs/architecture-evolution.md) | Single-Thread → Lock-Free까지 3단계 리팩토링 + 벤치마크 |
 | [부하 테스트 리포트](Docs/load-test-results.md) | 10,000명 수용량 테스트, 스레드 최적화, CPU 포화 한계 |
-| [단위 테스트](Docs/unit-testing.md) | Google Test 90개: 자료구조, 패킷, User/Room 도메인 로직 검증 |
+| [단위 테스트](Docs/unit-testing.md) | Google Test 100개: 자료구조, 패킷, User/Room/RoomManager 도메인 로직 검증 |
 | [카오스 엔지니어링](Docs/chaos-engineering.md) | ABA 방어, Strand Race, 악성 네트워크 공격 테스트 |
 | [기술적 도전과 해결](Docs/technical-challenges.md) | TCP 경계 파싱, Graceful Shutdown, Edge Case 방어 |
 | [빌드 상세 가이드](Docs/build-guide.md) | 환경 설정, DB 연동, DLL 의존성, 테스터 실행법 |

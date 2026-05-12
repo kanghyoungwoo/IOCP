@@ -121,7 +121,7 @@ Tier 3: 시스템 통합 카오스 테스트  ← ChaosBotSystem (실제 TCP 소
 
 ---
 
-## Tier 2: 도메인 로직 단위 테스트 (52개)
+## Tier 2: 도메인 로직 단위 테스트 (62개)
 
 서버의 패킷 프로토콜, 유저 상태 머신, 방 관리 로직을 검증합니다. Room 브로드캐스팅은 `SendPacketFunc`에 Mock 람다를 주입하여 네트워크 없이 검증합니다.
 
@@ -142,7 +142,7 @@ Tier 3: 시스템 통합 카오스 테스트  ← ChaosBotSystem (실제 TCP 소
 | `NoCollisions` | 15개 PACKET_ID 유일성 (중복 없음) |
 | `NoneIsZero` / `EnterRoomFullUser` | ERROR_CODE 값 검증 |
 
-### User 상태 머신 (17개)
+### User 상태 머신 + TCP 파편화 조립 (20개)
 
 | 테스트 | 검증 내용 |
 |--------|----------|
@@ -160,6 +160,10 @@ Tier 3: 시스템 통합 카오스 테스트  ← ChaosBotSystem (실제 TCP 소
 | `GetPacketFromEmptyBuffer` | 빈 버퍼에서 읽기 시 PacketId=0 |
 | `SetPacketDataNullptr` | nullptr 입력 안전 처리 |
 | `MultiplePacketsInBuffer` | 2개 패킷 순차 쓰기 후 순차 읽기 (FIFO) |
+| **TCP 파편화 조립** | |
+| `FragmentedPacketReassembly` | **71바이트 패킷을 30+41로 분할 입력 → 첫 30바이트에서는 미완성, 41바이트 추가 후 완성 패킷 반환** |
+| `FragmentedHeaderOnly` | 헤더(5바이트)만 도착 → 미완성, 나머지 66바이트 도착 후 완성 |
+| `ThreeFragmentsReassembly` | 10+25+36 바이트 3분할 → 마지막 조각 도착 후 완성 패킷 반환 |
 
 ### Room 입퇴장 + 브로드캐스팅 Mock (18개)
 
@@ -198,22 +202,34 @@ room.SendPacketFunc = [this](UINT32 connIdx, UINT32 gen, UINT32 size, char* pDat
 | `ResetWithParamsChangesCapacity` | Reset(roomNumber, maxUser) 후 설정 변경 반영 |
 | `GetRoomNumber` | 방 번호 조회 |
 
+### RoomManager 범위 검증 (7개)
+
+| 테스트 | 검증 내용 |
+|--------|----------|
+| `ValidRoomNumberReturnsNonNull` | 유효 범위(0~9) 전체 조회 성공 |
+| `RoomNumberMatchesInit` | 조회된 Room의 번호가 Init 시 설정값과 일치 |
+| `NegativeRoomNumberReturnsNull` | **음수 방 번호(-1) → nullptr** |
+| `ExceedMaxRoomNumberReturnsNull` | **범위 초과(10, 110) → nullptr** |
+| `BoundaryRoomNumbers` | 경계값 검증 (첫 번째/마지막 유효, 직전/직후 무효) |
+| `OffsetRoomNumbers` | beginRoom=100 오프셋 설정 시 범위 매핑 정확성 |
+| `EnterUserViaRoomFromManager` | Manager에서 꺼낸 Room에 유저 입장 성공 |
+
 ---
 
 ## 테스트 결과
 
 ```
-[==========] Running 90 tests from 15 test suites.
+[==========] Running 100 tests from 17 test suites.
 ...
-[==========] 90 tests from 15 test suites ran. (87 ms total)
-[  PASSED  ] 90 tests.
+[==========] 100 tests from 17 test suites ran. (28 ms total)
+[  PASSED  ] 100 tests.
 ```
 
 | 구분 | 테스트 수 | 결과 |
 |------|----------|------|
 | Tier 1 (자료구조) | 38개 | PASSED |
-| Tier 2 (도메인 로직) | 52개 | PASSED |
-| **합계** | **90개** | **ALL PASSED** |
+| Tier 2 (도메인 로직) | 62개 | PASSED |
+| **합계** | **100개** | **ALL PASSED** |
 
 ---
 
@@ -229,13 +245,15 @@ IOCPChatServer/
 │   ├── test_MPSCQueue.cpp             # Tier 1
 │   ├── test_ObjectPool.cpp            # Tier 1
 │   ├── test_Packet.cpp                # Tier 2
-│   ├── test_User.cpp                  # Tier 2
-│   └── test_Room.cpp                  # Tier 2 (Broadcasting Mock 포함)
+│   ├── test_User.cpp                  # Tier 2 (TCP 파편화 조립 포함)
+│   ├── test_Room.cpp                  # Tier 2 (Broadcasting Mock 포함)
+│   └── test_RoomManager.cpp           # Tier 2 (범위 검증)
 ├── RingBuffer.h          ← 테스트 대상
 ├── LockFreeStack.h       ← 테스트 대상
 ├── MPSCQueue.h           ← 테스트 대상
 ├── ObjectPool.h          ← 테스트 대상
 ├── Packet.h              ← 테스트 대상
 ├── User.h / User.cpp     ← 테스트 대상
-└── Room.h / Room.cpp     ← 테스트 대상
+├── Room.h / Room.cpp     ← 테스트 대상
+└── RoomManager.h / .cpp  ← 테스트 대상
 ```

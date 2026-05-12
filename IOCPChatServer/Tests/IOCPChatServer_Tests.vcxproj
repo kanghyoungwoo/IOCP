@@ -170,9 +170,11 @@
     <ClCompile Include="test_Packet.cpp" />
     <ClCompile Include="test_User.cpp" />
     <ClCompile Include="test_Room.cpp" />
+    <ClCompile Include="test_RoomManager.cpp" />
     <ClCompile Include="..\User.cpp" />
     <ClCompile Include="..\Room.cpp" />
     <ClCompile Include="..\UserManager.cpp" />
+    <ClCompile Include="..\RoomManager.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
