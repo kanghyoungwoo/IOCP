@@ -182,7 +182,54 @@ graph TD
 ---
 
 ## v2 → v3: Multi-Thread (Lock-Free) — 최종 아키텍처
+```mermaid
+graph TD
+    subgraph External_Clients [Clients & Test Bots]
+        Clients((Real Clients))
+        ChaosBot[Chaos Bot System]
+        LoadTester[Chat Load Tester]
+    end
 
+    subgraph Memory_Layer [Memory Management]
+        MemPool[Lock-Free Object Pool\nSession / Packet]
+    end
+
+    subgraph Network_Layer [Network Layer]
+        IOCP[IOCompletionPort]
+        WorkerThreads[I/O Worker Threads]
+        SessionPool[Client Session Pool]
+        IOCP --> WorkerThreads
+        WorkerThreads -->|Accept/Recv/Send| SessionPool
+    end
+
+    subgraph Logic_Layer [Logic Layer]
+        PacketManager[PacketManager]
+        GlobalQueue[(MPSC Lock-Free Queue)]
+        StrandProcessor[Strand Processor]
+        RoomMgr[RoomManager]
+        UserMgr[UserManager]
+        WorkerThreads -->|Enqueue Packet\nLock-Free| GlobalQueue
+        GlobalQueue -->|Dequeue| PacketManager
+        PacketManager -->|Dispatch Task| StrandProcessor
+        StrandProcessor -->|Serialized Execution\nNo Mutex| RoomMgr
+        StrandProcessor -->|Serialized Execution\nNo Mutex| UserMgr
+    end
+
+    subgraph DB_Layer [Async DB Layer]
+        direction LR
+        RedisMgr[RedisManager]
+        MySQLMgr[MySQLManager]
+    end
+
+    External_Clients <-->|TCP Socket| IOCP
+    MemPool -.->|Allocate / Free| SessionPool
+    MemPool -.->|Allocate / Free| PacketManager
+    RoomMgr -->|Push Task| RedisMgr
+    RoomMgr -->|Push Task| MySQLMgr
+
+    classDef core fill:#f9f,stroke:#333,stroke-width:2px;
+    class StrandProcessor,GlobalQueue,MemPool core;
+```
 - **구현:** Mutex를 제거하고 **CAS 연산 기반의 Lock-Free 큐와 Object Pool, Strand 패턴**을 직접 구현하여 적용. 패킷 전송 시마다 발생하던 동적 할당(new/delete)을 Lock-Free Object Pool로 대체하여 힙 메모리 단편화와 Lock 경합 병목을 동시에 해소.
 - **결과:** 2,000명 스트레스 테스트에서 초당 142,400건의 패킷을 무응답 0건으로 처리.
 
