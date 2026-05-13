@@ -567,9 +567,9 @@ case Room::EnqueueResult::FAILED_DROPPED:
 
 ### Challenge 4: Partial Send 처리
 
-- **Problem**: `WSASend`는 비동기 I/O이므로 요청한 바이트보다 적게 전송이 완료되는 Partial Send가 발생할 수 있습니다. 이를 처리하지 않으면 메시지 일부가 유실됩니다.
-- **Cause**: TCP 스택이 커널 송신 버퍼 부족, 네트워크 혼잡 등의 이유로 한 번의 WSASend 완료에서 요청 크기보다 작은 `dwIoSize`를 반환할 수 있습니다.
-- **Solution**: `SendComplete()`에서 `dwIoSize < totalRequested`를 감지하면 완전히 전송된 버퍼는 Pool에 반납하고, 부분 전송된 버퍼는 포인터를 전진시켜 남은 데이터만 재전송합니다. 재시도는 최대 5회(`MAX_PARTIAL_RETRY`)로 제한하며 초과 시 해당 세션을 강제 종료합니다.
+- **Problem**: `WSASend`는 비동기 I/O이므로 요청한 바이트보다 적게 전송이 완료되는 Partial Send가 발생. 이를 처리하지 않으면 메시지 일부가 유실.
+- **Cause**: TCP 스택이 커널 송신 버퍼 부족, 네트워크 혼잡 등의 이유로 한 번의 WSASend 완료에서 요청 크기보다 작은 `dwIoSize`를 반환할 수 있음.
+- **Solution**: `SendComplete()`에서 `dwIoSize < totalRequested`를 감지하면 완전히 전송된 버퍼는 Pool에 반납하고, 부분 전송된 버퍼는 포인터를 전진시켜 남은 데이터만 재전송. 재시도는 최대 5회(`MAX_PARTIAL_RETRY`)로 제한하며 초과 시 해당 세션을 강제 종료.
 
 ```cpp
 // ClientSession.cpp — SendComplete()
