@@ -49,12 +49,11 @@ IOCP 기반의 고성능 채팅서버로, `std::mutex` 기반에서 시작하여
 |------|------|
 | **Language** | C++17 |
 | **OS / API** | Windows IOCP (`AcceptEx`, `GetQueuedCompletionStatusEx`) |
-| **IDE** | Visual Studio 2022 (v143 Toolset) |
-| **SDK** | Windows SDK 10.0+ |
-| **Database** | Redis (hiredis), MySQL (C API, Prepared Statement) |
+| **IDE** | Visual Studio 2022 |
+| **Platform** | Windows |
+| **Database** | Redis (hiredis), MySQL |
 | **Infra** | AWS EC2 c6i.4xlarge (Server), c6i.xlarge × 4 (Client) |
 | **Test** | Google Test (100 cases), Chaos Bot System, Chat Load Tester |
-| **Library** | nlohmann/json (config), plog (logging) |
 
 ---
 
@@ -258,7 +257,7 @@ graph LR
 |-------------|-----------|------|------|
 | **IOCP Worker** | 8 | AcceptEx/WSARecv/WSASend 완료 처리, 패킷 Enqueue | `MaxIOWorkerThread` |
 | **Packet Processing** | 1 (고정) | 더블버퍼 패킷 Dequeue, 핸들러 디스패치, 콜백 처리 | 고정 |
-| **Strand/Logic** | 10 | Room별 MPSC 큐 드레인, 비즈니스 로직 직렬 처리 | `MaxLogicThread` |
+| **Strand/Logic** | 4 | Room별 MPSC 큐 드레인, 비즈니스 로직 직렬 처리 | `MaxLogicThread` |
 | **Timeout Checker** | 1 (고정) | 비활성 세션 탐지, Ping/Pong 스케줄링 (주기: 10초) | 고정 |
 | **Redis Worker** | 1 | 로그인 인증 (GET key=password) | 코드 고정 |
 | **MySQL Worker** | 1 | 활동 로그 INSERT (로그인/입장/채팅) | 코드 고정 |
@@ -276,7 +275,7 @@ graph LR
 │ PacketLength (2B)  │ PacketId (2B)    │ Type (1B)    │
 │ UINT16             │ UINT16           │ UINT8        │
 └────────────────────┴──────────────────┴──────────────┘
-         전체 패킷 크기           패킷 종류 식별       압축/인코딩 플래그
+ 전체 패킷 크기         패킷 종류 식별     압축/인코딩 플래그
 ```
 
 ```cpp
