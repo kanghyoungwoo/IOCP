@@ -708,6 +708,7 @@ git clone https://github.com/kanghyoungwoo/IOCPChatServer.git
 - [x] ~~좀비 세션 감지 로직 추가~~
 - [x] ~~단위테스트 도입~~
 - [x] ~~Lock-Free 구현하고 적용하기~~
+- [ ] 클라이언트 재접속 로직 추가
 - [ ] 테스트 파이프라인을 기반으로, 검증 자동화
 
 **단기 개선**
