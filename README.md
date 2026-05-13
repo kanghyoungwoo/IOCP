@@ -256,12 +256,14 @@ sequenceDiagram
     participant Redis as RedisManager
     participant SP as StrandProcessor
     participant R as Room
+    participant MySQL as MySQLManager
 
     Note over C,R: 1. 로그인
     C->>W: LOGIN_REQUEST (UserID, PW)
     W->>PM: Enqueue (GlobalQueue)
     PM->>Redis: AUTH 요청 (비동기)
     Redis-->>PM: AUTH 결과 콜백
+    PM-->>MySQL: INSERT_LOGIN_EVENT (비동기, fire-and-forget)
     PM->>C: LOGIN_RESPONSE (Result)
 
     Note over C,R: 2. 방 입장
@@ -271,6 +273,8 @@ sequenceDiagram
     SP->>R: EnterUser() + 브로드캐스트 "[XXX] entered"
     R->>C: ROOM_ENTER_RESPONSE
     R-->>C: ROOM_CHAT_NOTIFY (전체)
+    SP-->>PM: STRAND_CALLBACK (USER_ENTERED_ROOM)
+    PM-->>MySQL: INSERT_ROOM_EVENT (비동기, fire-and-forget)
 
     Note over C,R: 3. 채팅
     C->>W: ROOM_CHAT_REQUEST (Message)
