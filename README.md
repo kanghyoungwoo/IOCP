@@ -80,7 +80,7 @@ IOCP 기반의 고성능 채팅서버로, `std::mutex` 기반에서 시작하여
 stateDiagram-v2
     [*] --> NONE : TCP 접속 (SYS_USER_CONNECT)
 
-    NONE --> LOGIN : LOGIN_REQUEST 성공\n(Redis 인증 통과)
+    NONE --> LOGIN : LOGIN_REQUEST 성공 \n(Redis 인증 통과)
     NONE --> [*] : 인증 실패 / 타임아웃
 
     LOGIN --> IN_ROOM : ROOM_ENTER_REQUEST 성공
