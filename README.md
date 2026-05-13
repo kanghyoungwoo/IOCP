@@ -74,6 +74,30 @@ IOCP 기반의 고성능 채팅서버로, `std::mutex` 기반에서 시작하여
 | **로그 시스템** | `LOG_DEBUG` (Debug 빌드만 출력) / `LOG_ERROR` (항상 출력) / `LOG_ERROR_ONCE` (최초 1회만 출력) 매크로로 핫패스 오버헤드 최소화 |
 | **크래시 대응** | `SetUnhandledExceptionFilter` + `MiniDumpWriteDump`로 미처리 예외 발생 시 타임스탬프 기반 `.dmp` 파일 자동 생성 (`CrashDump_%Y%m%d_%H%M%S.dmp`) |
 
+### 유저 상태 머신 (State Machine)
+
+```mermaid
+stateDiagram-v2
+    [*] --> NONE : TCP 접속 (SYS_USER_CONNECT)
+
+    NONE --> LOGIN : LOGIN_REQUEST 성공\n(Redis 인증 통과)
+    NONE --> [*] : 인증 실패 / 타임아웃
+
+    LOGIN --> IN_ROOM : ROOM_ENTER_REQUEST 성공
+    LOGIN --> [*] : 타임아웃 / 강제 종료
+
+    IN_ROOM --> LOGIN : ROOM_LEAVE_REQUEST
+    IN_ROOM --> [*] : 타임아웃 / 강제 종료 (SYS_USER_DISCONNECT)
+```
+
+| 상태 | 의미 | 허용 패킷 |
+|------|------|-----------|
+| `NONE` | TCP 연결됨, 미인증 | `LOGIN_REQUEST` |
+| `LOGIN` | 인증 완료, 방 미입장 | `ROOM_ENTER_REQUEST` |
+| `IN_ROOM` | 방 입장 완료 | `ROOM_CHAT_REQUEST`, `ROOM_LEAVE_REQUEST` |
+
+> 상태 외 패킷 수신 시 즉시 폐기 — `User::GetDomainState()` 검증 후 처리
+
 ---
 
 ## 4. 서버 아키텍처
@@ -221,6 +245,51 @@ for (size_t i = 0; i < PACKET_HEADER_LENGTH; i++)
 auto pHeader = (PACKET_HEADER*)headerBuffer;
 ```
 [전체 구현 보기 → `User.h`](IOCPChatServer/User.h)
+
+### 전체 사용 흐름 — Login → Chat → Leave
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant W as Worker Thread
+    participant PM as PacketManager
+    participant Redis as RedisManager
+    participant SP as StrandProcessor
+    participant R as Room
+
+    Note over C,R: 1. 로그인
+    C->>W: LOGIN_REQUEST (UserID, PW)
+    W->>PM: Enqueue (GlobalQueue)
+    PM->>Redis: AUTH 요청 (비동기)
+    Redis-->>PM: AUTH 결과 콜백
+    PM->>C: LOGIN_RESPONSE (Result)
+
+    Note over C,R: 2. 방 입장
+    C->>W: ROOM_ENTER_REQUEST (RoomNumber)
+    W->>PM: Enqueue (GlobalQueue)
+    PM->>SP: EnqueueJob → Room LocalQueue
+    SP->>R: EnterUser() + 브로드캐스트 "[XXX] entered"
+    R->>C: ROOM_ENTER_RESPONSE
+    R-->>C: ROOM_CHAT_NOTIFY (전체)
+
+    Note over C,R: 3. 채팅
+    C->>W: ROOM_CHAT_REQUEST (Message)
+    W->>PM: Enqueue (GlobalQueue)
+    PM->>SP: EnqueueJob → Room LocalQueue
+    SP->>R: NotifyChat()
+    R->>C: ROOM_CHAT_RESPONSE
+    R-->>C: ROOM_CHAT_NOTIFY (전체 브로드캐스트)
+
+    Note over C,R: 4. 방 퇴장 / 연결 종료
+    C->>W: ROOM_LEAVE_REQUEST
+    W->>PM: Enqueue (GlobalQueue)
+    PM->>SP: EnqueueJob → Room LocalQueue
+    SP->>R: LeaveUser() + 브로드캐스트 "has left"
+    R->>C: ROOM_LEAVE_RESPONSE
+    SP-->>PM: STRAND_CALLBACK (USER_LEFT_ROOM)
+```
+
+> **패킷 프로토콜 전체 스펙** → [Docs/packet-protocol.md](Docs/packet-protocol.md)
 
 ---
 
@@ -665,6 +734,7 @@ git clone https://github.com/kanghyoungwoo/IOCPChatServer.git
 
 | 문서 | 내용 |
 |------|------|
+| [패킷 프로토콜 스펙](Docs/packet-protocol.md) | 전체 패킷 ID, 요청/응답 쌍, 바디 필드 상세, 주요 상수를 정리했습니다 |
 | [아키텍처 진화 과정](Docs/architecture-evolution.md) | Single-Thread에서 Lock-Free까지의 3단계 리팩토링 및 벤치마크 결과를 정리했습니다 |
 | [부하 테스트 리포트](Docs/load-test-results.md) | 10,000명 수용량 테스트, 스레드 최적화, CPU 포화 한계 분석을 담았습니다 |
 | [단위 테스트](Docs/unit-testing.md) | Google Test 100개 항목을 통한 자료구조, 패킷, User/Room/RoomManager 도메인 로직 검증 결과를 포함했습니다 |
