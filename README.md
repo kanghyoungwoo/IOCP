@@ -563,7 +563,29 @@ case Room::EnqueueResult::FAILED_DROPPED:
 - **Problem**: 서버 강제 종료 시 진행 중인 I/O와 DB 작업이 유실되고 메모리 누수 발생
 - **Solution**: 5단계 순차 종료 (Accept 차단 → 클라이언트 킥 + `CancelIoEx` → I/O Draining → PQCS 워커 종료 → 리소스 정리), DB 스레드는 queue draining 후 종료
 
-### Challenge 4: AcceptEx 빈 세션 탐색 O(N) → O(1)
+### Challenge 4: Partial Send 처리
+
+- **Problem**: `WSASend`는 비동기 I/O이므로 요청한 바이트보다 적게 전송이 완료되는 Partial Send가 발생할 수 있습니다. 이를 처리하지 않으면 메시지 일부가 유실됩니다.
+- **Cause**: TCP 스택이 커널 송신 버퍼 부족, 네트워크 혼잡 등의 이유로 한 번의 WSASend 완료에서 요청 크기보다 작은 `dwIoSize`를 반환할 수 있습니다.
+- **Solution**: `SendComplete()`에서 `dwIoSize < totalRequested`를 감지하면 완전히 전송된 버퍼는 Pool에 반납하고, 부분 전송된 버퍼는 포인터를 전진시켜 남은 데이터만 재전송합니다. 재시도는 최대 5회(`MAX_PARTIAL_RETRY`)로 제한하며 초과 시 해당 세션을 강제 종료합니다.
+
+```cpp
+// ClientSession.cpp — SendComplete()
+if (dwIoSize < totalRequested)   // Partial Send 감지
+{
+    ++mPartialSendRetryCount;
+    if (mPartialSendRetryCount > MAX_PARTIAL_RETRY)
+    {
+        DisconnectAsync(GetGeneration());  // 재시도 한계 초과 → 강제 종료
+        return;
+    }
+    // 완전 전송된 패킷은 Pool 반납, 부분 전송된 패킷은 포인터 전진 후 재전송
+    ...
+}
+mPartialSendRetryCount = 0;  // 정상 완료 시 카운터 리셋
+```
+
+### Challenge 5: AcceptEx 빈 세션 탐색 O(N) → O(1)
 
 - **Problem**: 10,000개 세션을 매번 선형 탐색하며 중복 AcceptEx 호출로 소켓 누수 발생
 - **Solution**: `LockFreeStack` 기반 FreeList로 O(1) Pop/Push, 서버 시작 시 100개만 AcceptEx를 게시하고 완료 시 Worker가 자동 보충
