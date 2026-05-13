@@ -83,18 +83,18 @@ stateDiagram-v2
     NONE --> LOGIN : LOGIN_REQUEST 성공 (Redis 인증 통과)
     NONE --> [*] : 인증 실패 / 타임아웃
 
-    LOGIN --> IN_ROOM : ROOM_ENTER_REQUEST 성공
+    LOGIN --> ROOM : ROOM_ENTER_REQUEST 성공
     LOGIN --> [*] : 타임아웃 / 강제 종료
 
-    IN_ROOM --> LOGIN : ROOM_LEAVE_REQUEST
-    IN_ROOM --> [*] : 타임아웃 / 강제 종료 (SYS_USER_DISCONNECT)
+    ROOM --> LOGIN : ROOM_LEAVE_REQUEST
+    ROOM --> [*] : 타임아웃 / 강제 종료 (SYS_USER_DISCONNECT)
 ```
 
 | 상태 | 의미 | 허용 패킷 |
 |------|------|-----------|
 | `NONE` | TCP 연결됨, 미인증 | `LOGIN_REQUEST` |
 | `LOGIN` | 인증 완료, 방 미입장 | `ROOM_ENTER_REQUEST` |
-| `IN_ROOM` | 방 입장 완료 | `ROOM_CHAT_REQUEST`, `ROOM_LEAVE_REQUEST` |
+| `ROOM` | 방 입장 완료 | `ROOM_CHAT_REQUEST`, `ROOM_LEAVE_REQUEST` |
 
 > 상태 외 패킷 수신 시 즉시 폐기 — `User::GetDomainState()` 검증 후 처리
 
