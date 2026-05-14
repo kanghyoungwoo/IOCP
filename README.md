@@ -717,6 +717,14 @@ git clone https://github.com/kanghyoungwoo/IOCPChatServer.git
 
 **단기 개선**
 
+- [ ] **ProcessThread(Dispatcher) 제거** — IO Worker가 Room 패킷을 StrandProcessor로 직접 라우팅
+  ```
+  현재: IO Worker → mutex+CV → ProcessThread → StrandProcessor
+  개선: IO Worker → StrandProcessor (lock-free CAS, 컨텍스트 스위치 0회)
+  로그인 등 비-Room 패킷은 경량 MPSCQueue + 전용 LoginThread로 분리
+  ```
+  모든 패킷 경로에서 mutex/condition_variable 제거, Dispatch 레이턴시 감소
+
 - [ ] **Room Sharding (대형 방 분할)** — 500명 방 1개 → 100명 서브그룹 5개로 분할
   ```
   채팅 1건 → 5개 서브그룹에 병렬 브로드캐스트
@@ -725,6 +733,14 @@ git clone https://github.com/kanghyoungwoo/IOCPChatServer.git
   Strand 직렬화 병목을 해소하면서 대형 방 지원이 가능해짐
 
 **장기 개선 (아키텍처 수준)**
+
+- [ ] **LMAX Disruptor 패턴 도입** — Dispatch 큐를 lock-free 링버퍼 기반 Disruptor로 교체
+  ```
+  Producer: fetch_add 1회로 슬롯 예약 (CAS 재시도 없음)
+  Consumer: sequence 번호로 준비된 슬롯만 폴링 (커널 진입 없음)
+  슬롯 미리 할당 → 동적 메모리 할당 0회, False Sharing 완전 제거
+  ```
+  금융 거래 시스템 수준의 큐 처리량 달성
 
 - [ ] **수평 확장 (Multi-Process Sharding)** — 방 번호 기반으로 여러 서버 프로세스에 분산
   ```
