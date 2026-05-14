@@ -740,7 +740,6 @@ git clone https://github.com/kanghyoungwoo/IOCPChatServer.git
   Consumer: sequence 번호로 준비된 슬롯만 폴링 (커널 진입 없음)
   슬롯 미리 할당 → 동적 메모리 할당 0회, False Sharing 완전 제거
   ```
-  금융 거래 시스템 수준의 큐 처리량 달성
 
 - [ ] **수평 확장 (Multi-Process Sharding)** — 방 번호 기반으로 여러 서버 프로세스에 분산
   ```
