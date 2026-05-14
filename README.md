@@ -106,63 +106,82 @@ stateDiagram-v2
 
 ```mermaid
 graph TD
-    subgraph External_Clients [Clients & Test Bots]
+    subgraph External ["Clients & Test Bots"]
         Clients((Real Clients))
         ChaosBot[Chaos Bot System]
         LoadTester[Chat Load Tester]
     end
 
-    subgraph Memory_Layer [Memory Management]
-        MemPool[Lock-Free Object Pool\nSession / PacketJob]
+    subgraph Network ["Network Layer — IOCompletionPort"]
+        ListenSock["Listen Socket\nAcceptEx ×100 Pending\nbacklog = SOMAXCONN"]
+        IOCP_Handle[IOCP Handle]
+        IOWorkers["I/O Worker Threads ×8\nGetQueuedCompletionStatusEx\nbatch ×64"]
+        SessionPool["ClientSession Pool ×10,000\nGeneration + RefCount"]
+        FreeStack["LockFreeStack\nFreeSessionIndex"]
+        SendPool["ObjectPool&lt;SendOverlappedEx&gt;\nGather Send ×64"]
+        TimeoutTh["Timeout Thread\nPing/Pong 30s\n좀비 감지 60s"]
+
+        ListenSock --> IOCP_Handle --> IOWorkers
+        IOWorkers -->|"Accept\nRecv / Send\nZombie Cleanup"| SessionPool
+        FreeStack -.->|"Pop / Push"| SessionPool
+        SendPool -.->|"Alloc / Free"| SessionPool
+        TimeoutTh -->|"Ping / DisconnectAsync"| SessionPool
     end
 
-    subgraph Network_Layer [Network Layer]
-        IOCP[IOCompletionPort]
-        WorkerThreads[I/O Worker Threads]
-        SessionPool[Client Session Pool]
-        IOCP --> WorkerThreads
-        WorkerThreads -->|Accept/Recv/Send| SessionPool
+    subgraph Dispatch ["Dispatch Layer — PacketManager"]
+        RingBuf["User RingBuffer\n유저별 TCP 스트림 조립\nmutex 보호"]
+        DblBuf["Double Buffering\nmWriteBuffer ↔ mReadBuffer\nmSystemWriteBuffer ↔ mSystemReadBuffer\nmutex + condition_variable"]
+        ProcessTh["ProcessThread (단일 스레드)\nRouter / Dispatcher"]
+        HandlerMap["Handler Map\nunordered_map&lt;UINT16, std::function&gt;"]
+        UserMgr["UserManager\nUser 배열 + ID Dictionary"]
+
+        RingBuf --> DblBuf
+        DblBuf -->|"swap O(1)"| ProcessTh
+        ProcessTh -->|"LOGIN / CONNECT 등\n비-Room 패킷"| HandlerMap
+        HandlerMap --> UserMgr
     end
 
-    subgraph Logic_Layer [Logic Layer]
-        RingBuf[RingBuffer\n유저별 수신 버퍼]
-        WriteBuffer[mWriteBuffer\nmutex + double buffering]
-        PacketManager[PacketManager\nProcessThread - Router]
-        UserMgr[UserManager]
-        RoomMgr[RoomManager]
+    subgraph Strand ["Strand Layer — StrandProcessor"]
+        JobPool["ObjectPool&lt;PacketJob&gt;\nLock-Free Alloc/Free\nABA 방지 TaggedIndex"]
+        RoomLocalQ["Room MPSC LocalQueue\nLock-Free CAS\n방 별 전용 큐"]
+        GlobalQ[("GlobalQueue\nLock-Free Ring Buffer\nSequence Number CAS\nalignas(64)")]
+        LogicTh["Logic Thread Pool ×10\nRoom 단위 직렬 처리"]
+        CallbackQ["Callback MPSC Queue\nLock-Free\nPhase::STRAND_CALLBACK"]
+        RoomMgr["RoomManager\nRoom 배열\nGeneration + IsBroken"]
 
-        subgraph Strand [StrandProcessor]
-            RoomQueue[Room MPSC LocalQueue\nLock-Free]
-            GQ[(GlobalQueue\nLock-Free Ring Buffer)]
-            LogicThreads[Logic Thread Pool]
-            RoomQueue --> GQ --> LogicThreads
-        end
-
-        WorkerThreads -->|raw bytes| RingBuf
-        WorkerThreads -->|clientIndex + generation| WriteBuffer
-        WriteBuffer -->|swap O1| PacketManager
-        PacketManager -->|LOGIN 등 비-Room 패킷| UserMgr
-        PacketManager -->|ROOM 패킷| RoomQueue
-        LogicThreads -->|StrandCallback\n상태 변경| PacketManager
+        JobPool -->|"Alloc PacketJob"| RoomLocalQ
+        RoomLocalQ -->|"첫 패킷만\nGlobalQueue Push"| GlobalQ
+        GlobalQ -->|"Pop Room"| LogicTh
+        LogicTh -->|"채팅 · 입장 · 퇴장\n브로드캐스트"| RoomMgr
+        LogicTh -->|"상태 변경 콜백\nFREE_USER · LEFT · ENTERED"| CallbackQ
     end
 
-    subgraph DB_Layer [Async DB Layer]
-        direction LR
-        RedisMgr[RedisManager]
-        MySQLMgr[MySQLManager]
+    subgraph DB ["Async DB Layer"]
+        Redis["RedisManager\n전용 Thread Pool\nmutex + CV\n로그인 인증"]
+        MySQL["MySQLManager\n전용 Thread Pool\nmutex + CV\n활동 로그 기록"]
     end
 
-    External_Clients <-->|TCP Socket| IOCP
-    MemPool -.->|Allocate / Free| SessionPool
-    MemPool -.->|Alloc / Free PacketJob| Strand
-    PacketManager -->|Push Task| RedisMgr
-    PacketManager -->|Push Task| MySQLMgr
+    External <-->|"TCP Socket"| ListenSock
+    IOWorkers -->|"OnReceive\nraw bytes → RingBuffer"| RingBuf
+    IOWorkers -->|"OnReceive\nclientIndex + generation"| DblBuf
+    IOWorkers -->|"OnConnect / OnClose\n시스템 패킷"| DblBuf
+    ProcessTh -->|"ROOM 패킷\nEnqueueJob"| RoomLocalQ
+    CallbackQ -->|"PopCallback\nProcessThread에서 소비"| ProcessTh
+    ProcessTh -->|"LOGIN_REQUEST\nRedis 인증 요청"| Redis
+    Redis -->|"RESPONSE_LOGIN\n인증 결과"| ProcessTh
+    ProcessTh -->|"INSERT 로그\n방 입장 · 채팅"| MySQL
+    RoomMgr -->|"SendPacketFunc\nWSASend"| SessionPool
 
-    classDef core fill:#f9f,stroke:#333,stroke-width:2px;
-    class RoomQueue,GQ,MemPool core;
+    classDef lockfree fill:#e6f3ff,stroke:#0066cc,stroke-width:2px;
+    classDef mutex fill:#fff3e6,stroke:#cc6600,stroke-width:2px;
+    classDef thread fill:#e6ffe6,stroke:#006600,stroke-width:2px;
+
+    class RoomLocalQ,GlobalQ,JobPool,FreeStack,SendPool,CallbackQ lockfree;
+    class DblBuf,Redis,MySQL mutex;
+    class IOWorkers,ProcessTh,LogicTh,TimeoutTh thread;
 ```
 
-> **패킷 흐름**: Client → WSARecv(IOCP) → **유저별 RingBuffer** 조립 → clientIndex를 **double buffering 큐**(mutex)에 push → ProcessThread가 swap 후 DomainState 확인 → ROOM 패킷이면 **Room MPSC LocalQueue**(Lock-Free)에 enqueue → **Lock-Free GlobalQueue**(링버퍼)를 통해 Logic Thread가 Room 단위로 직렬화 처리 → BroadcastChat → **Object Pool**에서 PacketJob 반환 → WSASend → I/O 완료 후 Pool 반환
+> **패킷 흐름**: Client → WSARecv 완료(IOCP Worker) → **유저별 RingBuffer**에 raw bytes 저장 + clientIndex를 **double buffering 큐**(mutex)에 push → ProcessThread가 swap 후 RingBuffer에서 패킷 조립 → DomainState 확인 → ROOM 패킷이면 **ObjectPool**에서 PacketJob 할당 → **Room MPSC LocalQueue**(Lock-Free CAS)에 enqueue → 첫 패킷이면 Room을 **Lock-Free GlobalQueue**(링버퍼)에 push → Logic Thread가 Room 단위로 직렬 처리(채팅 브로드캐스트) → **Callback MPSC Queue**로 상태변경 통보 → ProcessThread가 PopCallback으로 UserManager 상태 갱신 + MySQL 로그 기록 → PacketJob을 ObjectPool에 반환
 
 ### 핵심 기술 도전: 측정 기반의 병목 추적과 Lock-Free 전환
 

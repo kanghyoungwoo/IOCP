@@ -7,7 +7,7 @@
 #include <thread>
 #include <intrin.h>
 
-//#define USE_LOCKFREE_GLOBAL_QUEUE
+#define USE_LOCKFREE_GLOBAL_QUEUE
 
 #ifdef USE_LOCKFREE_GLOBAL_QUEUE
     #include "GlobalQueue_LockFree.h"
