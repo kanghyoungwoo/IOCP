@@ -113,7 +113,7 @@ graph TD
     end
 
     subgraph Memory_Layer [Memory Management]
-        MemPool[Lock-Free Object Pool\nSession / Packet]
+        MemPool[Lock-Free Object Pool\nSession / PacketJob]
     end
 
     subgraph Network_Layer [Network Layer]
@@ -125,16 +125,25 @@ graph TD
     end
 
     subgraph Logic_Layer [Logic Layer]
-        PacketManager[PacketManager]
-        GlobalQueue[(MPSC Lock-Free Queue)]
-        StrandProcessor[Strand Processor]
-        RoomMgr[RoomManager]
+        RingBuf[RingBuffer\n유저별 수신 버퍼]
+        WriteBuffer[mWriteBuffer\nmutex + double buffering]
+        PacketManager[PacketManager\nProcessThread - Router]
         UserMgr[UserManager]
-        WorkerThreads -->|Enqueue Packet\nLock-Free| GlobalQueue
-        GlobalQueue -->|Dequeue| PacketManager
-        PacketManager -->|Dispatch Task| StrandProcessor
-        StrandProcessor -->|Serialized Execution\nNo Mutex| RoomMgr
-        StrandProcessor -->|Serialized Execution\nNo Mutex| UserMgr
+        RoomMgr[RoomManager]
+
+        subgraph Strand [StrandProcessor]
+            RoomQueue[Room MPSC LocalQueue\nLock-Free]
+            GQ[(GlobalQueue\nLock-Free Ring Buffer)]
+            LogicThreads[Logic Thread Pool]
+            RoomQueue --> GQ --> LogicThreads
+        end
+
+        WorkerThreads -->|raw bytes| RingBuf
+        WorkerThreads -->|clientIndex + generation| WriteBuffer
+        WriteBuffer -->|swap O1| PacketManager
+        PacketManager -->|LOGIN 등 비-Room 패킷| UserMgr
+        PacketManager -->|ROOM 패킷| RoomQueue
+        LogicThreads -->|StrandCallback\n상태 변경| PacketManager
     end
 
     subgraph DB_Layer [Async DB Layer]
@@ -145,15 +154,15 @@ graph TD
 
     External_Clients <-->|TCP Socket| IOCP
     MemPool -.->|Allocate / Free| SessionPool
-    MemPool -.->|Allocate / Free| PacketManager
-    RoomMgr -->|Push Task| RedisMgr
-    RoomMgr -->|Push Task| MySQLMgr
+    MemPool -.->|Alloc / Free PacketJob| Strand
+    PacketManager -->|Push Task| RedisMgr
+    PacketManager -->|Push Task| MySQLMgr
 
     classDef core fill:#f9f,stroke:#333,stroke-width:2px;
-    class StrandProcessor,GlobalQueue,MemPool core;
+    class RoomQueue,GQ,MemPool core;
 ```
 
-> **패킷 흐름**: Client → WSARecv(IOCP) → RingBuffer → PacketJob 생성 + Generation Token → **Lock-Free GlobalQueue** → PacketManager → **Strand**(Room별 직렬화) → Room::BroadcastChat → **Object Pool**에서 SendBuffer 할당 → WSASend → I/O 완료 후 Pool 반환
+> **패킷 흐름**: Client → WSARecv(IOCP) → **유저별 RingBuffer** 조립 → clientIndex를 **double buffering 큐**(mutex)에 push → ProcessThread가 swap 후 DomainState 확인 → ROOM 패킷이면 **Room MPSC LocalQueue**(Lock-Free)에 enqueue → **Lock-Free GlobalQueue**(링버퍼)를 통해 Logic Thread가 Room 단위로 직렬화 처리 → BroadcastChat → **Object Pool**에서 PacketJob 반환 → WSASend → I/O 완료 후 Pool 반환
 
 ### 핵심 기술 도전: 측정 기반의 병목 추적과 Lock-Free 전환
 
