@@ -18,6 +18,10 @@ void PrintUsage()
 	printf("  -workers <count>     IOCP Worker 스레드 수 (기본: 2)\n");
 	printf("  -id <instance_id>    인스턴스 ID 0~3 (기본: 0)\n");
 	printf("  -csv <filepath>      CSV 출력 파일 (기본: metrics.csv)\n");
+	printf("  -rooms <count>       방 수 (기본: 1250)\n");
+	printf("  -usersperroom <count> 방당 최대 유저 수 (기본: 8)\n");
+	printf("  -chatmin <ms>        채팅 최소 간격 ms (기본: 3000)\n");
+	printf("  -chatmax <ms>        채팅 최대 간격 ms (기본: 10000)\n");
 	printf("\n");
 }
 
@@ -41,6 +45,14 @@ Config ParseArgs(int argc, char* argv[])
 			config.InstanceId = (uint32_t)atoi(argv[++i]);
 		else if (arg == "-csv" && i + 1 < argc)
 			config.CsvFilePath = argv[++i];
+		else if (arg == "-rooms" && i + 1 < argc)
+			config.RoomCount = (uint32_t)atoi(argv[++i]);
+		else if (arg == "-usersperroom" && i + 1 < argc)
+			config.MaxUsersPerRoom = (uint32_t)atoi(argv[++i]);
+		else if (arg == "-chatmin" && i + 1 < argc)
+			config.ChatIntervalMinMs = (uint32_t)atoi(argv[++i]);
+		else if (arg == "-chatmax" && i + 1 < argc)
+			config.ChatIntervalMaxMs = (uint32_t)atoi(argv[++i]);
 	}
 
 	return config;
@@ -57,8 +69,7 @@ int main(int argc, char* argv[])
 	printf("  서버: %s:%u\n", config.ServerIP.c_str(), config.ServerPort);
 	printf("  인스턴스 ID: %u\n", config.InstanceId);
 	printf("  봇 수: %u\n", config.BotCount);
-	//printf("  Worker 스레드: %u\n", config.WorkerThreadCount);
-	printf("  -workers <count>     IOCP Worker 스레드 수 (기본: 2)\n");
+	printf("  Worker 스레드: %u\n", config.WorkerThreadCount);
 	printf("  채팅 간격: %u~%u ms\n", config.ChatIntervalMinMs, config.ChatIntervalMaxMs);
 	printf("  방 수: %u (방당 %u명)\n", config.RoomCount, config.MaxUsersPerRoom);
 	printf("  CSV: %s\n", config.CsvFilePath.c_str());
