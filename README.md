@@ -36,7 +36,7 @@ IOCP 기반의 고성능 채팅서버로, `std::mutex` 기반에서 시작하여
 |------|------|------|
 | 안정 처리량 (CPU 75%) | **379K recv_pkt/s** | 500방 × 20명, Avg 28ms — LockFree (L8/IO16, chatMin 200ms) |
 | 최대 안정 처리량 (CPU 95%) | **539K recv_pkt/s** | 500방 × 20명, Avg 32ms — LockFree (L16/IO8, chatMin 100ms) |
-| 동시접속 | **10,000명** | 연결실패 < 2건, 메모리 394MB 고정 |
+| 동시접속 | **10,000명** | 연결실패 0건, 메모리 394MB 고정 |
 | p99 지연시간 개선 | **500ms → 15.5ms** | 97% 개선 (Lock-Free 전환 후) |
 | 메모리 누수 | **0 bytes** | VS 힙 스냅샷 +0 Bytes 교차 검증 |
 | Zero-Allocation | **Alloc Fail 0건** | Lock-Free Object Pool, 핫패스 할당 없음 |
