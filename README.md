@@ -34,9 +34,8 @@ IOCP 기반의 고성능 채팅서버로, `std::mutex` 기반에서 시작하여
 
 | 지표 | 수치 | 조건 |
 |------|------|------|
-| 안정 처리량 (CPU 75%) | **379K recv_pkt/s** | 500방 × 20명, Avg 28ms — **LockFree** (L8/IO16, chatMin 200ms) |
-| 최대 안정 처리량 (CPU 95%) | **539K recv_pkt/s** | 500방 × 20명, Avg 32ms — **LockFree** (L16/IO8, chatMin 100ms) |
-| 측정 처리량 (CPU 90%) | **884K broadcast ops/s** | 500방 × 20명, Avg 49.2ms — **MutexCV** (W8/IO8/L4, chat 3~5초) |
+| 안정 처리량 (CPU 75%) | **379K recv_pkt/s** | 500방 × 20명, Avg 28ms — LockFree (L8/IO16, chatMin 200ms) |
+| 최대 안정 처리량 (CPU 95%) | **539K recv_pkt/s** | 500방 × 20명, Avg 32ms — LockFree (L16/IO8, chatMin 100ms) |
 | 동시접속 | **10,000명** | 연결실패 < 2건, 메모리 394MB 고정 |
 | p99 지연시간 개선 | **500ms → 15.5ms** | 97% 개선 (Lock-Free 전환 후) |
 | 메모리 누수 | **0 bytes** | VS 힙 스냅샷 +0 Bytes 교차 검증 |
@@ -639,14 +638,14 @@ case Room::EnqueueResult::FAILED_DROPPED:
 | **SendPool Alloc Fail** | **0회** | 전 테스트 구간 누적 |
 | **JobPool Alloc Fail** | **0회** | Pool 고갈 없이 안정 순환 |
 
-### CPU 포화 한계 테스트 — MutexCV 아키텍처 (chat 3~5초)
+### 방 구성별 한계 탐색 (채팅 간격 3~5초, MutexCV 아키텍처)
 
-| 시나리오 | 구성 | 처리량 | CPU | 평균 지연 |
-|----------|------|--------|-----|-----------|
-| 소수 대형방 | 200방 × 50명 | **288K ops/s** | 50% | 20.7ms |
-| 다수 소형방 | 500방 × 20명 | **884K ops/s** | 90% | 49.2ms |
+| 시나리오 | 구성 | CPU | 평균 지연 | 비고 |
+|----------|------|-----|-----------|------|
+| 소수 대형방 | 200방 × 50명 | 50% | 20.7ms | 여유 있음 |
+| 다수 소형방 | 500방 × 20명 | 90% | 49.2ms | IOCP 포화 구간 |
 
-> 위 수치는 v2 MutexCV 아키텍처에서 채팅 간격 3~5초로 측정한 결과입니다. v3 LockFree 아키텍처의 고빈도 채팅 한계 탐색은 아래 표를 참조해 주십시오.
+> v3 LockFree 아키텍처의 고빈도 채팅 한계 탐색은 아래 표를 참조해 주십시오.
 
 ### 채팅 빈도별 한계 탐색 — LockFree 아키텍처, 안정 한계선(Knee of the Curve) 확인
 
