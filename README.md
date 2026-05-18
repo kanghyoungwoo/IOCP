@@ -20,10 +20,9 @@ Lock-Free 자료구조(MPSC Queue), Strand 패턴, Object Pool을 라이브러�
 7. [메모리 관리 전략](#7-메모리-관리-전략)
 8. [동기화 전략](#8-동기화-전략)
 9. [네트워크 구조](#9-네트워크-구조)
-10. [트러블 슈팅](#10-트러블-슈팅)
-11. [실행 방법](#11-실행-방법)
-12. [시연 영상](#12-시연-영상)
-13. [향후 개선 사항](#13-향후-개선-사항)
+10. [실행 방법](#10-실행-방법)
+11. [시연 영상](#11-시연-영상)
+12. [향후 개선 사항](#12-향후-개선-사항)
 
 ---
 
@@ -144,6 +143,65 @@ mPartialSendRetryCount = 0;
 ```
 
 **[Result]** 메모리 재할당 없이 Partial Send를 방어합니다. 잔여 전송 데이터는 기존 버퍼 포인터만 조작하여 즉시 재전송하므로, 핫패스의 Zero-Allocation 원칙을 유지합니다.
+
+---
+
+### 3-5. TCP Stream 패킷 경계 처리
+
+**[Issue]** TCP는 스트림 기반 프로토콜로 패킷 경계가 없어서, 여러 패킷이 합쳐지거나 분할되어 수신될 수 있습니다.
+
+**[Action]** 고정 길이 헤더(`PACKET_HEADER`) + `RingBuffer`를 도입하여 `User::GetPacket()`에서 헤더 peek → 전체 길이 확인 → 정확한 바이트 수만큼 read하는 방식으로 처리합니다.
+
+**[Result]** 분할/병합 수신 상황에서도 패킷 경계를 정확히 복원합니다.
+
+---
+
+### 3-6. 비동기 이벤트 상태 불일치 방어 (Generation Token)
+
+**[Issue]** I/O 스레드가 작업을 생성한 후 큐에 넣기 전 사이에 다른 스레드가 사용자 상태를 변경하면, 무효화된 작업이 처리되는 Race Condition이 발생합니다.
+
+**[Action]** `User`에 Generation Token을 도입하여 패킷 작업 생성 시 토큰 값을 함께 기록합니다. Logic Thread가 처리 시점에 현재 토큰 값과 비교하여, 불일치 시 즉시 폐기합니다.
+
+**[Result]** 세션 재사용 시나리오(연결 해제 → 즉시 재접속)에서 이전 세대의 작업이 새 세션에 영향을 주는 버그를 원천 차단합니다.
+
+---
+
+### 3-7. Graceful Shutdown 5단계 순차 종료
+
+**[Issue]** 서버 강제 종료 시 진행 중인 I/O와 DB 작업이 유실되고 메모리 누수가 발생했습니다.
+
+**[Action]** 5단계 순차 종료를 구현했습니다.
+1. Accept 차단 — 신규 연결 거부
+2. 전체 클라이언트 킥 + `CancelIoEx`로 진행 중 I/O 취소
+3. I/O Draining — 모든 완료 통지 소진 대기
+4. IOCP Worker 스레드 종료
+5. 리소스 정리 — Pool, 소켓, 핸들 반납
+
+DB 스레드(Redis/MySQL)는 작업 큐를 완전히 소진한 후 종료합니다.
+
+**[Result]** 종료 순간에도 데이터 유실 없이 클린하게 리소스를 반납합니다.
+
+---
+
+### 3-8. AcceptEx 빈 세션 탐색 O(N) → O(1)
+
+**[Issue]** 10,000개 세션을 매번 선형 탐색하며 빈 슬롯을 찾고, 중복 AcceptEx 호출로 소켓 누수가 발생했습니다.
+
+**[Action]** `LockFreeStack` 기반 FreeList로 빈 세션 인덱스를 관리합니다. 서버 시작 시 100개만 AcceptEx를 게시하고, 완료 시 Worker가 자동으로 1개씩 보충합니다.
+
+**[Result]** 빈 세션 탐색이 O(N) → O(1)로 개선되고, AcceptEx 중복 호출로 인한 소켓 누수가 사라졌습니다.
+
+---
+
+### Edge Case 방어
+
+| 공격 시나리오 | 방어 로직 |
+|---------------|-----------|
+| **비정상 패킷 크기** (헤더 조작) | `GetPacket()`에서 PacketLength 상한/하한 검증 후 오염된 링버퍼 `Clear()` |
+| **링버퍼 오버플로우** (대량 전송) | `SetPacketData()` 반환값으로 오버플로우 감지 → `DisconnectAsync()` |
+| **Slowloris 변형** (1바이트씩 전송) | 활동 시간 갱신 시점을 WSARecv 완료 → 완전한 패킷 조립 성공 시로 이동 |
+
+> 상세 사례는 [카오스 엔지니어링](Docs/chaos-engineering.md) 문서를 참조해 주십시오.
 
 ---
 
@@ -587,41 +645,7 @@ sequenceDiagram
 
 ---
 
-## 10. 트러블 슈팅
-
-### Challenge 1: TCP Stream 패킷 경계
-
-- **Problem**: TCP는 스트림 기반 프로토콜로 패킷 경계가 없어서, 여러 패킷이 합쳐지거나 분할되어 수신될 수 있음
-- **Solution**: 고정 길이 헤더(`PACKET_HEADER`) + `RingBuffer`를 도입하여 `User::GetPacket()`에서 헤더 peek → 전체 길이 확인 → 정확한 바이트 수만큼 read
-
-### Challenge 2: 비동기 이벤트 상태 불일치 (Generation Token)
-
-- **Problem**: I/O 스레드가 작업을 생성한 후 큐에 넣기 전 사이에 다른 스레드가 사용자 상태를 변경하면, 무효화된 작업이 처리됨
-- **Solution**: `User`에 Generation Token을 도입하여 패킷 작업 생성 시 토큰 값을 기록, 처리 시 비교하여 불일치 시 폐기
-
-### Challenge 3: Graceful Shutdown
-
-- **Problem**: 서버 강제 종료 시 진행 중인 I/O와 DB 작업이 유실되고 메모리 누수 발생
-- **Solution**: 5단계 순차 종료 (Accept 차단 → 클라이언트 킥 + `CancelIoEx` → I/O Draining → PQCS 워커 종료 → 리소스 정리), DB 스레드는 queue draining 후 종료
-
-### Challenge 4: AcceptEx 빈 세션 탐색 O(N) → O(1)
-
-- **Problem**: 10,000개 세션을 매번 선형 탐색하며 중복 AcceptEx 호출로 소켓 누수 발생
-- **Solution**: `LockFreeStack` 기반 FreeList로 O(1) Pop/Push, 서버 시작 시 100개만 AcceptEx를 게시하고 완료 시 Worker가 자동 보충
-
-### Edge Case 방어
-
-| 공격 시나리오 | 방어 로직 |
-|---------------|-----------|
-| **비정상 패킷 크기** (헤더 조작) | `GetPacket()`에서 PacketLength 상한/하한 검증 후 오염된 링버퍼 `Clear()` |
-| **링버퍼 오버플로우** (대량 전송) | `SetPacketData()` 반환값으로 오버플로우 감지 → `DisconnectAsync()` |
-| **Slowloris 변형** (1바이트씩 전송) | 활동 시간 갱신 시점을 WSARecv 완료 → 완전한 패킷 조립 성공 시로 이동 |
-
-> 상세 사례는 [기술적 도전과 해결](Docs/technical-challenges.md), [카오스 엔지니어링](Docs/chaos-engineering.md) 문서를 참조해 주십시오.
-
----
-
-## 11. 실행 방법
+## 10. 실행 방법
 
 ### Quick Start (DB 불필요)
 
@@ -638,7 +662,7 @@ git clone https://github.com/kanghyoungwoo/IOCPChatServer.git
 
 ---
 
-## 12. 시연 영상
+## 11. 시연 영상
 
 ![서로다른채팅방](https://github.com/user-attachments/assets/1d0586ef-4a7d-4af5-ab42-e74c615e3a07)
 
@@ -646,7 +670,7 @@ git clone https://github.com/kanghyoungwoo/IOCPChatServer.git
 
 ---
 
-## 13. 향후 개선 사항
+## 12. 향후 개선 사항
 
 - [x] ~~std::function 기반 패킷 핸들러로 리팩토링~~
 - [x] ~~MySQL 연동하여 사용자 활동 로그 기록~~
