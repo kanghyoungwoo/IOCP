@@ -693,12 +693,6 @@ git clone https://github.com/kanghyoungwoo/IOCPChatServer.git
   ```
   모든 패킷 경로에서 mutex/condition_variable 제거, Dispatch 레이턴시 감소
 
-- [ ] **Room Sharding (대형 방 분할)** — 500명 방 1개 → 100명 서브그룹 5개로 분할
-  ```
-  채팅 1건 → 5개 서브그룹에 병렬 브로드캐스트
-  각 서브그룹은 별도 스레드에서 독립 WSASend
-  ```
-  Strand 직렬화 병목을 해소하면서 대형 방 지원이 가능해짐
 
 **장기 개선 (아키텍처 수준)**
 
