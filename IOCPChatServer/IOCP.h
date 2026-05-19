@@ -74,9 +74,9 @@ private:
 	// 클라이언트의 index로 해당 client의 info를 반환하는 함수
 	ClientSession* GetClientInfo(const UINT32 clientSessionIndex)
 	{
-		if (clientSessionIndex >= mClientInfos.size())
+		if (clientSessionIndex >= mMaxClientCount)
 			return nullptr;
-		return mClientInfos[clientSessionIndex].get();
+		return &mClientInfos[clientSessionIndex];
 	}
 
 	// Overlapped I/O 작업에 대한 완료 통보를 받아 그에 해당하는 처리를 하는 함수
@@ -130,7 +130,9 @@ private:
 
 	// ClientSession 객체는 서버 수명 동안 유지 (unique_ptr로 소유)
 	// raw pointer로 접근하지만 생명주기는 unique_ptr이 관리
-	std::vector<std::unique_ptr<ClientSession>> mClientInfos;
+	//std::vector<std::unique_ptr<ClientSession>> mClientInfos;
+	std::unique_ptr<ClientSession[]> mClientInfos;
+	UINT32 mMaxClientCount = 0;
 
 	ObjectPool<SendOverlappedEx> mSendBufferPool;
 

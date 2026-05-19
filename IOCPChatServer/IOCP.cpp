@@ -146,17 +146,17 @@ void IOCompletionPort::DestroyThread()
 
 
 	//  클라이언트 강제종료 + IO 취소
-	for (auto& client : mClientInfos)
+	for (UINT32 i = 0; i < mMaxClientCount; ++i)
 	{
 		// 1. 소켓이 아직 살아있다면, 걸려있는 비동기 I/O들을 강제로 취소
 		// 이후 워커 스레드에서 dwIoSize == 0 또는 ERROR_OPERATION_ABORTED 로 뱉어냄
-		if (client->GetSocket() != INVALID_SOCKET)
+		if (mClientInfos[i].GetSocket() != INVALID_SOCKET)
 		{
-			CancelIoEx((HANDLE)client->GetSocket(), NULL);
+			CancelIoEx((HANDLE)mClientInfos[i].GetSocket(), NULL);
 		}
 
 		// 2. Base Ref 해제 및 뒷정리
-		CloseSocket(client.get(), true);
+		CloseSocket(&mClientInfos[i], true);
 	}
 	LOG_DEBUG("step2 모든 클라이언트 강제 종료 완료\n");
 
@@ -173,9 +173,9 @@ void IOCompletionPort::DestroyThread()
 	while (elapsed < MAX_DRAIN_WAIT_MS)
 	{
 		allDrained = true;
-		for (auto& client : mClientInfos)
+		for (UINT32 i = 0; i < mMaxClientCount; ++i)
 		{
-			if (client->GetRefCount() > 0)
+			if (mClientInfos[i].GetRefCount() > 0)
 			{
 				allDrained = false;
 				break;
@@ -265,12 +265,11 @@ void IOCompletionPort::TryPostAcceptEx()
 void IOCompletionPort::CreateClient(const int maxClientCount)
 {
 	mSendBufferPool.Init(maxClientCount * 20); // maxclient 2000일때 2000, 10000이면 400
-
+	mMaxClientCount = static_cast<UINT32>(maxClientCount);
+	mClientInfos = std::make_unique<ClientSession[]>(maxClientCount);
 	for (int i = 0;i < maxClientCount;++i)
 	{
-		auto client = std::make_unique<ClientSession>();
-		client->Init(i, mIOCPHandle, &mSendBufferPool);
-		mClientInfos.emplace_back(std::move(client));
+		mClientInfos[i].Init(i, mIOCPHandle, &mSendBufferPool);
 	}
 
 	mSessionNodes.resize(maxClientCount);
@@ -310,13 +309,9 @@ void IOCompletionPort::TimeoutCheckThread()
 	{
 		ULONGLONG now = GetTickCount64();
 
-		for (size_t i = 0;i < mClientInfos.size();i++)
+		for (UINT32 i = 0; i < mMaxClientCount; i++)
 		{
 			ClientSession* pSession = GetClientInfo(i);
-
-			// 연결이 안되었으면 건너뜀
-			if (pSession == nullptr)
-				continue;
 
 			UINT32 genBefore = pSession->GetGeneration();	// gen 캡쳐
 			if (!pSession->IsConnected())

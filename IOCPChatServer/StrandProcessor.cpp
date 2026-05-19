@@ -46,7 +46,7 @@ void StrandProcessor::EnqueueJob(Room* pRoom, uint32_t clientIndex, uint32_t tar
         LOG_ERROR_ONCE("Job Pool 소진. packet drop.\n");
         return;
     }
-
+    // 구조체 변수 직접 덮어쓰는 방식을 통한 초기화
     pJob->phase = PacketJob::Phase::JOB;
     pJob->clientIndex = clientIndex;
     //pJob->roomIndex = pRoom->GetRoomNumber();
