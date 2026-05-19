@@ -702,13 +702,6 @@ git clone https://github.com/kanghyoungwoo/IOCPChatServer.git
 
 **장기 개선 (아키텍처 수준)**
 
-- [ ] **LMAX Disruptor 패턴 도입** — Dispatch 큐를 lock-free 링버퍼 기반 Disruptor로 교체
-  ```
-  Producer: fetch_add 1회로 슬롯 예약 (CAS 재시도 없음)
-  Consumer: sequence 번호로 준비된 슬롯만 폴링 (커널 진입 없음)
-  슬롯 미리 할당 → 동적 메모리 할당 0회, False Sharing 완전 제거
-  ```
-
 - [ ] **수평 확장 (Multi-Process Sharding)** — 방 번호 기반으로 여러 서버 프로세스에 분산
   ```
   Server A: Room 0~9
