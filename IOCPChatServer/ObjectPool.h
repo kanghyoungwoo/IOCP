@@ -79,6 +79,20 @@ public:
 	// 사용이 끝난 객체를 풀에 반납한다.
 	void Free(T* obj)
 	{
+		// 풀 범위 밖 포인터 차단
+		if (obj < m_poolBlock || obj >= m_poolBlock + mPoolSize)
+		{
+			assert(false && "ObjectPool::Free - pointer out of pool range");
+			return;
+		}
+
+		// 정렬 오류 차단 (풀 내부이지만 객체 경계가 아닌 위치)
+		if ((obj - m_poolBlock) * sizeof(T) % sizeof(T) != 0)
+		{
+			assert(false && "ObjectPool::Free - misaligned pointer");
+			return;
+		}
+
 		if (obj == nullptr)
 		{
 			return;

@@ -41,31 +41,6 @@ public:
 
 	void Init(T* poolBase) { m_pool = poolBase; }
 
-	//void Push(T* obj)
-	//{
-	//	// 우선은 m_head 값을 읽어와서 oldHead라는 변수에 임시로 저장
-	//	// 처음 읽어올때 다른 스레드에서 메모리 동기화 불필요, 그래서 relaxed 사용
-	//	TaggedPointer oldHead = m_head.load(std::memory_order_relaxed);
-	//
-	//	while (true)
-	//	{
-	//		obj->poolNext = oldHead.ptr;
-	//
-	//		TaggedPointer newHead;
-	//		newHead.ptr = obj;
-	//		newHead.generation = oldHead.generation + 1;
-	//
-	//
-	//		if (m_head.compare_exchange_weak(
-	//			oldHead,
-	//			newHead,
-	//			std::memory_order_release,	// 성공시 이전 쓰기들이 다른 스레드에서 보이게
-	//			std::memory_order_relaxed	// 실패시 주소만 필요하니 다시 읽기
-	//		))
-	//			break;
-	//	}
-
-	//}
 
 	void Push(T* obj)
 	{
@@ -86,32 +61,6 @@ public:
 		}
 	}
 
-	// 풀에서 빈 객체를 꺼낸다, 없으면 nullptr
-	//T* Pop()
-	//{
-	//	// 우선은 머리 포인터
-	//	TaggedPointer oldHead = m_head.load(std::memory_order_relaxed);
-	//	while (true)
-	//	{
-	//		//  비어있는지 확인
-	//		if (oldHead.ptr == nullptr)
-	//			return nullptr;
-	//		//  준비 (newHead 만들기, 다음 노드)
-	//		TaggedPointer newHead;
-	//		newHead.ptr = oldHead.ptr->poolNext;
-	//		newHead.generation = oldHead.generation + 1;
-	//		//  CAS
-	//		if (m_head.compare_exchange_weak(
-	//			oldHead,
-	//			newHead,
-	//			std::memory_order_acquire,	// 성공, oldHead.ptr의 데이터를 안전하게 읽기 위해 acquire
-	//			std::memory_order_relaxed	// 실패, 다음 루프를 위한 최소한의 상태를 읽음
-	//		))
-	//		{
-	//			return oldHead.ptr;
-	//		}
-	//	}
-	//}
 	T* Pop()
 	{
 		uint64_t oldHead = m_head.load(std::memory_order_relaxed);
