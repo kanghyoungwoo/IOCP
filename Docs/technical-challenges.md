@@ -34,6 +34,27 @@
 - **Approach**: FreeList를 도입하여 O(1) Pop/Push로 빈 세션을 관리하고, 서버 시작 시 100개만 미리 AcceptEx를 걸어둔 뒤 워커 스레드가 완료 시 1개씩 보충.
 - **Solution**: AccepterThread를 제거하고 `PopFreeSessionIndex()`/`PushFreeSessionIndex()`로 세션을 관리하며 ACCEPT 완료 시 워커 스레드가 자동으로 AcceptEx를 보충. 커널에는 항상 ~100개의 대기 소켓만 유지.
 
+### Challenge 6: 비동기 I/O 완료 전 세션 재사용 방지
+
+- **Problem**: IOCP 환경에서 클라이언트가 연결을 끊으면 세션을 즉시 풀에 반납하고 싶지만,
+  `CancelIoEx()` 이후에도 이미 커널에 등록된 WSARecv / WSASend 완료 통보가
+  워커 스레드로 뒤늦게 도착할 수 있음.
+  세션을 너무 일찍 반납하면 새로운 클라이언트에게 재할당된 슬롯에
+  이전 클라이언트의 완료 통보가 덮어써 데이터 오염 및 크래시 발생.
+
+- **Approach**: 세션 슬롯의 생명주기를 "소켓 연결 시간"이 아닌 
+  "진행 중인 I/O 연산 수"로 추적.
+  I/O를 등록할 때마다 `AddRef()`, 완료 통보를 처리할 때마다 `ReleaseRef()`하여
+  참조 카운트가 0이 될 때만 세션을 풀에 반납.
+
+- **Solution**: `ClientSession`에 `std::atomic<int> mRefCount` 도입.
+  `BindRecv()` / `SendIO()` / `PostImmediateAccept()` 진입 시 `AddRef()`,
+  WorkerThread의 각 완료 처리 끝단에 `ReleaseRef()`.
+  `ReleaseRef()`가 0을 반환하는 시점에만 `Clear()` → `PushFreeSessionIndex()`를 호출하여
+  모든 커널 I/O가 소진된 이후에만 세션 슬롯을 재사용 가능 상태로 전환.
+  Generation Token(Challenge 3)이 잘못된 연결의 패킷을 걸러낸다면,
+  RefCount는 아직 I/O가 남은 슬롯의 조기 반납을 막는 보완적 안전장치.
+
 ---
 
 ## Edge Case 방어 로직
