@@ -10,11 +10,7 @@ class LockFreeStack
 {
 	// 구조체 (16바이트, Lock-Free용 인덱스)
 	//// 16바이트 정렬 선언하여 하드웨어 128비트 CAS에서 확실하게 하도록
-	//struct alignas(16) TaggedPointer {
-	//	// ABA 문제를 위한 것은 Node<T>* 포인터 하나와 uint32_t나 uintptr_t 타입의 세대(Generation) 카운터를 하나더 가진 녀석
-	//	T* ptr;
-	//	uintptr_t generation;	// 번호 순서 관리를 위한 세대
-	//};
+
 	struct TaggedIndex
 	{
 		uint32_t index;			// 4바이트, 풀 인덱스 (UINT_MAX = 비어있음)
