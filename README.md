@@ -195,8 +195,8 @@ graph TD
     end
 
     subgraph Network ["Network Layer — IOCompletionPort"]
-        IOWorkers["I/O Worker Threads ×8\nAcceptEx / WSARecv / WSASend"]
-        SessionPool["ClientSession Pool ×10,000\nGeneration + RefCount"]
+        IOWorkers["I/O Worker Threads \nAcceptEx / WSARecv / WSASend"]
+        SessionPool["ClientSession Pool \nGeneration + RefCount"]
         IOWorkers -->|"Accept / Recv / Send"| SessionPool
     end
 
@@ -207,8 +207,8 @@ graph TD
     end
 
     subgraph Strand ["Strand Layer — StrandProcessor"]
-        GlobalQ[("Lock-Free GlobalQueue\nMPMC Ring Buffer")]
-        LogicTh["Logic Thread Pool ×10\nRoom 단위 직렬 처리"]
+        GlobalQ[("Lock-Free GlobalQueue\n ")]
+        LogicTh["Logic Thread Pool \nRoom 단위 직렬 처리"]
         RoomMgr["RoomManager"]
         GlobalQ -->|"Pop Room"| LogicTh
         LogicTh -->|"브로드캐스트"| RoomMgr
