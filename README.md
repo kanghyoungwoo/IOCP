@@ -587,8 +587,6 @@ sequenceDiagram
     SP-->>PM: STRAND_CALLBACK (USER_LEFT_ROOM)
 ```
 
-> 패킷 프로토콜 전체 스펙(Packet ID, 바디 구조, 주요 상수)은 [Docs/패킷%20프로토콜.md](Docs/패킷%20프로토콜.md)를 참조해 주십시오.
-
 ---
 
 ## 10. 실행 방법
@@ -657,7 +655,6 @@ git clone https://github.com/kanghyoungwoo/IOCPChatServer.git
 |------|------|
 | [아키텍처 진화 과정](Docs/서버%20아키텍처%20진화%20및%20성능%20벤치마크.md) | Single-Thread에서 Lock-Free까지의 3단계 리팩토링 및 벤치마크 결과 |
 | [부하 테스트 리포트](Docs/부하%20테스트.md) | 10,000명 수용량 테스트, 채팅 빈도별 한계 탐색, MutexCV vs LockFree 비교 |
-| [패킷 프로토콜 스펙](Docs/패킷%20프로토콜.md) | 전체 패킷 ID, 요청/응답 쌍, 바디 필드 상세, 주요 상수 |
 | [단위 테스트](Docs/단위%20테스트.md) | Google Test 100개 항목을 통한 자료구조, 패킷, 도메인 로직 검증 결과 |
 | [카오스 엔지니어링](Docs/카오스%20엔지니어링%20기반%20안정성%20검증.md) | ABA 방어, Strand Race, 악성 네트워크 공격 테스트 결과 |
 | [기술적 도전과 해결](Docs/technical-challenges.md) | TCP 경계 파싱, Graceful Shutdown, Edge Case 방어 사례 |
