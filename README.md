@@ -132,13 +132,17 @@ mPartialSendRetryCount = 0;
 
 ---
 
-### 3-5. 비동기 이벤트 상태 불일치 방어 (Generation Token)
+### 3-5. 세션 슬롯 생명주기 이중 방어 (Generation Token + RefCount)
 
-**[Issue]** I/O 스레드가 작업을 생성한 후 큐에 넣기 전 사이에 다른 스레드가 사용자 상태를 변경하면, 무효화된 작업이 처리되는 Race Condition이 발생합니다.
+**[Issue]** IOCP 환경에서 클라이언트가 연결을 끊으면 세션 슬롯을 Pool에 즉시 반납하고 싶지만, 두 가지 위협이 존재합니다.
+- **논리적 위협**: I/O 스레드가 패킷 작업을 생성한 직후, 다른 스레드가 세션 상태를 변경하면 무효화된 작업이 처리되는 Race Condition이 발생합니다.
+- **물리적 위협**: `CancelIoEx()` 이후에도 커널에 등록된 WSARecv/WSASend 완료 통보가 Worker Thread에 지연 도착합니다. 슬롯을 너무 일찍 반납하면 새 클라이언트에게 재할당된 슬롯에 이전 I/O 완료가 덮어써 데이터 오염 및 크래시가 발생합니다.
 
-**[Action]** `User`에 Generation Token을 도입하여 패킷 작업 생성 시 토큰 값을 함께 기록합니다. Logic Thread가 처리 시점에 현재 토큰 값과 비교하여, 불일치 시 즉시 폐기합니다.
+**[Action]** 두 위협을 독립적인 메커니즘으로 각각 방어했습니다.
+- **Generation Token** (논리적 방어): `mGeneration`을 패킷 작업 생성 시 함께 기록합니다. Logic Thread가 처리 시점에 현재 값과 비교하여 불일치 시 즉시 폐기합니다.
+- **RefCount** (물리적 방어): `mRefCount`로 진행 중인 I/O 연산 수를 추적합니다. `BindRecv()`/`SendIO()` 진입 시 `AddRef()`, 완료 처리 끝단에 `ReleaseRef()`하여 카운트가 **0이 될 때만** `Clear()` → `PushFreeSessionIndex()`를 호출합니다.
 
-**[Result]** 세션 재사용 시나리오(연결 해제 → 즉시 재접속)에서 이전 세대의 작업이 새 세션에 영향을 주는 버그를 원천 차단합니다.
+**[Result]** Generation Token이 무효 패킷을 걸러내고, RefCount가 I/O가 남은 슬롯의 조기 반납을 막습니다. 두 방어선이 독립적으로 동작하므로 어느 하나가 빠진 경우에도 나머지가 크래시를 방지합니다.
 
 ---
 
