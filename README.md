@@ -2,8 +2,8 @@
 
 > C++17 | 10,000명 동시접속 | 최대 539K recv_pkt/s (LockFree)
 
-Windows IOCP 기반 네트워크 엔진과 채팅 서비스를 **직접 설계·구현**한 프로젝트입니다.
-Lock-Free 자료구조(MPSC Queue), Strand 패턴, Object Pool을 라이브러리 없이 직접 구현하여 엔진 레이어를 구성하고, Contents 레이어(채팅방, 인증, DB 연동)를 분리 설계하여 다른 실시간 서비스(게임, 알림 등)에도 적용 가능한 구조입니다.
+Windows IOCP 기반 네트워크 엔진과 채팅 서비스를 구현한 프로젝트입니다.
+Lock-Free 자료구조(MPSC Queue), Strand 패턴, Object Pool을 이용하여 엔진 레이어를 구성하고, Contents 레이어(채팅방, 인증, DB 연동)를 분리 설계하여 다른 실시간 서비스(게임, 알림 등)에도 적용 가능한 구조입니다.
 
 ![C++17](https://img.shields.io/badge/C%2B%2B-17-00599C?style=flat-square&logo=c%2B%2B) ![Windows IOCP](https://img.shields.io/badge/Network-Windows_IOCP-0078D6?style=flat-square&logo=windows) ![Lock-Free](https://img.shields.io/badge/Lock--Free-555555?style=flat-square) ![Strand Pattern](https://img.shields.io/badge/Strand_Pattern-555555?style=flat-square) ![Object Pooling](https://img.shields.io/badge/Object_Pooling-555555?style=flat-square) ![Redis](https://img.shields.io/badge/Redis-DC382D?style=flat-square&logo=redis&logoColor=white) ![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=flat-square&logo=mysql&logoColor=white) ![AWS EC2](https://img.shields.io/badge/AWS_EC2-232F3E?style=flat-square&logo=amazonaws) ![CloudWatch](https://img.shields.io/badge/CloudWatch-FF4F8B?style=flat-square&logo=amazoncloudwatch&logoColor=white) ![VS Diagnostic Tools](https://img.shields.io/badge/VS_Diagnostic_Tools-5C2D91?style=flat-square&logo=visualstudio&logoColor=white)
 
