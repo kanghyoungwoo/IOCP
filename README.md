@@ -94,31 +94,7 @@ p99 500ms, 2,000명 동접       →    p99 15.5ms, 10,000명 동접
 
 ---
 
-### 3-3. ObjectPool 소멸자 누락 발견 및 생명주기 재설계
-
-**[Issue]** `malloc + placement-new`로 N개의 객체를 사전 할당하는 ObjectPool 소멸 시, `std::free(m_poolBlock)`만 호출하여 각 객체의 소멸자가 실행되지 않는 버그를 발견했습니다.
-
-**[Analyze]** `placement-new`는 이미 할당된 메모리 위에 생성자만 호출합니다. `malloc`과 객체의 생명주기가 분리되어 있으므로, 메모리 해제 시 명시적 소멸자 호출이 별도로 필요합니다. 단, `int`, `char*` 등 `trivially destructible` 타입은 소멸자 자체가 no-op이므로 명시적 호출 루프 자체가 낭비입니다.
-
-**[Action]** `if constexpr (!std::is_trivially_destructible_v<T>)`로 컴파일 타임에 분기하여, 소멸자가 의미 있는 타입에 대해서만 `m_poolBlock[i].~T()`를 명시적으로 호출하도록 재설계했습니다.
-
-```cpp
-~ObjectPool()
-{
-    if constexpr (!std::is_trivially_destructible_v<T>)
-    {
-        for (uint32_t i = 0; i < mPoolSize; ++i)
-            m_poolBlock[i].~T();  // placement-new로 생성된 객체의 명시적 소멸
-    }
-    std::free(m_poolBlock);
-}
-```
-
-**[Result]** 모든 Pool 타입의 객체 생명주기 안전성을 보장하면서, `trivially destructible` 타입에 대한 불필요한 루프 오버헤드를 컴파일 타임에 제거했습니다.
-
----
-
-### 3-4. Partial Send Zero-Copy 이어쏘기
+### 3-3. Partial Send Zero-Copy 이어쏘기
 
 **[Issue]** `WSASend` 완료 통지에서 `dwIoSize < 요청 크기`인 Partial Send 발생 시, 잔여 데이터를 처리하는 로직이 없어 메시지 일부가 유실되는 문제가 있었습니다.
 
@@ -146,7 +122,7 @@ mPartialSendRetryCount = 0;
 
 ---
 
-### 3-5. TCP Stream 패킷 경계 처리
+### 3-4. TCP Stream 패킷 경계 처리
 
 **[Issue]** TCP는 스트림 기반 프로토콜로 패킷 경계가 없어서, 여러 패킷이 합쳐지거나 분할되어 수신될 수 있습니다.
 
@@ -156,7 +132,7 @@ mPartialSendRetryCount = 0;
 
 ---
 
-### 3-6. 비동기 이벤트 상태 불일치 방어 (Generation Token)
+### 3-5. 비동기 이벤트 상태 불일치 방어 (Generation Token)
 
 **[Issue]** I/O 스레드가 작업을 생성한 후 큐에 넣기 전 사이에 다른 스레드가 사용자 상태를 변경하면, 무효화된 작업이 처리되는 Race Condition이 발생합니다.
 
@@ -166,7 +142,7 @@ mPartialSendRetryCount = 0;
 
 ---
 
-### 3-7. Graceful Shutdown 5단계 순차 종료
+### 3-6. Graceful Shutdown 5단계 순차 종료
 
 **[Issue]** 서버 강제 종료 시 진행 중인 I/O와 DB 작업이 유실되고 메모리 누수가 발생했습니다.
 
@@ -183,7 +159,7 @@ DB 스레드(Redis/MySQL)는 작업 큐를 완전히 소진한 후 종료합니�
 
 ---
 
-### 3-8. AcceptEx 빈 세션 탐색 O(N) → O(1)
+### 3-7. AcceptEx 빈 세션 탐색 O(N) → O(1)
 
 **[Issue]** 10,000개 세션을 매번 선형 탐색하며 빈 슬롯을 찾고, 중복 AcceptEx 호출로 소켓 누수가 발생했습니다.
 
