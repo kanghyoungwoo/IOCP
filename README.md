@@ -78,7 +78,7 @@ p99 500ms, 2,000명 동접       →    p99 15.5ms, 10,000명 동접
 
 **[Result]** p99 지연시간을 **500ms에서 15.5ms로 97% 개선**했습니다. 이후 10,000명이 평균 200ms 간격으로 쉬지 않고 채팅하는 극한 부하 시나리오에서도, 방당 19회의 브로드캐스트를 포함한 최대 **539K recv_pkt/s**를 lat_avg 32ms로 안정적으로 소화했습니다.
 
-> 아키텍처 리팩토링 전 과정(v0 싱글스레드 → v1 더블버퍼링 → v2 Mutex → v3 Lock-Free)의 상세 지표는 [아키텍처 진화 문서](docs/서버%20아키텍처%20진화%20및%20성능%20벤치마크.md)에서 확인할 수 있습니다.
+> 아키텍처 리팩토링 전 과정(v0 싱글스레드 → v1 더블버퍼링 → v2 Mutex → v3 Lock-Free)의 상세 지표는 [아키텍처 진화 문서](Docs/서버%20아키텍처%20진화%20및%20성능%20벤치마크.md)에서 확인할 수 있습니다.
 
 ---
 
@@ -177,7 +177,7 @@ DB 스레드(Redis/MySQL)는 작업 큐를 완전히 소진한 후 종료합니�
 | **링버퍼 오버플로우** (대량 전송) | `SetPacketData()` 반환값으로 오버플로우 감지 → `DisconnectAsync()` |
 | **Slowloris 변형** (1바이트씩 전송) | 활동 시간 갱신 시점을 WSARecv 완료 → 완전한 패킷 조립 성공 시로 이동 |
 
-> 상세 사례는 [카오스 엔지니어링](Docs/chaos-engineering.md) 문서를 참조해 주십시오.
+> 상세 사례는 [카오스 엔지니어링](Docs/카오스%20엔지니어링%20기반%20안정성%20검증.md) 문서를 참조해 주십시오.
 
 ---
 
@@ -344,7 +344,7 @@ stateDiagram-v2
 
 > **핵심 발견**: IO Worker 증가(8→16)는 CPU +2%p로 효과 없음. Logic Thread 증가(8→16)는 Death Spiral을 완전 해소.
 > **브로드캐스트 비용이 서버 한계를 결정**: 방당 인원 절반(20명→10명) = 안정 한계 채팅 빈도 2배 확장.
-> 상세 분석은 [부하 테스트 리포트](docs/부하%20테스트.md)를 참조해 주십시오.
+> 상세 분석은 [부하 테스트 리포트](Docs/부하%20테스트.md)를 참조해 주십시오.
 
 ---
 
@@ -388,7 +388,7 @@ graph LR
 | **Redis Worker** | 1 | 로그인 인증 (GET key=password) | 코드 고정 |
 | **MySQL Worker** | 1 | 활동 로그 INSERT (로그인/입장/채팅) | 코드 고정 |
 
-> **튜닝 인사이트**: 채팅 빈도가 높은 고부하 환경에서는 Logic Thread에 코어를 집중(Logic=16, IO=8)하는 것이 IO Worker를 늘리는 것보다 효과적입니다. IO Worker 8→16 증가 시 CPU +2%p로 효과가 미미한 반면, Logic 8→16 증가는 Death Spiral을 완전히 해소하고 539K recv_pkt/s 안정 처리를 달성했습니다. 상세 권장값은 [부하 테스트 리포트](docs/부하%20테스트.md)를 참조해 주십시오.
+> **튜닝 인사이트**: 채팅 빈도가 높은 고부하 환경에서는 Logic Thread에 코어를 집중(Logic=16, IO=8)하는 것이 IO Worker를 늘리는 것보다 효과적입니다. IO Worker 8→16 증가 시 CPU +2%p로 효과가 미미한 반면, Logic 8→16 증가는 Death Spiral을 완전히 해소하고 539K recv_pkt/s 안정 처리를 달성했습니다. 상세 권장값은 [부하 테스트 리포트](Docs/부하%20테스트.md)를 참조해 주십시오.
 
 ---
 
@@ -479,7 +479,7 @@ void Push(T* node)
 - **Consumer (`Pop`)**: `m_head`는 non-atomic — MPSC 설계상 단일 Consumer만 접근
 - **Hole 처리**: Push의 `exchange`와 `store` 사이 preemption 발생 시, Pop이 nullptr을 만나면 adaptive backoff로 대기
 
-#### GlobalQueue (Lock-Free) — Bounded MPSC Ring Buffer
+#### GlobalQueue (Lock-Free) — Bounded MPMC Ring Buffer
 
 ```cpp
 // GlobalQueue_LockFree.h — alignas(64)로 False Sharing 방지
@@ -617,7 +617,7 @@ sequenceDiagram
     SP-->>PM: STRAND_CALLBACK (USER_LEFT_ROOM)
 ```
 
-> 패킷 프로토콜 전체 스펙(Packet ID, 바디 구조, 주요 상수)은 [Docs/packet-protocol.md](Docs/packet-protocol.md)를 참조해 주십시오.
+> 패킷 프로토콜 전체 스펙(Packet ID, 바디 구조, 주요 상수)은 [Docs/패킷%20프로토콜.md](Docs/패킷%20프로토콜.md)를 참조해 주십시오.
 
 ---
 
@@ -634,7 +634,7 @@ git clone https://github.com/kanghyoungwoo/IOCPChatServer.git
 3. `F5` 실행 — `config.json`의 `TestMode=true`(기본값)로 Redis/MySQL 없이 순수 엔진 모드로 동작
 
 > 필수 환경: Visual Studio 2022 + Windows SDK 10.0+ 만 있으면 됩니다.
-> DB 연동/AWS 배포는 [빌드 상세 가이드](Docs/build-guide.md)를 참조하세요.
+> DB 연동/AWS 배포는 [빌드 상세 가이드](Docs/빌드%20가이드.md)를 참조하세요.
 
 ---
 
@@ -685,14 +685,14 @@ git clone https://github.com/kanghyoungwoo/IOCPChatServer.git
 
 | 문서 | 내용 |
 |------|------|
-| [아키텍처 진화 과정](docs/서버%20아키텍처%20진화%20및%20성능%20벤치마크.md) | Single-Thread에서 Lock-Free까지의 3단계 리팩토링 및 벤치마크 결과 |
-| [부하 테스트 리포트](docs/부하%20테스트.md) | 10,000명 수용량 테스트, 채팅 빈도별 한계 탐색, MutexCV vs LockFree 비교 |
-| [패킷 프로토콜 스펙](Docs/packet-protocol.md) | 전체 패킷 ID, 요청/응답 쌍, 바디 필드 상세, 주요 상수 |
-| [단위 테스트](Docs/unit-testing.md) | Google Test 100개 항목을 통한 자료구조, 패킷, 도메인 로직 검증 결과 |
-| [카오스 엔지니어링](Docs/chaos-engineering.md) | ABA 방어, Strand Race, 악성 네트워크 공격 테스트 결과 |
+| [아키텍처 진화 과정](Docs/서버%20아키텍처%20진화%20및%20성능%20벤치마크.md) | Single-Thread에서 Lock-Free까지의 3단계 리팩토링 및 벤치마크 결과 |
+| [부하 테스트 리포트](Docs/부하%20테스트.md) | 10,000명 수용량 테스트, 채팅 빈도별 한계 탐색, MutexCV vs LockFree 비교 |
+| [패킷 프로토콜 스펙](Docs/패킷%20프로토콜.md) | 전체 패킷 ID, 요청/응답 쌍, 바디 필드 상세, 주요 상수 |
+| [단위 테스트](Docs/단위%20테스트.md) | Google Test 100개 항목을 통한 자료구조, 패킷, 도메인 로직 검증 결과 |
+| [카오스 엔지니어링](Docs/카오스%20엔지니어링%20기반%20안정성%20검증.md) | ABA 방어, Strand Race, 악성 네트워크 공격 테스트 결과 |
 | [기술적 도전과 해결](Docs/technical-challenges.md) | TCP 경계 파싱, Graceful Shutdown, Edge Case 방어 사례 |
-| [빌드 상세 가이드](Docs/build-guide.md) | 환경 설정, DB 연동, DLL 의존성, 테스터 실행법 |
-| [AI 활용 최적화 회고](Docs/ai-assisted-optimization-review.md) | SharedSendBuffer 도입 및 실패 분석, AI 교차 검증의 한계와 교훈 |
+| [빌드 상세 가이드](Docs/빌드%20가이드.md) | 환경 설정, DB 연동, DLL 의존성, 테스터 실행법 |
+| [AI 활용 최적화 회고](Docs/Ai활용보고서.md) | SharedSendBuffer 도입 및 실패 분석, AI 교차 검증의 한계와 교훈 |
 
 ## 개발자
 
