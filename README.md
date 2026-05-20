@@ -359,12 +359,17 @@ git clone https://github.com/kanghyoungwoo/IOCPChatServer.git
 
 **장기 개선 (아키텍처 수준)**
 
-- [ ] **수평 확장 (Multi-Process Sharding)** — 방 번호 기반으로 여러 서버 프로세스에 분산
+- [ ] **수평 확장 (Gateway + Redis Pub/Sub)** — TCP 연결을 끊지 않고 멀티 서버로 확장
   ```
-  Server A: Room 0~9
-  Server B: Room 10~19
-  Load Balancer: 방 번호 → 서버 라우팅
+  현재: 단일 서버에 모든 유저 TCP 연결 고정 (IOCP)
+  문제: 방 번호 기반 서버 샤딩 시, 다른 서버의 방 입장을 위해 재연결 강제 → 실시간 서비스 UX 불가
+  개선:
+    Client → Gateway (TCP 연결 유지)
+    Gateway → Backend Server (방 로직 처리)
+    Backend → Redis Publish (channel: room:{id})
+    Redis → 모든 Gateway Subscribe → 해당 유저에게 전달
   ```
+  유저가 어느 Gateway에 붙어 있든 같은 방에 있을 수 있고, 재연결 없이 수평 확장 가능
 
 ---
 
