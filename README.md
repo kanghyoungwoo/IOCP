@@ -252,30 +252,6 @@ graph TD
 | **로그 시스템** | `LOG_DEBUG` (Debug 빌드만 출력) / `LOG_ERROR` (항상 출력) / `LOG_ERROR_ONCE` (최초 1회만 출력) 매크로로 핫패스 오버헤드 최소화 |
 | **크래시 대응** | `SetUnhandledExceptionFilter` + `MiniDumpWriteDump`로 미처리 예외 발생 시 타임스탬프 기반 `.dmp` 파일 자동 생성 |
 
-### 유저 상태 머신
-
-```mermaid
-stateDiagram-v2
-    [*] --> NONE : TCP 접속 (SYS_USER_CONNECT)
-
-    NONE --> LOGIN : LOGIN_REQUEST 성공 (Redis 인증 통과)
-    NONE --> [*] : 인증 실패 / 타임아웃
-
-    LOGIN --> ROOM : ROOM_ENTER_REQUEST 성공
-    LOGIN --> [*] : 타임아웃 / 강제 종료
-
-    ROOM --> LOGIN : ROOM_LEAVE_REQUEST
-    ROOM --> [*] : 타임아웃 / 강제 종료 (SYS_USER_DISCONNECT)
-```
-
-| 상태 | 의미 | 허용 패킷 |
-|------|------|-----------|
-| `NONE` | TCP 연결됨, 미인증 | `LOGIN_REQUEST` |
-| `LOGIN` | 인증 완료, 방 미입장 | `ROOM_ENTER_REQUEST` |
-| `ROOM` | 방 입장 완료 | `ROOM_CHAT_REQUEST`, `ROOM_LEAVE_REQUEST` |
-
-> 상태 외 패킷 수신 시 즉시 폐기 — `User::GetDomainState()` 검증 후 처리
-
 ---
 
 ## 5. 성능 테스트
