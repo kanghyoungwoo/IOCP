@@ -479,7 +479,7 @@ void Push(T* node)
 - **Consumer (`Pop`)**: `m_head`는 non-atomic — MPSC 설계상 단일 Consumer만 접근
 - **Hole 처리**: Push의 `exchange`와 `store` 사이 preemption 발생 시, Pop이 nullptr을 만나면 adaptive backoff로 대기
 
-#### GlobalQueue (Lock-Free) — Bounded MPSC Ring Buffer
+#### GlobalQueue (Lock-Free) — Bounded Ring Buffer
 
 ```cpp
 // GlobalQueue_LockFree.h — alignas(64)로 False Sharing 방지
