@@ -1,6 +1,6 @@
 # IOCP 기반 Lock-Free 채팅서버
 
-> C++17 | 10,000명 동시접속 | 최대 539K recv_pkt/s (LockFree)
+> C++17 | 10,000명 동시접속 | Lock-Free · p99 97%↓ · 무응답 0건 | 최대 539K recv_pkt/s
 
 Windows IOCP 기반 네트워크 엔진과 채팅 서비스를 구현한 프로젝트입니다.
 Lock-Free 자료구조(SPSC/MPSC Queue), Strand 패턴, Object Pool을 이용하여 엔진 레이어를 구성하고, Contents 레이어(채팅방, 인증, DB 연동)를 분리 설계하여 다른 실시간 서비스(게임, 알림 등)에도 적용 가능한 구조입니다.
