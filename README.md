@@ -66,12 +66,12 @@ p99 500ms, 2,000명 동접       →    p99 15.5ms, 10,000명 동접
 **[Issue]** 2,000명 동시 접속 부하 테스트 중 p99 지연시간이 **500ms**로 폭등하며, 처리 지연으로 인해 초당 23만 건의 패킷 유실(Drop)이 발생했습니다.
 
 **[Analyze]** VS Profiler 진단 결과, 아키텍처의 양 끝단에서 `std::mutex` 경합 병목을 교차로 확인했습니다.
-- **생산자 경합**: I/O 워커들이 패킷을 중앙 큐에 밀어 넣는 과정에서 병목이 발생했습니다.
-- **동기화 병목**: 로직 스레드들이 방(Room) 객체에 접근할 때 병목이 발생했습니다.
+- **수신 경합**: I/O 워커들이 패킷 인덱스를 중앙 큐에 밀어 넣을 때 mutex 경합이 발생했습니다.
+- **로직 경합**: 여러 로직 스레드가 같은 방(Room) 객체에 동시에 접근할 때 mutex 경합이 발생했습니다.
 
-**[Action]** 두 가지 병목을 각각 다른 전략으로 락(Lock) 없이 해소했습니다.
-- **수신부**: CAS 연산 기반의 MPSC(Multi-Producer Single-Consumer) Lock-Free Queue를 구현하여 워커 스레드 간의 Lock 경합을 제거했습니다.
-- **로직부**: Strand 패턴을 적용하여, 방(Room) 단위의 브로드캐스트 연산을 락 없이 안전하게 직렬화하도록 보장했습니다.
+**[Action]** 두 병목을 각각 다른 전략으로 해소했습니다.
+- **수신부**: 더블버퍼링을 도입하여 mutex 경합 범위를 **버퍼 포인터 교환(O(1)) 단 한 번**으로 축소했습니다. IOCP Worker들은 Write 버퍼에 clientIndex를 push하고, ProcessThread는 스왑 후 Read 버퍼를 Lock 없이 독점 처리합니다.
+- **로직부**: Strand 패턴과 Lock-Free 자료구조를 도입하여 Room 단위 처리를 Lock 없이 직렬화했습니다. ProcessThread가 PacketJob을 Room의 **SPSC LocalQueue**에 enqueue하면, 최초 진입 스레드만 **GlobalQueue(SPMC)**를 통해 Logic Thread에 Room을 전달합니다. Logic Thread가 LocalQueue를 드레인하며 브로드캐스트를 처리하고, 완료 후 **MPSC Callback Queue**로 상태 변경을 ProcessThread에 통보합니다.
 
 **[Result]** p99 지연시간을 **500ms에서 15.5ms로 97% 개선**했습니다. 이후 10,000명이 평균 200ms 간격으로 쉬지 않고 채팅하는 극한 부하 시나리오에서도, 방당 19회의 브로드캐스트를 포함한 최대 **539K recv_pkt/s**를 lat_avg 32ms로 안정적으로 소화했습니다.
 
