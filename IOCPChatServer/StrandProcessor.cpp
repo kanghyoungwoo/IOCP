@@ -306,6 +306,8 @@ void StrandProcessor::ProcessRoom(Room* pRoom)
 
 PacketJob* StrandProcessor::PopWithBackoff(Room* pRoom)
 {
+    // NOTE: SPSCQueue 사용 시 Hole이 발생하지 않으므로
+    // 아래 spin loop는 실행되지 않음 (MPSCQueue 전환 대비 보존)
     PacketJob* pJob = pRoom->GetLocalQueue().Pop();
     if (pJob != nullptr)
         return pJob; // 대부분은 여기서 바로 성공

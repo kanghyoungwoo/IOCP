@@ -79,6 +79,11 @@ public:
 	// 사용이 끝난 객체를 풀에 반납한다.
 	void Free(T* obj)
 	{
+		// nullptr 체크를 가장 먼저
+		if (obj == nullptr)
+		{
+			return;
+		}
 		// 풀 범위 밖 포인터 차단
 		if (obj < m_poolBlock || obj >= m_poolBlock + mPoolSize)
 		{
@@ -93,10 +98,6 @@ public:
 			return;
 		}
 
-		if (obj == nullptr)
-		{
-			return;
-		}
 		mFreeStack.Push(obj);
 		mFreeCount.fetch_add(1, std::memory_order_relaxed);
 	}

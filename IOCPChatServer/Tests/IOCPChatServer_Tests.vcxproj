@@ -104,6 +104,12 @@
       <AdditionalLibraryDirectories>C:\vcpkg\installed\x64-windows\debug\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>gtest.lib;ws2_32.lib;mswsock.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PostBuildEvent>
+      <Message>
+      </Message>
+      <Command>xcopy /Y "C:\vcpkg\installed\x64-windows\debug\bin\gtest.dll" "$(OutDir)" /D
+xcopy /Y "C:\vcpkg\installed\x64-windows\debug\bin\gtest_main.dll" "$(OutDir)" /D</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -124,6 +130,12 @@
       <AdditionalLibraryDirectories>C:\vcpkg\installed\x64-windows\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>gtest.lib;ws2_32.lib;mswsock.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PostBuildEvent>
+      <Message>
+      </Message>
+      <Command>xcopy /Y "C:\vcpkg\installed\x64-windows\debug\bin\gtest.dll" "$(OutDir)" /D
+xcopy /Y "C:\vcpkg\installed\x64-windows\debug\bin\gtest_main.dll" "$(OutDir)" /D</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -168,6 +180,7 @@
     <ClCompile Include="test_MPSCQueue.cpp" />
     <ClCompile Include="test_ObjectPool.cpp" />
     <ClCompile Include="test_Packet.cpp" />
+    <ClCompile Include="test_SPSCQueue.cpp" />
     <ClCompile Include="test_User.cpp" />
     <ClCompile Include="test_Room.cpp" />
     <ClCompile Include="test_RoomManager.cpp" />

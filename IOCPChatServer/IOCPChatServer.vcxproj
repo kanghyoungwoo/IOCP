@@ -180,6 +180,7 @@
     <ClInclude Include="RingBuffer.h" />
     <ClInclude Include="Room.h" />
     <ClInclude Include="RoomManager.h" />
+    <ClInclude Include="SPSCQueue.h" />
     <ClInclude Include="StrandCallback.h" />
     <ClInclude Include="StrandProcessor.h" />
     <ClInclude Include="User.h" />

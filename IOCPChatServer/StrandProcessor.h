@@ -3,6 +3,7 @@
 #include "PacketJob.h"
 #include "Room.h"
 #include "StrandCallback.h"
+#include "MPSCQueue.h"
 #include <vector>
 #include <thread>
 #include <intrin.h>
