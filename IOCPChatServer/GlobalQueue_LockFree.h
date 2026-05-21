@@ -6,6 +6,15 @@
 #include <cstdint>
 #include <stdexcept>
 
+// ---------------------------------------------------------------
+//  Producer 모드 선택
+//   #define USE_SPMC : Producer = 1 (현재: PacketManager 단일 스레드)
+//                      CAS 루프 제거, relaxed load/store만 사용
+//   주석 처리          : MPMC 모드 (ProcessThread 샤딩 등 다중 Producer 시)
+//                      기존 CAS 방식 유지
+// ---------------------------------------------------------------
+#define USE_SPMC // 주석 처리시 MPMC모드
+
 class GlobalQueue_LockFree
 {
 private:

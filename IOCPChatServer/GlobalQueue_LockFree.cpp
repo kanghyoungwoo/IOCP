@@ -1,18 +1,19 @@
-#include "GlobalQueue_LockFree.h"
+ï»¿#include "GlobalQueue_LockFree.h"
 #include <emmintrin.h>
 #include <Windows.h>
 #include <stdexcept>
 
 void GlobalQueue_LockFree::Init(uint32_t bufferSize)
 {
-	// 2ÀÇ °ÅµìÁ¦°öÀÎÁö °Ë»ç (ºñÆ®¸¶½ºÅ© »ç¿ë À§ÇØ ÇÊ¼öÁ¶°Ç)
+	// 2ì˜ ê±°ë“­ì œê³±ì¸ì§€ ê²€ì‚¬ (ë¹„íŠ¸ë§ˆìŠ¤í¬ ì‚¬ìš© ìœ„í•´ í•„ìˆ˜ì¡°ê±´)
 	if (bufferSize < 2 || (bufferSize & (bufferSize - 1)) != 0)
 		throw std::invalid_argument("bufferSize must be power of 2");
 
 	m_bufferMask = bufferSize - 1;
 	m_buffer = new Cell[bufferSize];
-	// °¢ ½½·ÔÀÇ sequence¸¦ index·Î ÃÊ±âÈ­
-	for (uint32_t i = 0;i < bufferSize;++i)
+
+	// ê° ìŠ¬ë¡¯ì˜ sequenceë¥¼ indexë¡œ ì´ˆê¸°í™”
+	for (uint32_t i = 0; i < bufferSize; ++i)
 	{
 		m_buffer[i].sequence.store(i, std::memory_order_relaxed);
 		m_buffer[i].data = nullptr;
@@ -25,6 +26,26 @@ void GlobalQueue_LockFree::Init(uint32_t bufferSize)
 
 void GlobalQueue_LockFree::Push(Room* pRoom)
 {
+#ifdef USE_SPMC
+	// ---------------------------------------------------------------
+	//  SPMC
+	// ---------------------------------------------------------------
+	uint32_t pos = m_enqueuePos.load(std::memory_order_relaxed);
+	Cell* cell = &m_buffer[pos & m_bufferMask];
+
+	// cellì´ freeì¼ë•Œê¹Œì§€ ê¸°ë‹¤ë¦¼
+	while (cell->sequence.load(std::memory_order_acquire) != pos)
+		_mm_pause();
+
+	cell->data = pRoom;
+	cell->sequence.store(pos + 1, std::memory_order_release);
+
+	m_enqueuePos.store(pos + 1, std::memory_order_relaxed);
+
+#else
+	// ---------------------------------------------------------------
+	//  MPMC
+	// ---------------------------------------------------------------
 	Cell* cell = nullptr;
 	uint32_t pos = m_enqueuePos.load(std::memory_order_relaxed);
 
@@ -33,33 +54,32 @@ void GlobalQueue_LockFree::Push(Room* pRoom)
 		cell = &m_buffer[pos & m_bufferMask];
 		uint32_t seq = cell->sequence.load(std::memory_order_acquire);
 
-		// ¿À¹öÇÃ·Î¿ì ¾ÈÀüÇÑ ºÎÈ£ÀÖ´Â Á¤¼öºñ±³
 		int32_t diff = static_cast<int32_t>(seq - pos);
 
 		if (diff == 0)
 		{
-			// CAS ½Ãµµ
+			// CAS ì‹œë„
 			if (m_enqueuePos.compare_exchange_weak(pos, pos + 1, std::memory_order_relaxed))
 				break;
 		}
 		else if (diff < 0)
 		{
-			// Å¥°¡ °¡µæ Âü
-			// ´Ù¸¥ ½º·¹µå°¡ ¸ÕÀú ³Ö¾î¼­ ¹Ğ¸° °æ¿ìÀÌ¹Ç·Î pos ÃÖ½ÅÈ­
+			// íê°€ ê°€ë“ ì°¸
+			// ë‹¤ë¥¸ ìŠ¤ë ˆë“œê°€ ë¨¼ì € ë„£ì–´ì„œ ë°€ë¦° ê²½ìš°ì´ë¯€ë¡œ pos ìµœì‹ í™”
 			pos = m_enqueuePos.load(std::memory_order_relaxed);
 		}
 		else
 		{
-			// ´Ù¸¥ ½º·¹µå°¡ ¸ÕÀú CAS¿¡ ¼º°øÇØ¼­ pos°¡ ¿Ã¶ó°¨
+			// ë‹¤ë¥¸ ìŠ¤ë ˆë“œê°€ ë¨¼ì € CASì— ì„±ê³µí•´ì„œ posê°€ ì˜¬ë¼ê°
 			pos = m_enqueuePos.load(std::memory_order_relaxed);
 		}
 	}
-
-	// ¼º°øÀûÀ¸·Î ÀÚ¸®¸¦ È®º¸ÇßÀ¸´Ï µ¥ÀÌÅÍ ÀúÀå
+	// ì„±ê³µì ìœ¼ë¡œ ìë¦¬ë¥¼ í™•ë³´í–ˆìœ¼ë‹ˆ ë°ì´í„° ì €ì¥
 	cell->data = pRoom;
 
-	// Consumer¿¡°Ô ÀĞ±â ÁØºñ¿Ï·á ½ÅÈ£ Àü´Ş (release)
+	// Consumerì—ê²Œ ì½ê¸° ì¤€ë¹„ì™„ë£Œ ì‹ í˜¸ ì „ë‹¬ (release)
 	cell->sequence.store(pos + 1, std::memory_order_release);
+#endif
 }
 
 Room* GlobalQueue_LockFree::Pop()
@@ -73,46 +93,40 @@ Room* GlobalQueue_LockFree::Pop()
 		cell = &m_buffer[pos & m_bufferMask];
 		uint32_t seq = cell->sequence.load(std::memory_order_acquire);
 
-		// Pop¿¡¼­´Â seq°¡ pos + 1 ÀÌ¾î¾ß µ¥ÀÌÅÍ°¡ ÀÖ´Â °Í
+		// Popì—ì„œëŠ” seqê°€ pos + 1 ì´ì–´ì•¼ ë°ì´í„°ê°€ ìˆëŠ” ê²ƒ
 		int32_t diff = static_cast<int32_t>(seq - (pos + 1));
 
 		if (diff == 0)
 		{
-			// CAS ½Ãµµ
+			// CASì‹œë„
 			if (m_dequeuePos.compare_exchange_weak(pos, pos + 1, std::memory_order_relaxed))
 				break;
 		}
 		else if (diff < 0)
 		{
-			// Å¥°¡ ºñ¾îÀÖÀ½ -> shutdown Ã¼Å©¸¦ ÇØ¾ß ÀÜ¿© ÆĞÅ¶ Ã³¸®°¡´É
+			// íê°€ ë¹„ì–´ìˆìŒ -> shutdown ì²´í¬ë¥¼ í•´ì•¼ ì”ì—¬ íŒ¨í‚· ì²˜ë¦¬ê°€ëŠ¥
 			if (m_shutdown.load(std::memory_order_acquire))
 				return nullptr;
 
-			// ÀÚ¿¬½º·± backoff
+			// backoff
 			if (spinCount < 1024)
-			{
-				_mm_pause(); // ÂªÀº spin
-			}
+				_mm_pause();
 			else
-			{
-				Sleep(0);	// OS ½ºÄÉÁÙ·¯¿¡ ¾çº¸
-			}
+				Sleep(0); // OSì— ì–‘ë³´
 			spinCount++;
 			pos = m_dequeuePos.load(std::memory_order_relaxed);
 		}
 		else
 		{
-			// ´Ù¸¥ Consumer°¡ ¸ÕÀú °¡Á®°¨
+			// ë‹¤ë¥¸ Consumerê°€ ë¨¼ì € ê°€ì ¸ê°
 			pos = m_dequeuePos.load(std::memory_order_relaxed);
 		}
 	}
-
-	// µ¥ÀÌÅÍ ÀĞ±â
+	// ë°ì´í„° ì½ê¸°
 	Room* data = cell->data;
 
-	// ½½·Ô ÀçÈ°¿ëÀ» À§ÇØ Producer¿¡°Ô ºóÀÚ¸® ½ÅÈ£
+	// ìŠ¬ë¡¯ ì¬í™œìš©ì„ ìœ„í•´ Producerì—ê²Œ ë¹ˆìë¦¬ ì‹ í˜¸
 	cell->sequence.store(pos + m_bufferMask + 1, std::memory_order_release);
 
 	return data;
 }
-
