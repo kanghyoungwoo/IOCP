@@ -128,3 +128,192 @@ TEST(LockFreeStackConcurrent, ConcurrentPushPop)
     EXPECT_EQ(total, static_cast<size_t>(N));
     EXPECT_EQ(unique.size(), static_cast<size_t>(N));
 }
+
+// ==================== PopBatch tests (Phase 4) ====================
+
+class LockFreeStackBatchTest : public ::testing::Test
+{
+protected:
+    static constexpr uint32_t POOL_SIZE = 200;
+    StackNode pool[POOL_SIZE];
+    LockFreeStack<StackNode> stack;
+
+    void SetUp() override
+    {
+        stack.Init(pool, POOL_SIZE);
+        for (uint32_t i = 0; i < POOL_SIZE; ++i)
+        {
+            pool[i].value = static_cast<int>(i);
+            stack.Push(&pool[i]);
+        }
+    }
+};
+
+TEST_F(LockFreeStackBatchTest, PopBatchFromEmptyReturnsZero)
+{
+    // drain all first
+    LockFreeStack<StackNode> empty;
+    StackNode emptyPool[4];
+    empty.Init(emptyPool, 4);
+
+    StackNode* out[4] = {};
+    uint32_t got = empty.PopBatch(4, out);
+    EXPECT_EQ(got, 0u);
+}
+
+TEST_F(LockFreeStackBatchTest, PopBatchCorrectCount)
+{
+    StackNode* out[16] = {};
+    uint32_t got = stack.PopBatch(16, out);
+    EXPECT_EQ(got, 16u);
+}
+
+TEST_F(LockFreeStackBatchTest, PopBatchReturnsUniquePointers)
+{
+    StackNode* out[32] = {};
+    uint32_t got = stack.PopBatch(32, out);
+    ASSERT_GT(got, 0u);
+
+    std::set<StackNode*> seen;
+    for (uint32_t i = 0; i < got; ++i)
+    {
+        ASSERT_NE(out[i], nullptr);
+        EXPECT_EQ(seen.count(out[i]), 0u) << "Duplicate pointer in batch";
+        seen.insert(out[i]);
+    }
+}
+
+TEST_F(LockFreeStackBatchTest, PopBatchPartialWhenFewerAvailable)
+{
+    // Drain all but 5
+    for (uint32_t i = 0; i < POOL_SIZE - 5; ++i)
+        stack.Pop();
+
+    StackNode* out[20] = {};
+    uint32_t got = stack.PopBatch(20, out);
+    EXPECT_EQ(got, 5u);  // only 5 remain
+    for (uint32_t i = 0; i < got; ++i)
+        EXPECT_NE(out[i], nullptr);
+}
+
+TEST_F(LockFreeStackBatchTest, PopBatchTotalMatchesPushed)
+{
+    // Drain everything via batches of 16
+    uint32_t totalPopped = 0;
+    StackNode* out[16] = {};
+    while (true)
+    {
+        uint32_t got = stack.PopBatch(16, out);
+        if (got == 0) break;
+        totalPopped += got;
+    }
+    EXPECT_EQ(totalPopped, POOL_SIZE);
+    EXPECT_EQ(stack.Pop(), nullptr);
+}
+
+TEST_F(LockFreeStackBatchTest, PopBatchNoOverlapBetweenCalls)
+{
+    StackNode* first[32] = {};
+    StackNode* second[32] = {};
+
+    uint32_t n1 = stack.PopBatch(32, first);
+    uint32_t n2 = stack.PopBatch(32, second);
+
+    std::set<StackNode*> firstSet(first, first + n1);
+    for (uint32_t i = 0; i < n2; ++i)
+        EXPECT_EQ(firstSet.count(second[i]), 0u) << "Overlap between two PopBatch calls";
+}
+
+TEST_F(LockFreeStackBatchTest, PopBatchSingleItem)
+{
+    StackNode* out[1] = {};
+    uint32_t got = stack.PopBatch(1, out);
+    EXPECT_EQ(got, 1u);
+    EXPECT_NE(out[0], nullptr);
+}
+
+TEST(LockFreeStackBatchConcurrent, ConcurrentPopBatchNoLoss)
+{
+    constexpr uint32_t N = 1000;
+    std::vector<StackNode> pool(N);
+    LockFreeStack<StackNode> s;
+    s.Init(pool.data(), N);
+
+    for (uint32_t i = 0; i < N; ++i)
+    {
+        pool[i].value = static_cast<int>(i);
+        s.Push(&pool[i]);
+    }
+
+    constexpr int THREADS = 4;
+    constexpr uint32_t BATCH = 16;
+    std::atomic<uint32_t> totalPopped{ 0 };
+    std::vector<std::thread> threads;
+
+    for (int t = 0; t < THREADS; ++t)
+    {
+        threads.emplace_back([&]()
+        {
+            StackNode* out[BATCH] = {};
+            while (true)
+            {
+                uint32_t got = s.PopBatch(BATCH, out);
+                if (got == 0) break;
+                totalPopped.fetch_add(got, std::memory_order_relaxed);
+            }
+        });
+    }
+
+    for (auto& th : threads) th.join();
+
+    EXPECT_EQ(totalPopped.load(), N);
+}
+
+TEST(LockFreeStackBatchConcurrent, ConcurrentPopBatchNoDuplicates)
+{
+    constexpr uint32_t N = 1000;
+    std::vector<StackNode> pool(N);
+    LockFreeStack<StackNode> s;
+    s.Init(pool.data(), N);
+
+    for (uint32_t i = 0; i < N; ++i)
+    {
+        pool[i].value = static_cast<int>(i);
+        s.Push(&pool[i]);
+    }
+
+    constexpr int THREADS = 4;
+    constexpr uint32_t BATCH = 16;
+
+    std::vector<std::vector<StackNode*>> results(THREADS);
+    std::vector<std::thread> threads;
+
+    for (int t = 0; t < THREADS; ++t)
+    {
+        threads.emplace_back([&, t]()
+        {
+            StackNode* out[BATCH] = {};
+            while (true)
+            {
+                uint32_t got = s.PopBatch(BATCH, out);
+                if (got == 0) break;
+                results[t].insert(results[t].end(), out, out + got);
+            }
+        });
+    }
+
+    for (auto& th : threads) th.join();
+
+    std::set<StackNode*> seen;
+    uint32_t total = 0;
+    for (int t = 0; t < THREADS; ++t)
+    {
+        for (auto* p : results[t])
+        {
+            EXPECT_EQ(seen.count(p), 0u) << "Duplicate pointer across threads";
+            seen.insert(p);
+            ++total;
+        }
+    }
+    EXPECT_EQ(total, N);
+}

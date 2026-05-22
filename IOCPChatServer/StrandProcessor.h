@@ -77,6 +77,7 @@ public:
     uint64_t GetAllocTotalCount() const { return mAllocTotalCount.load(std::memory_order_relaxed); }
 
 private:
+    static constexpr uint32_t BATCH_SIZE = 16;
     UserManager* mUserManager = nullptr;
     void WorkerThreadMain();
 

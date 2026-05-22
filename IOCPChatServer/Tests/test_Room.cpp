@@ -335,3 +335,260 @@ TEST_F(RoomTest, GetRoomNumber)
     EXPECT_EQ(room.GetRoomNumber(), 1);
 }
 
+// ==================== EnqueueJob (Phase 2 / Phase 5 strand) ====================
+
+// Helper: build a minimal JOB-phase PacketJob in caller-owned storage.
+static void initPacketJob(PacketJob& job, uint32_t clientIndex, uint32_t generation,
+                          uint16_t packetId, uint16_t dataSize = 0)
+{
+    job.phase              = PacketJob::Phase::JOB;
+    job.clientIndex        = clientIndex;
+    job.sessionGeneration  = 0;
+    job.job.targetGeneration = generation;
+    job.job.packetId       = packetId;
+    job.job.dataSize       = dataSize;
+    job.mpscNext.store(nullptr, std::memory_order_relaxed);
+}
+
+class RoomEnqueueTest : public ::testing::Test
+{
+protected:
+    static constexpr uint32_t JOB_COUNT = 64;
+    Room room;
+    PacketJob jobStorage[JOB_COUNT];
+
+    void SetUp() override
+    {
+        room.Init(1, 100);
+        room.FreeJobFunc = [](PacketJob*) {};
+        room.SendPacketFunc = [](UINT32, UINT32, UINT32, char*) {};
+    }
+
+    // Reset room back to a clean generation for each sub-test
+    void ResetRoom()
+    {
+        // drain any leftover jobs (FreeJobFunc is a no-op here)
+        room.Reset();
+    }
+};
+
+TEST_F(RoomEnqueueTest, EnqueueJobSuccessFirstReturnedOnce)
+{
+    uint32_t gen = room.GetGeneration();
+
+    initPacketJob(jobStorage[0], 1, gen, (uint16_t)PACKET_ID::ROOM_CHAT_REQUEST);
+
+    auto r0 = room.EnqueueJob(&jobStorage[0]);
+    EXPECT_EQ(r0, Room::EnqueueResult::SUCCESS_FIRST);
+    // mMsgCount is now 1; next push must be APPENDED
+    room.GetMsgCount().fetch_sub(1, std::memory_order_acq_rel); // simulate worker draining
+}
+
+TEST_F(RoomEnqueueTest, EnqueueJobSuccessAppendedAfterFirst)
+{
+    uint32_t gen = room.GetGeneration();
+
+    initPacketJob(jobStorage[0], 1, gen, (uint16_t)PACKET_ID::ROOM_CHAT_REQUEST);
+    initPacketJob(jobStorage[1], 2, gen, (uint16_t)PACKET_ID::ROOM_CHAT_REQUEST);
+
+    auto r0 = room.EnqueueJob(&jobStorage[0]);
+    auto r1 = room.EnqueueJob(&jobStorage[1]);
+
+    EXPECT_EQ(r0, Room::EnqueueResult::SUCCESS_FIRST);
+    EXPECT_EQ(r1, Room::EnqueueResult::SUCCESS_APPENDED);
+
+    // drain
+    room.GetMsgCount().fetch_sub(2, std::memory_order_acq_rel);
+}
+
+TEST_F(RoomEnqueueTest, EnqueueJobDropsOnGenerationMismatch)
+{
+    uint32_t gen = room.GetGeneration();
+
+    initPacketJob(jobStorage[0], 1, gen + 1 /*stale*/, (uint16_t)PACKET_ID::ROOM_CHAT_REQUEST);
+
+    auto r = room.EnqueueJob(&jobStorage[0]);
+    EXPECT_EQ(r, Room::EnqueueResult::FAILED_DROPPED);
+    EXPECT_EQ(room.GetMsgCount().load(), 0);
+}
+
+TEST_F(RoomEnqueueTest, EnqueueJobDropsWhenBroken)
+{
+    uint32_t gen = room.GetGeneration();
+
+    room.SetBroken();
+    EXPECT_TRUE(room.IsBroken());
+
+    initPacketJob(jobStorage[0], 1, gen, (uint16_t)PACKET_ID::ROOM_CHAT_REQUEST);
+    auto r = room.EnqueueJob(&jobStorage[0]);
+    EXPECT_EQ(r, Room::EnqueueResult::FAILED_DROPPED);
+}
+
+TEST_F(RoomEnqueueTest, MsgCountIncreasesPerEnqueue)
+{
+    uint32_t gen = room.GetGeneration();
+    EXPECT_EQ(room.GetMsgCount().load(), 0);
+
+    for (uint32_t i = 0; i < 5; ++i)
+    {
+        initPacketJob(jobStorage[i], i + 1, gen, (uint16_t)PACKET_ID::ROOM_CHAT_REQUEST);
+        room.EnqueueJob(&jobStorage[i]);
+    }
+    EXPECT_EQ(room.GetMsgCount().load(), 5);
+
+    // cleanup
+    room.GetMsgCount().store(0, std::memory_order_relaxed);
+}
+
+TEST_F(RoomEnqueueTest, ResetIncrementsGeneration)
+{
+    uint32_t genBefore = room.GetGeneration();
+    room.Reset();
+    uint32_t genAfter = room.GetGeneration();
+    EXPECT_GT(genAfter, genBefore);
+}
+
+TEST_F(RoomEnqueueTest, EnqueueAfterResetUsesNewGeneration)
+{
+    room.Reset();
+    uint32_t newGen = room.GetGeneration();
+
+    initPacketJob(jobStorage[0], 1, newGen, (uint16_t)PACKET_ID::ROOM_CHAT_REQUEST);
+    auto r = room.EnqueueJob(&jobStorage[0]);
+    EXPECT_EQ(r, Room::EnqueueResult::SUCCESS_FIRST);
+    room.GetMsgCount().fetch_sub(1, std::memory_order_acq_rel);
+}
+
+// ==================== Concurrent EnqueueJob (Phase 2 MPSC) ====================
+
+TEST(RoomConcurrentEnqueue, OnlyOneSuccessFirstAcross8Threads)
+{
+    // 8 threads race to push the first job — exactly one must get SUCCESS_FIRST.
+    Room room;
+    room.Init(1, 100);
+    room.FreeJobFunc = [](PacketJob*) {};
+    room.SendPacketFunc = [](UINT32, UINT32, UINT32, char*) {};
+
+    constexpr int THREADS = 8;
+    std::vector<PacketJob> jobs(THREADS);
+    uint32_t gen = room.GetGeneration();
+
+    for (int i = 0; i < THREADS; ++i)
+        initPacketJob(jobs[i], static_cast<uint32_t>(i + 1), gen,
+                      (uint16_t)PACKET_ID::ROOM_CHAT_REQUEST);
+
+    std::atomic<int> firstCount{ 0 };
+    std::atomic<int> appendedCount{ 0 };
+    std::atomic<bool> go{ false };
+
+    std::vector<std::thread> threads;
+    for (int t = 0; t < THREADS; ++t)
+    {
+        threads.emplace_back([&, t]()
+        {
+            while (!go.load(std::memory_order_acquire)) {}
+            auto r = room.EnqueueJob(&jobs[t]);
+            if (r == Room::EnqueueResult::SUCCESS_FIRST)
+                firstCount.fetch_add(1, std::memory_order_relaxed);
+            else if (r == Room::EnqueueResult::SUCCESS_APPENDED)
+                appendedCount.fetch_add(1, std::memory_order_relaxed);
+        });
+    }
+
+    go.store(true, std::memory_order_release);
+    for (auto& th : threads) th.join();
+
+    EXPECT_EQ(firstCount.load(), 1)
+        << "Exactly one thread must get SUCCESS_FIRST";
+    EXPECT_EQ(firstCount.load() + appendedCount.load(), THREADS)
+        << "All jobs must be accepted (none dropped)";
+    EXPECT_EQ(room.GetMsgCount().load(), THREADS);
+}
+
+TEST(RoomConcurrentEnqueue, MsgCountMatchesSuccessfulEnqueues)
+{
+    // Verify mMsgCount equals the number of jobs that returned SUCCESS_FIRST
+    // or SUCCESS_APPENDED after N concurrent pushes.
+    Room room;
+    room.Init(1, 100);
+    room.FreeJobFunc = [](PacketJob*) {};
+    room.SendPacketFunc = [](UINT32, UINT32, UINT32, char*) {};
+
+    constexpr int THREADS = 8;
+    constexpr int JOBS_PER_THREAD = 16;
+    constexpr int TOTAL = THREADS * JOBS_PER_THREAD;
+
+    std::vector<PacketJob> jobs(TOTAL);
+    uint32_t gen = room.GetGeneration();
+    for (int i = 0; i < TOTAL; ++i)
+        initPacketJob(jobs[i], static_cast<uint32_t>(i % 100 + 1), gen,
+                      (uint16_t)PACKET_ID::ROOM_CHAT_REQUEST);
+
+    std::atomic<int> accepted{ 0 };
+    std::atomic<bool> go{ false };
+
+    std::vector<std::thread> threads;
+    for (int t = 0; t < THREADS; ++t)
+    {
+        threads.emplace_back([&, t]()
+        {
+            while (!go.load(std::memory_order_acquire)) {}
+            for (int i = 0; i < JOBS_PER_THREAD; ++i)
+            {
+                auto r = room.EnqueueJob(&jobs[t * JOBS_PER_THREAD + i]);
+                if (r == Room::EnqueueResult::SUCCESS_FIRST ||
+                    r == Room::EnqueueResult::SUCCESS_APPENDED)
+                    accepted.fetch_add(1, std::memory_order_relaxed);
+            }
+        });
+    }
+
+    go.store(true, std::memory_order_release);
+    for (auto& th : threads) th.join();
+
+    EXPECT_EQ(accepted.load(), TOTAL);
+    EXPECT_EQ(room.GetMsgCount().load(), TOTAL);
+}
+
+TEST(RoomConcurrentEnqueue, BrokenRoomDropsAllConcurrentJobs)
+{
+    Room room;
+    room.Init(1, 100);
+    room.FreeJobFunc = [](PacketJob*) {};
+    room.SendPacketFunc = [](UINT32, UINT32, UINT32, char*) {};
+
+    room.SetBroken();
+    uint32_t gen = room.GetGeneration();
+
+    constexpr int THREADS = 4;
+    constexpr int JOBS_PER_THREAD = 8;
+    constexpr int TOTAL = THREADS * JOBS_PER_THREAD;
+
+    std::vector<PacketJob> jobs(TOTAL);
+    for (int i = 0; i < TOTAL; ++i)
+        initPacketJob(jobs[i], static_cast<uint32_t>(i + 1), gen,
+                      (uint16_t)PACKET_ID::ROOM_CHAT_REQUEST);
+
+    std::atomic<int> dropCount{ 0 };
+    std::vector<std::thread> threads;
+
+    for (int t = 0; t < THREADS; ++t)
+    {
+        threads.emplace_back([&, t]()
+        {
+            for (int i = 0; i < JOBS_PER_THREAD; ++i)
+            {
+                auto r = room.EnqueueJob(&jobs[t * JOBS_PER_THREAD + i]);
+                if (r == Room::EnqueueResult::FAILED_DROPPED)
+                    dropCount.fetch_add(1, std::memory_order_relaxed);
+            }
+        });
+    }
+
+    for (auto& th : threads) th.join();
+
+    EXPECT_EQ(dropCount.load(), TOTAL)
+        << "All jobs must be dropped when room is broken";
+    EXPECT_EQ(room.GetMsgCount().load(), 0);
+}
+

@@ -1,5 +1,8 @@
 #include <gtest/gtest.h>
 #include "../User.h"
+#include <thread>
+#include <vector>
+#include <atomic>
 
 class UserTest : public ::testing::Test
 {
@@ -278,4 +281,127 @@ TEST_F(UserTest, ThreeFragmentsReassembly)
     auto* parsed = reinterpret_cast<LOGIN_REQUEST_PACKET*>(outBuf);
     EXPECT_STREQ(parsed->UserID, "threefrag");
     EXPECT_STREQ(parsed->UserPW, "pass3");
+}
+
+// ==================== Routing Lock (Phase 1) ====================
+
+TEST_F(UserTest, TryAcquireRoutingFirstCallSucceeds)
+{
+    EXPECT_TRUE(user.TryAcquireRouting());
+    user.ReleaseRouting();
+}
+
+TEST_F(UserTest, TryAcquireRoutingWhileLockedFails)
+{
+    EXPECT_TRUE(user.TryAcquireRouting());
+    EXPECT_FALSE(user.TryAcquireRouting());  // already locked
+    user.ReleaseRouting();
+}
+
+TEST_F(UserTest, ReleaseAllowsReacquisition)
+{
+    EXPECT_TRUE(user.TryAcquireRouting());
+    user.ReleaseRouting();
+    EXPECT_TRUE(user.TryAcquireRouting());  // can re-acquire after release
+    user.ReleaseRouting();
+}
+
+TEST_F(UserTest, ClearResetsRoutingLock)
+{
+    EXPECT_TRUE(user.TryAcquireRouting());
+    user.Clear();
+    EXPECT_TRUE(user.TryAcquireRouting());  // Clear must reset the lock
+    user.ReleaseRouting();
+}
+
+// ==================== EnterRoom / ResetRoom atomic ordering (Phase 1) ====================
+
+TEST_F(UserTest, EnterRoomOrderingRoomIndexBeforeState)
+{
+    char id[] = "player1";
+    user.SetLogin(id);
+    user.EnterRoom(5);
+
+    // state == ROOM이면 roomIndex는 반드시 유효해야 함 (roomIndex가 먼저 store됨)
+    if (user.GetDomainState() == User::DOMAIN_STATE::ROOM)
+        EXPECT_EQ(user.GetRoomIndex(), 5);
+}
+
+TEST_F(UserTest, ResetRoomSetsLoginStateAndNegativeIndex)
+{
+    char id[] = "player1";
+    user.SetLogin(id);
+    user.EnterRoom(5);
+    user.ResetRoom();
+
+    EXPECT_EQ(user.GetDomainState(), User::DOMAIN_STATE::LOGIN);
+    EXPECT_EQ(user.GetRoomIndex(), -1);
+}
+
+// ==================== Concurrent routing lock (Phase 1) ====================
+
+TEST_F(UserTest, ConcurrentTryAcquireOnlyOneSucceeds)
+{
+    constexpr int THREAD_COUNT = 8;
+    std::atomic<int> successCount{ 0 };
+    std::atomic<bool> start{ false };
+    std::vector<std::thread> threads;
+
+    for (int i = 0; i < THREAD_COUNT; ++i)
+    {
+        threads.emplace_back([&]()
+        {
+            while (!start.load(std::memory_order_acquire)) {}
+            if (user.TryAcquireRouting())
+                successCount.fetch_add(1, std::memory_order_relaxed);
+        });
+    }
+
+    start.store(true, std::memory_order_release);
+    for (auto& t : threads) t.join();
+
+    EXPECT_EQ(successCount.load(), 1);
+    user.ReleaseRouting();
+}
+
+TEST_F(UserTest, ConcurrentEnterRoomAndReadNoInconsistency)
+{
+    // Verifies the "store roomIndex BEFORE store state=ROOM" invariant:
+    // a reader that observes state==ROOM via acquire-load must also observe
+    // roomIndex==5 via the subsequent acquire-load.
+    //
+    // ResetRoom is intentionally excluded: mixing EnterRoom+ResetRoom would
+    // create a TOCTOU race (ResetRoom writes roomIndex=-1 between the reader's
+    // two separate atomic loads) which is not an ordering bug -- it is handled
+    // in production by the routing lock, not by atomic ordering alone.
+    char id[] = "player1";
+    user.SetLogin(id);
+
+    std::atomic<bool> stop{ false };
+    std::atomic<int> inconsistencyCount{ 0 };
+
+    std::thread writer([&]()
+    {
+        for (int i = 0; i < 50000; ++i)
+            user.EnterRoom(5);  // always stores 5 then ROOM; never resets
+        stop.store(true, std::memory_order_release);
+    });
+
+    std::thread reader([&]()
+    {
+        while (!stop.load(std::memory_order_acquire))
+        {
+            if (user.GetDomainState() == User::DOMAIN_STATE::ROOM)
+            {
+                if (user.GetRoomIndex() != 5)
+                    inconsistencyCount.fetch_add(1, std::memory_order_relaxed);
+            }
+        }
+    });
+
+    writer.join();
+    reader.join();
+
+    EXPECT_EQ(inconsistencyCount.load(), 0)
+        << "state==ROOM but roomIndex != 5 detected -- atomic ordering bug";
 }

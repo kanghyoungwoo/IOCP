@@ -36,9 +36,22 @@ void StrandProcessor::Stop()
 
 void StrandProcessor::EnqueueJob(Room* pRoom, uint32_t clientIndex, uint32_t targetGeneration,UINT32 sessionGeneration, uint16_t packetId, uint16_t dataSize, const char* data)
 {
-    
     mAllocTotalCount.fetch_add(1, std::memory_order_relaxed);
-    PacketJob* pJob = mJobPool.Alloc();
+
+    thread_local PacketJob* tl_cache[BATCH_SIZE] = {};
+    thread_local int tl_cacheCount = 0;
+
+    if (tl_cacheCount == 0)
+    {
+        tl_cacheCount = (int)mJobPool.AllocBatch(BATCH_SIZE, tl_cache);
+        if (tl_cacheCount == 0)
+        {
+            mAllocFailCount.fetch_add(1, std::memory_order_relaxed);
+            LOG_ERROR_ONCE("Job Pool 소진. packet drop.\n");
+            return;
+        }
+    }
+    PacketJob* pJob = tl_cache[--tl_cacheCount];
     if (pJob == nullptr)
     {
         // 여기서 카운터 증가

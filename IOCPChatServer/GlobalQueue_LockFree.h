@@ -13,7 +13,7 @@
 //   주석 처리          : MPMC 모드 (ProcessThread 샤딩 등 다중 Producer 시)
 //                      기존 CAS 방식 유지
 // ---------------------------------------------------------------
-#define USE_SPMC // 주석 처리시 MPMC모드
+//#define USE_SPMC // 주석 처리시 MPMC모드 // IOCP Worker 다중 producer -> MPMC 모드
 
 class GlobalQueue_LockFree
 {

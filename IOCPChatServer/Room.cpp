@@ -87,8 +87,6 @@ void Room::Reset(INT32 roomNumber_, INT32 maxUserCount_)
 	}
 }
 
-// EnqueueJob은 단일 PacketManager 스레드에서만 호출 가정
-// 멀티스레드 호출 시 버그
 Room::EnqueueResult Room::EnqueueJob(PacketJob* pJob)
 {
 	// 고장 시 즉시 거절

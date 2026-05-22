@@ -19,7 +19,7 @@ class LockFreeStack
 
 	std::atomic<uint64_t> m_head; // 기존 TaggedPointer -> uint64_t로 pack/unpack
 	T* m_pool = nullptr;	// 풀 배열 시작 주소 (인덱스 ↔ 포인터 변환용)
-
+	uint32_t m_capacity = 0;
 	static uint64_t Pack(uint32_t index, uint32_t gen)
 	{
 		return static_cast<uint64_t>(index) | (static_cast<uint64_t>(gen) << 32);
@@ -35,7 +35,11 @@ public:
 	// 풀이 빈 채 객체 반납
 	LockFreeStack() : m_head(Pack(NULL_INDEX, 0)) {}
 
-	void Init(T* poolBase) { m_pool = poolBase; }
+	void Init(T* poolBase, uint32_t capacity = UINT32_MAX)
+	{
+		m_pool = poolBase;
+		m_capacity = capacity;
+	}
 
 
 	void Push(T* obj)
@@ -54,6 +58,7 @@ public:
 				std::memory_order_release,
 				std::memory_order_relaxed))
 				break;
+			_mm_pause();
 		}
 	}
 
@@ -78,6 +83,7 @@ public:
 			{
 				return &m_pool[old.index];	// 인덱스 -> 포인터 변환
 			}
+			_mm_pause();
 		}
 	}
 
@@ -87,4 +93,33 @@ public:
 		return m_head.is_lock_free();
 	}
 
+	uint32_t PopBatch(uint32_t count, T** outArray)
+	{
+		uint64_t oldHead = m_head.load(std::memory_order_relaxed);
+		while (true)
+		{
+			TaggedIndex old = Unpack(oldHead);
+			if (old.index == NULL_INDEX)
+				return 0;
+
+			uint32_t curIdx = old.index;
+			uint32_t actualCount = 0;
+			for (uint32_t i = 0; i < count; ++i)
+			{
+				if (curIdx == NULL_INDEX) break;
+				if (curIdx >= m_capacity) break;  // OOB 방어
+				outArray[actualCount++] = &m_pool[curIdx];
+				curIdx = m_pool[curIdx].poolNext;
+			}
+			if (actualCount == 0) return 0;
+
+			uint64_t newHead = Pack(curIdx, old.generation + 1);
+			if (m_head.compare_exchange_weak(oldHead, newHead,
+				std::memory_order_acquire, std::memory_order_relaxed))
+			{
+				return actualCount;
+			}
+			_mm_pause();
+		}
+	}
 };

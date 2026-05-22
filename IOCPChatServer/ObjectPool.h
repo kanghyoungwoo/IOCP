@@ -55,7 +55,7 @@ public:
 		}
 
 		// 스택에 배열 시작주소 알려줌
-		mFreeStack.Init(m_poolBlock);	// 베이스 주소 설정
+		mFreeStack.Init(m_poolBlock, poolSize);
 		for (uint32_t i = 0; i < poolSize; ++i)
 		{
 			//mFreeStack.Push(&m_poolBlock[i]);
@@ -65,6 +65,13 @@ public:
 		mFreeCount.store(poolSize, std::memory_order_relaxed);
 	}
 
+	uint32_t AllocBatch(uint32_t count, T** outArray)
+	{
+		uint32_t n = mFreeStack.PopBatch(count, outArray);
+		if (n > 0)
+			mFreeCount.fetch_sub(n, std::memory_order_relaxed);
+		return n;
+	}
 	// 풀에서 객체 하나를 꺼낸다.
 	// 풀이 비었으면 nullptr 반환 (호출 측에서 처리)
 	T* Alloc()

@@ -12,6 +12,7 @@ void User::Clear()
 		mIsDisconnecting.store(false);
 
 		mSessionGeneration.store(0, std::memory_order_relaxed);
+		mIsRouting.clear(std::memory_order_release);
 }
 
 int User::SetLogin(char* userID_)

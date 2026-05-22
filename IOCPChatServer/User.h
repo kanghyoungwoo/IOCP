@@ -45,7 +45,7 @@ public:
 
 	void SetDomainState(DOMAIN_STATE value_)
 	{
-		mCurDomainState = value_;
+		mCurDomainState.store(value_, std::memory_order_release);
 	}
 
 	INT32 GetNetConnIndex()  const
@@ -56,7 +56,7 @@ public:
 
 	DOMAIN_STATE GetDomainState()
 	{
-		return mCurDomainState;
+		return mCurDomainState.load(std::memory_order_acquire);
 	}
 
 	// 링버퍼 처리 활용
@@ -67,22 +67,21 @@ public:
 
 	void EnterRoom(INT32 roomIndex_)
 	{
-		roomIndex = roomIndex_;
-		mCurDomainState = DOMAIN_STATE::ROOM;  // 여기서 상태 변경
-		LOG_DEBUG("Entered room [%d] !\n", roomIndex);
-
+		roomIndex.store(roomIndex_, std::memory_order_release);
+		mCurDomainState.store(DOMAIN_STATE::ROOM, std::memory_order_release);
+		LOG_DEBUG("Entered room [%d] !\n", roomIndex_);
 	}
 
 	INT32 GetRoomIndex()
 	{
-		return roomIndex;
+		return roomIndex.load(std::memory_order_acquire);
 	}
 
 	void ResetRoom()
 	{
-		roomIndex = -1;
+		mCurDomainState.store(DOMAIN_STATE::LOGIN, std::memory_order_release);
+		roomIndex.store(-1, std::memory_order_release);
 	}
-
 
 	bool IsDisconnecting() const
 	{
@@ -104,12 +103,19 @@ public:
 		return mSessionGeneration.load(std::memory_order_acquire);
 	}
 
-
+	bool TryAcquireRouting()
+	{
+		return !mIsRouting.test_and_set(std::memory_order_acquire);
+	}
+	void ReleaseRouting()
+	{
+		mIsRouting.clear(std::memory_order_release);
+	}
 
 private:
 	INT32 mIndex = -1;
 	std::string mUserID = "";
-	INT32 roomIndex = -1;
+	std::atomic<INT32> roomIndex{ -1 };
 	std::atomic<UINT32> mSessionGeneration{ 0 };
 
 	//UINT32 mPacketDataBufferWritePos = 0; // 쓰기 위치
@@ -118,7 +124,8 @@ private:
 	// ringbuffer로 패킷 데이터 교체
 	RingBuffer<RING_BUFFER_SIZE> mPacketDataBuffer;
 
-	DOMAIN_STATE mCurDomainState = DOMAIN_STATE::NONE;
+	std::atomic<DOMAIN_STATE> mCurDomainState{ DOMAIN_STATE::NONE };
+
 
 	std::mutex mPacketRingBuffMutex;
 
@@ -126,5 +133,6 @@ private:
 	//char m_tempPacketBuffer[MAX_PACKET_DATA_BUFFER_SIZE];
 
 	std::atomic<bool> mIsDisconnecting{ false };
+	std::atomic_flag mIsRouting = ATOMIC_FLAG_INIT;
 
 };

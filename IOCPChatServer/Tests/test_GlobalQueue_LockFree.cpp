@@ -303,3 +303,166 @@ TEST(GlobalQueueSPMC, HighThroughput)
 
     EXPECT_EQ(consumedCount.load(), TOTAL);
 }
+
+// ============================================================
+//  MPMC tests (Phase 3): multiple IOCP Worker threads Push
+//  simultaneously, multiple Logic Worker threads Pop.
+//  These tests validate that switching from USE_SPMC to MPMC
+//  mode preserves correctness under multi-producer contention.
+// ============================================================
+
+// --- 13. MPMC: multiple producers, no data loss --------------
+TEST(GlobalQueueMPMC, MultipleProducersNoLoss)
+{
+    constexpr int PRODUCERS    = 4;
+    constexpr int PER_PRODUCER = 500;   // each producer pushes 500 rooms
+    constexpr int TOTAL        = PRODUCERS * PER_PRODUCER;
+    constexpr int CONSUMERS    = 4;
+    constexpr uint32_t QUEUE_SIZE = 512;
+
+    GlobalQueue_LockFree queue;
+    queue.Init(QUEUE_SIZE);
+
+    std::atomic<int>  consumedCount{ 0 };
+    std::atomic<int>  producersDone{ 0 };
+
+    // Consumers run in background, exit when queue is shut down
+    std::vector<std::thread> consumers;
+    for (int t = 0; t < CONSUMERS; ++t)
+    {
+        consumers.emplace_back([&]()
+        {
+            while (queue.Pop() != nullptr)
+                consumedCount.fetch_add(1, std::memory_order_relaxed);
+        });
+    }
+
+    // Producers push disjoint ranges of fake pointers
+    std::vector<std::thread> producers;
+    for (int p = 0; p < PRODUCERS; ++p)
+    {
+        producers.emplace_back([&, p]()
+        {
+            int base = p * PER_PRODUCER;
+            for (int i = 0; i < PER_PRODUCER; ++i)
+                queue.Push(fakeRoom(base + i));
+
+            if (producersDone.fetch_add(1, std::memory_order_acq_rel) + 1 == PRODUCERS)
+                queue.Shutdown();  // last producer shuts down the queue
+        });
+    }
+
+    for (auto& t : producers) t.join();
+    for (auto& t : consumers) t.join();
+
+    EXPECT_EQ(consumedCount.load(), TOTAL);
+}
+
+// --- 14. MPMC: no duplicates ---------------------------------
+TEST(GlobalQueueMPMC, MultipleProducersNoDuplicates)
+{
+    constexpr int PRODUCERS    = 4;
+    constexpr int PER_PRODUCER = 500;
+    constexpr int TOTAL        = PRODUCERS * PER_PRODUCER;
+    constexpr int CONSUMERS    = 4;
+    constexpr uint32_t QUEUE_SIZE = 512;
+
+    GlobalQueue_LockFree queue;
+    queue.Init(QUEUE_SIZE);
+
+    std::atomic<int> producersDone{ 0 };
+    std::vector<std::vector<int>> results(CONSUMERS);
+
+    std::vector<std::thread> consumers;
+    for (int t = 0; t < CONSUMERS; ++t)
+    {
+        consumers.emplace_back([&, t]()
+        {
+            Room* r;
+            while ((r = queue.Pop()) != nullptr)
+                results[t].push_back(fakeIndex(r));
+        });
+    }
+
+    std::vector<std::thread> producers;
+    for (int p = 0; p < PRODUCERS; ++p)
+    {
+        producers.emplace_back([&, p]()
+        {
+            int base = p * PER_PRODUCER;
+            for (int i = 0; i < PER_PRODUCER; ++i)
+                queue.Push(fakeRoom(base + i));
+
+            if (producersDone.fetch_add(1, std::memory_order_acq_rel) + 1 == PRODUCERS)
+                queue.Shutdown();
+        });
+    }
+
+    for (auto& t : producers) t.join();
+    for (auto& t : consumers) t.join();
+
+    std::vector<bool> seen(TOTAL, false);
+    int total = 0;
+    for (int t = 0; t < CONSUMERS; ++t)
+    {
+        for (int idx : results[t])
+        {
+            ASSERT_GE(idx, 0);
+            ASSERT_LT(idx, TOTAL);
+            EXPECT_FALSE(seen[idx]) << "Duplicate item: index " << idx;
+            seen[idx] = true;
+            ++total;
+        }
+    }
+    EXPECT_EQ(total, TOTAL);
+
+    int missing = 0;
+    for (int i = 0; i < TOTAL; ++i)
+        if (!seen[i]) ++missing;
+    EXPECT_EQ(missing, 0) << missing << " items were never consumed";
+}
+
+// --- 15. MPMC: 8 IOCP Workers simulated at high throughput ---
+TEST(GlobalQueueMPMC, HighThroughput8Producers)
+{
+    constexpr int PRODUCERS    = 8;
+    constexpr int PER_PRODUCER = 1000;
+    constexpr int TOTAL        = PRODUCERS * PER_PRODUCER;
+    constexpr int CONSUMERS    = 4;
+    constexpr uint32_t QUEUE_SIZE = 2048;
+
+    GlobalQueue_LockFree queue;
+    queue.Init(QUEUE_SIZE);
+
+    std::atomic<int> consumedCount{ 0 };
+    std::atomic<int> producersDone{ 0 };
+
+    std::vector<std::thread> consumers;
+    for (int t = 0; t < CONSUMERS; ++t)
+    {
+        consumers.emplace_back([&]()
+        {
+            while (queue.Pop() != nullptr)
+                consumedCount.fetch_add(1, std::memory_order_relaxed);
+        });
+    }
+
+    std::vector<std::thread> producers;
+    for (int p = 0; p < PRODUCERS; ++p)
+    {
+        producers.emplace_back([&, p]()
+        {
+            int base = p * PER_PRODUCER;
+            for (int i = 0; i < PER_PRODUCER; ++i)
+                queue.Push(fakeRoom(base + i));
+
+            if (producersDone.fetch_add(1, std::memory_order_acq_rel) + 1 == PRODUCERS)
+                queue.Shutdown();
+        });
+    }
+
+    for (auto& t : producers) t.join();
+    for (auto& t : consumers) t.join();
+
+    EXPECT_EQ(consumedCount.load(), TOTAL);
+}

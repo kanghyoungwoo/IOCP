@@ -173,13 +173,66 @@ void PacketManager::End()
 bool PacketManager::ReceivePacketData(const UINT32 clientIndex_, const UINT32 generation_, const UINT32 dataSize_, char* pData_)
 {
 	auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
-	// 링버퍼에 raw bytes 저장
 	if (!pUser->SetPacketData(dataSize_, pData_))
 	{
-		LOG_ERROR("[ReceivePacketData] Client(%d) 버퍼 오버플로우 → 연결 해제 요청\n", clientIndex_);
+		LOG_ERROR("[ReceivePacketData] Client(%d) 버퍼 오버플로우\n", clientIndex_);
 		return false;
 	}
-	// 인덱스만 큐에 push
+
+	if (pUser->GetDomainState() == User::DOMAIN_STATE::ROOM)
+	{
+		if (!pUser->TryAcquireRouting())
+		{
+			// ProcessThread가 drain 중 → Slow Path
+			EnqueuePacketData(clientIndex_, generation_);
+			return true;
+		}
+
+		char packetBuf[MAX_SINGLE_PACKET_SIZE];
+		while (true)
+		{
+			auto packetData = pUser->GetPacket(packetBuf, sizeof(packetBuf));
+			if (packetData.PacketId == 0)
+				break;
+
+			if (pUser->GetSessionGeneration() != generation_)
+				break;
+
+			if (packetData.DataSize == 0 || packetData.DataSize > MAX_SINGLE_PACKET_SIZE)
+			{
+				pUser->ReleaseRouting();
+				return false;
+			}
+
+			INT32 roomIdx = pUser->GetRoomIndex();
+			auto pRoom = mRoomManager->GetRoomByNumber(roomIdx);
+			if (pRoom == nullptr)
+			{
+				LOG_ERROR("client %d의 방이 유효하지 않음. 강제 LOGIN 전환 및 현재 패킷 드랍\n", clientIndex_);
+				
+				// 1. 유저의 상태를 ROOM에서 LOGIN으로 원자적 강등 (기존 SlowPath 정책과 동일)
+				pUser->ResetRoom();
+
+				// 2. 라우팅 독점권을 반환
+				pUser->ReleaseRouting();
+
+				// 3. 현재 뽑아낸 packetData는 드랍하고
+				// 링버퍼에 아직 남아있을지 모르는 다음 패킷들을 ProcessThread가 처리하도록 Slow Path로 넘김
+				EnqueuePacketData(clientIndex_, generation_);
+				return true;
+			}
+
+			m_strandProcessor.EnqueueJob(
+				pRoom, clientIndex_,
+				pRoom->GetGeneration(),
+				pUser->GetSessionGeneration(),
+				packetData.PacketId, packetData.DataSize, packetData.pDataPtr
+			);
+		}
+		pUser->ReleaseRouting();
+		return true;
+	}
+
 	EnqueuePacketData(clientIndex_, generation_);
 	return true;
 }
@@ -258,13 +311,17 @@ void PacketManager::ProcessPacket()
 				// 링버퍼에 남은 데이터 전부 소진(drain)
 				pUser->ClearPacketBuffer();  // 링버퍼 한방에 초기화
 				continue;
-				
-
 			}
+			// 독점권 먼저 획득
+			if (!pUser->TryAcquireRouting())
+				continue;  // IOCP Worker Fast Path 처리 중 -> 안전하게 skip
 
 			auto packetData = pUser->GetPacket(packetBuf, sizeof(packetBuf));
 			if (packetData.PacketId == 0)
+			{
+				pUser->ReleaseRouting();
 				continue;
+			}
 
 			if (packetData.DataSize == 0 || packetData.DataSize > MAX_SINGLE_PACKET_SIZE)
 			{
@@ -272,6 +329,7 @@ void PacketManager::ProcessPacket()
 				//pUser->SetDisconnecting();
 				//// 악성 유저이므로 연결을 끊어버림 (Strand를 통해 안전하게 종료 처리)
 				//m_strandProcessor.EnqueueJob(nullptr, task.clientIndex, 0, pUser->GetSessionGeneration(), (UINT16)PACKET_ID::SYS_USER_DISCONNECT, 0, nullptr);
+				pUser->ReleaseRouting();
 				ClearConnectionInfo(task.clientIndex);
 				continue;
 			}
@@ -291,6 +349,7 @@ void PacketManager::ProcessPacket()
 				if (pUser->GetSessionGeneration() != task.generation)
 				{
 					LOG_DEBUG("Stale Packet 버림 (Gen: %d vs %d)\n", pUser->GetSessionGeneration(), task.generation);
+					pUser->ReleaseRouting();
 					continue;
 				}
 			}
@@ -329,6 +388,7 @@ void PacketManager::ProcessPacket()
 				processOnePacket(nextPacket);
 			}
 
+			pUser->ReleaseRouting();  // 루프 끝에 반환
 		}
 		mReadBuffer.clear();
 

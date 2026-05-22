@@ -3,8 +3,8 @@
 #include "Packet.h"
 #include "Define.h"
 #include "PacketJob.h"
-//#include "MPSCQueue.h" // 추후 확장시 사용
-#include "SPSCQueue.h"
+#include "MPSCQueue.h" // 추후 확장시 사용
+//#include "SPSCQueue.h"
 #include <functional>
 #include <atomic>
 #include <unordered_map>
@@ -54,8 +54,8 @@ public:
 	User* FindUserByClientIndex(uint32_t clientIndex);
 
 	// Strand 접근자
-	// MPSCQueue<PacketJob>&	GetLocalQueue()	{ return mLocalQueue; } // 추후 사용
-	SPSCQueue<PacketJob, 4096>& GetLocalQueue() { return mLocalQueue; }
+	MPSCQueue<PacketJob>&	GetLocalQueue()	{ return mLocalQueue; }
+	//SPSCQueue<PacketJob, 4096>& GetLocalQueue() { return mLocalQueue; }
 	std::atomic<int>&		GetMsgCount()	{ return mMsgCount; }
 	uint32_t				GetGeneration() { return mGeneration.load(std::memory_order_acquire); }
 	bool                    IsBroken()		{ return mIsBroken.load(std::memory_order_acquire); }
@@ -75,8 +75,8 @@ private:
 	INT32 mRoomNumber = -1;
 
 	// Strand 멤버
-	// MPSCQueue<PacketJob>	mLocalQueue;		// 방 별 전용 MPSC 큐
-	SPSCQueue<PacketJob, 4096>  mLocalQueue;
+	MPSCQueue<PacketJob>	mLocalQueue;		// 방 별 전용 MPSC 큐
+	//SPSCQueue<PacketJob, 4096>  mLocalQueue;
 	std::atomic<int>		mMsgCount{ 0 };		// Push/Pop 동기화 카운터
 	std::atomic<uint32_t>	mGeneration{ 0 };	// ABA 방지 세대 카운터
 	std::atomic<bool>		mIsBroken{ false };	// Poison Pill 격리 flag
