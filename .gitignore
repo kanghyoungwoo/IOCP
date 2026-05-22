@@ -85,7 +85,11 @@ Generated\ Files/
 # NUnit
 *.VisualState.xml
 TestResult.xml
+test_results.xml
 nunit-*.xml
+
+# VS Test Environment
+testEnvironments.json
 
 # Build Results of an ATL Project
 [Dd]ebugPS/
