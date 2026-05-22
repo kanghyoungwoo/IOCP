@@ -435,3 +435,9 @@ FodyWeavers.xsd
 # Additional files built by Visual Studio
 
 # End of https://www.toptal.com/developers/gitignore/api/c++,visualstudio
+
+# Claude Code worktrees
+.claude/
+
+# Generated config
+config.h
