@@ -50,10 +50,14 @@ struct BotStatistics
     std::atomic<uint64_t> proxyHolds{ 0 };
 
     // Vulnerability Detection
-    std::atomic<uint64_t> abaVulnerabilityDetected{ 0 };    
-    std::atomic<uint64_t> strandRaceDetected{ 0 };          
-    std::atomic<uint64_t> zombieRaceDetected{ 0 };          
-    std::atomic<uint64_t> serverCrashDetected{ 0 };         
+    std::atomic<uint64_t> abaVulnerabilityDetected{ 0 };
+    std::atomic<uint64_t> strandRaceDetected{ 0 };
+    std::atomic<uint64_t> zombieRaceDetected{ 0 };
+    std::atomic<uint64_t> serverCrashDetected{ 0 };
+
+    // Scenario D
+    std::atomic<uint64_t> routingBoundaryAttempts{ 0 };   // LeaveRoom + 즉시 Chat 전송 횟수
+    std::atomic<uint64_t> routingBoundaryDrops{ 0 };      // 경계 Chat에 대한 unexpectedDisconnect 횟수         
 
     std::chrono::steady_clock::time_point startTime;
 
@@ -73,6 +77,7 @@ struct BotStatistics
         proxyReorders = 0; proxyHolds = 0;
         abaVulnerabilityDetected = 0; strandRaceDetected = 0;
         zombieRaceDetected = 0; serverCrashDetected = 0;
+        routingBoundaryAttempts = 0; routingBoundaryDrops = 0;
         startTime = std::chrono::steady_clock::now();
     }
 
@@ -128,10 +133,12 @@ struct BotStatistics
             proxyReorders.load(), proxyHolds.load());
 
         LOG_UI("\n  *** VULNERABILITY DETECTION ***\n");
-        LOG_UI("    [A] ABA Overflow:     %llu\n", abaVulnerabilityDetected.load());
-        LOG_UI("    [B] Strand Race:      %llu\n", strandRaceDetected.load());
-        LOG_UI("    [C] Zombie Race:      %llu\n", zombieRaceDetected.load());
-        LOG_UI("    Server Crash:         %llu\n", serverCrashDetected.load());
+        LOG_UI("    [A] ABA Overflow:         %llu\n", abaVulnerabilityDetected.load());
+        LOG_UI("    [B] Strand Race:          %llu\n", strandRaceDetected.load());
+        LOG_UI("    [C] Zombie Race:          %llu\n", zombieRaceDetected.load());
+        LOG_UI("    [D] Routing Boundary:     attempts=%llu  drops=%llu\n",
+            routingBoundaryAttempts.load(), routingBoundaryDrops.load());
+        LOG_UI("    Server Crash:             %llu\n", serverCrashDetected.load());
         LOG_UI("=============================================================\n\n");
     }
 

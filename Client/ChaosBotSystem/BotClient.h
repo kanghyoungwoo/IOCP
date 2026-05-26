@@ -34,7 +34,8 @@ enum class BotBehavior
     PIPELINE_BURST,
     ZOMBIE_ATTACK,
     HOLD_VICTIM,
-    FLOOD_CHAT
+    FLOOD_CHAT,
+    RAPID_LEAVE_REENTER     // Scenario D: LeaveRoom 직후 Chat 전송으로 Fast/Slow Path 경계 스트레스
 };
 
 class BotEngine;
@@ -95,6 +96,7 @@ private:
     void TickPipelineBurst(int64_t nowMs);
     void TickZombieAttack(int64_t nowMs);
     void TickFloodChat(int64_t nowMs);
+    void TickRapidLeaveReenter(int64_t nowMs);
 
     uint32_t    mBotIndex = 0;
     BotEngine*  mEngine = nullptr;

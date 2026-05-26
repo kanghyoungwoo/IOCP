@@ -60,6 +60,7 @@ enum class ScenarioType
     SCENARIO_A_ABA_OVERFLOW,
     SCENARIO_B_STRAND_REENTRY,
     SCENARIO_C_ZOMBIE_RACE,
+    SCENARIO_D_FAST_PATH_BOUNDARY,
     STRESS_TEST,
     ALL_SCENARIOS
 };
@@ -91,6 +92,16 @@ struct ScenarioConfig
         uint32_t reconnectDelayUs = 100;
         bool     useHardClose = true;
     } scenarioC;
+
+    // Scenario D: Fast Path / Slow Path 경계 안정성 검증
+    // ROOM 상태 전환 직전/직후 패킷이 도착했을 때 라우팅 락이 정상 동작하는지 검증
+    struct
+    {
+        uint32_t botCount = 200;         // 경계 테스트 봇 수
+        uint32_t botsPerRoom = 10;       // 방당 봇 수 (MPSC 동시 Push 스트레스)
+        uint32_t chatBeforeLeave = 3;    // LeaveRoom 전 채팅 횟수
+        uint32_t repeatCount = 0;        // 0 = 무제한
+    } scenarioD;
 
     uint32_t durationSec = 60;
 };

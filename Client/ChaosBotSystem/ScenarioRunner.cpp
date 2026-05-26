@@ -46,6 +46,16 @@ void ScenarioRunner::RunScenario(const ChaosConfig& config)
             mEngine->GetBot(i)->SetMaxCycles(config.scenario.scenarioC.zombieBotCount);
             // 또는 별도 반복 횟수 필드 추가
         }
+        else if (config.scenario.type == ScenarioType::SCENARIO_D_FAST_PATH_BOUNDARY)
+        {
+            mEngine->GetBot(i)->SetBehavior(BotBehavior::RAPID_LEAVE_REENTER);
+            // chatBeforeLeave 회 채팅 후 경계 패킷 전송 (0이면 기본값 3 사용)
+            mEngine->GetBot(i)->SetMaxCycles(config.scenario.scenarioD.chatBeforeLeave);
+            // botsPerRoom 단위로 방 배정 → 동일 방에 여러 봇이 동시 LeaveRoom+Chat 전송
+            uint32_t roomIdx = (i / (std::max)(1U, config.scenario.scenarioD.botsPerRoom))
+                               % (std::max)(1U, config.engine.roomCount);
+            mEngine->GetBot(i)->SetTargetRoom(static_cast<int32_t>(roomIdx));
+        }
 
         if (i % config.engine.connectBatchSize == 0 && i > 0)
         {

@@ -70,6 +70,13 @@ void BotClient::OnDisconnected()
     if (prevState != BotState::DISCONNECTING && prevState != BotState::DISCONNECTED)
     {
         GetStats().unexpectedDisconnects++;
+
+        // Scenario D: LeaveRoom 직후 Chat을 보낸 경계 구간에서 끊겼으면 routingBoundaryDrop으로 집계
+        if (mBehavior == BotBehavior::RAPID_LEAVE_REENTER &&
+            prevState == BotState::ROOM_LEAVE_SENT)
+        {
+            GetStats().routingBoundaryDrops++;
+        }
     }
 
     mState = BotState::DISCONNECTED;
@@ -380,6 +387,9 @@ void BotClient::Tick(int64_t nowMs)
     case BotBehavior::HOLD_VICTIM:
         TickNormal(nowMs);  // 일반 행동 + 프록시가 패킷 보류
         break;
+    case BotBehavior::RAPID_LEAVE_REENTER:
+        TickRapidLeaveReenter(nowMs);
+        break;
     }
 }
 
@@ -571,6 +581,60 @@ void BotClient::TickFloodChat(int64_t nowMs)
         mActionIntervalMs = 1;  // 가능한 빠르게
         break;
     }
+
+    case BotState::DISCONNECTED:
+        mState = BotState::IDLE;
+        break;
+
+    default:
+        break;
+    }
+}
+
+// ----------------------------------------------------------------
+// 시나리오 D: Fast Path / Slow Path 경계 스트레스
+// 방 안에서 N회 채팅 후 LeaveRoom을 보내고 즉시 Chat을 전송.
+// 서버가 ROOM→LOGIN 상태 전환을 처리하는 순간 Chat 패킷이 도착하여
+// TryAcquireRouting() 경계 조건(Fast Path vs Slow Path 선택)을 스트레스 테스트.
+// mMaxCycles = chatBeforeLeave (ScenarioRunner에서 설정)
+// ----------------------------------------------------------------
+void BotClient::TickRapidLeaveReenter(int64_t nowMs)
+{
+    switch (mState)
+    {
+    case BotState::CONNECTED:
+        SendLogin();
+        mActionIntervalMs = 1;  // 최소 간격으로 경계 스트레스 극대화
+        break;
+
+    case BotState::LOGGED_IN:
+        SendRoomEnter(mTargetRoom);
+        break;
+
+    case BotState::IN_ROOM:
+    {
+        uint32_t chatLimit = (mMaxCycles > 0) ? mMaxCycles : 3;
+        mCycleCount++;
+        if (mCycleCount >= chatLimit)
+        {
+            // 핵심: LeaveRoom 직후 즉시 Chat 전송 → 경계 패킷 생성
+            SendRoomLeave(mRoomNumber);
+            SendChat("D_BOUNDARY");
+            GetStats().routingBoundaryAttempts++;
+            mCycleCount = 0;
+        }
+        else
+        {
+            char msg[64];
+            snprintf(msg, sizeof(msg), "D_%u_%u", mBotIndex, mCycleCount);
+            SendChat(msg);
+        }
+        break;
+    }
+
+    case BotState::ROOM_LEAVE_SENT:
+        // HandleRoomLeaveResponse() 가 LOGGED_IN으로 전환할 때까지 대기
+        break;
 
     case BotState::DISCONNECTED:
         mState = BotState::IDLE;
