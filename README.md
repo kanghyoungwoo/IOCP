@@ -3,7 +3,7 @@
 > C++17 | 10,000명 동시접속 | Lock-Free · p99 97%↓ · 무응답 0건 | 최대 539K recv_pkt/s
 
 Windows IOCP 기반 네트워크 엔진과 채팅 서비스를 구현한 프로젝트입니다.
-Lock-Free 자료구조(SPSC/MPSC Queue), Strand 패턴, Object Pool을 이용하여 엔진 레이어를 구성하고, Contents 레이어(채팅방, 인증, DB 연동)를 분리 설계하여 다른 실시간 서비스(게임, 알림 등)에도 적용 가능한 구조입니다.
+Lock-Free 자료구조(MPSC/MPMC Queue), CAS 기반 Fast Path 직접 라우팅, Strand 패턴, Object Pool을 이용하여 엔진 레이어를 구성하고, Contents 레이어(채팅방, 인증, DB 연동)를 분리 설계하여 다른 실시간 서비스(게임, 알림 등)에도 적용 가능한 구조입니다.
 
 ![C++17](https://img.shields.io/badge/C%2B%2B-17-00599C?style=flat-square&logo=c%2B%2B) ![Windows IOCP](https://img.shields.io/badge/Network-Windows_IOCP-0078D6?style=flat-square&logo=windows) ![Lock-Free](https://img.shields.io/badge/Lock--Free-555555?style=flat-square) ![Strand Pattern](https://img.shields.io/badge/Strand_Pattern-555555?style=flat-square) ![Object Pooling](https://img.shields.io/badge/Object_Pooling-555555?style=flat-square) ![Redis](https://img.shields.io/badge/Redis-DC382D?style=flat-square&logo=redis&logoColor=white) ![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=flat-square&logo=mysql&logoColor=white) ![AWS EC2](https://img.shields.io/badge/AWS_EC2-232F3E?style=flat-square&logo=amazonaws) ![CloudWatch](https://img.shields.io/badge/CloudWatch-FF4F8B?style=flat-square&logo=amazoncloudwatch&logoColor=white) ![VS Diagnostic Tools](https://img.shields.io/badge/VS_Diagnostic_Tools-5C2D91?style=flat-square&logo=visualstudio&logoColor=white)
 
@@ -48,7 +48,7 @@ Lock-Free 자료구조(SPSC/MPSC Queue), Strand 패턴, Object Pool을 이용하
 | **Platform** | Windows |
 | **Database** | Redis (hiredis), MySQL |
 | **Infra** | AWS EC2 c6i.4xlarge (Server), c6i.large × 4 (Client) |
-| **Test** | Google Test (125 cases), Chaos Bot System, Chat Load Tester |
+| **Test** | Google Test (163 cases), Chaos Bot System, Chat Load Tester |
 
 ---
 
@@ -188,58 +188,48 @@ DB 스레드(Redis/MySQL)는 작업 큐를 완전히 소진한 후 종료합니�
 
 ```mermaid
 graph TD
-    subgraph External ["Clients & Test Bots"]
-        Clients((Real Clients))
-        ChaosBot[Chaos Bot System]
-        LoadTester[Chat Load Tester]
+    Client(["Clients"])
+
+    subgraph IOCP ["Network Layer — IOCompletionPort"]
+        IOWorkers["IO Worker Threads\nAcceptEx / WSARecv / WSASend"]
     end
 
-    subgraph Network ["Network Layer — IOCompletionPort"]
-        IOWorkers["I/O Worker Threads \nAcceptEx / WSARecv / WSASend"]
-        SessionPool["ClientSession Pool \nGeneration + RefCount"]
-        IOWorkers -->|"Accept / Recv / Send"| SessionPool
-    end
-
-    subgraph Dispatch ["Dispatch Layer — PacketManager"]
-        ProcessTh["ProcessThread\nRouter / Dispatcher"]
-        UserMgr["UserManager"]
-        ProcessTh -->|"User 조회 / 상태 관리"| UserMgr
+    subgraph Dispatch ["Slow Path — PacketManager"]
+        ProcessTh["ProcessThread\n로그인 · 연결 · 방입장 · Callback"]
     end
 
     subgraph Strand ["Strand Layer — StrandProcessor"]
-        GlobalQ[("Lock-Free GlobalQueue\n ")]
-        LogicTh["Logic Thread Pool \nRoom 단위 직렬 처리"]
-        RoomMgr["RoomManager"]
-        GlobalQ -->|"Pop Room"| LogicTh
-        LogicTh -->|"브로드캐스트"| RoomMgr
+        LogicTh["Logic Thread Pool\nRoom 단위 직렬 처리"]
     end
 
-    subgraph DB ["Async DB Layer"]
-        Redis["RedisManager\n로그인 인증"]
-        MySQL["MySQLManager\n활동 로그 기록"]
+    subgraph DBLayer ["Async DB Layer"]
+        Redis["Redis\n로그인 인증"]
+        MySQL["MySQL\n활동 로그"]
     end
 
-    External <-->|"TCP Socket"| IOWorkers
-    IOWorkers -->|"패킷 수신\nEnqueue"| ProcessTh
-    ProcessTh -->|"ROOM 패킷\nLock-Free EnqueueJob"| GlobalQ
-    ProcessTh <-->|"AUTH 요청 / 결과"| Redis
-    ProcessTh -->|"INSERT 로그"| MySQL
-    RoomMgr -->|"WSASend"| SessionPool
+    Client <-->|"TCP"| IOWorkers
+    IOWorkers -->|"ROOM Fast Path (CAS)"| LogicTh
+    IOWorkers -->|"비-ROOM / Slow Path (mutex+CV)"| ProcessTh
+    ProcessTh -->|"EnqueueJob"| LogicTh
+    ProcessTh <-->|"AUTH"| Redis
+    ProcessTh -->|"INSERT"| MySQL
+    LogicTh -->|"브로드캐스트"| IOWorkers
+    LogicTh -->|"Callback (상태변경)"| ProcessTh
 
-    classDef lockfree fill:#e6f3ff,stroke:#0066cc,stroke-width:2px;
     classDef thread fill:#e6ffe6,stroke:#006600,stroke-width:2px;
-
-    class GlobalQ lockfree;
     class IOWorkers,ProcessTh,LogicTh thread;
 ```
 
-> **패킷 흐름**: Client → WSARecv 완료(IOCP Worker) → **유저별 RingBuffer**에 raw bytes 저장 + clientIndex를 **double buffering 큐**(mutex)에 push → ProcessThread가 swap 후 RingBuffer에서 패킷 조립 → DomainState 확인 → ROOM 패킷이면 **ObjectPool**에서 PacketJob 할당 → **Room SPSC LocalQueue**(Lock-Free 링버퍼)에 enqueue → 첫 패킷이면 Room을 **Lock-Free GlobalQueue**(링버퍼)에 push → Logic Thread가 Room 단위로 직렬 처리(채팅 브로드캐스트) → **Callback MPSC Queue**로 상태변경 통보 → ProcessThread가 PopCallback으로 UserManager 상태 갱신 + MySQL 로그 기록 → PacketJob을 ObjectPool에 반환
+| 경로 | 흐름 |
+|------|------|
+| **Fast Path** (ROOM 채팅) | IO Worker → CAS 라우팅 독점 획득 → Logic Thread 직접 전달 → 브로드캐스트 |
+| **Slow Path** (로그인 · 연결 · 방입장) | IO Worker → double buffering(mutex+CV) → ProcessThread → 핸들러 처리 or Logic Thread |
 
 ### 주요 구현 특징
 
 | 기능 | 설명 |
 |------|------|
-| **Lock-Free SPSC/MPSC Queue** | Room LocalQueue는 SPSC 링버퍼(Hole 없음, False Sharing 방지), Callback Queue는 MPSC CAS 기반 |
+| **Lock-Free MPSC/MPMC Queue** | Room LocalQueue는 MPSC CAS 기반(다중 IO Worker 직접 Push), GlobalQueue는 MPMC CAS 기반, Callback Queue는 MPSC CAS 기반 |
 | **Strand 패턴** | Room 단위 브로드캐스트를 Lock 없이 직렬화하여 동시성 보장 |
 | **Lock-Free Object Pool** | `LockFreeStack` 기반 O(1) Alloc/Free, ABA 방지 Generation Counter 적용 |
 | **10,000 동시접속** | AcceptEx Pending Pool + 세션 Free-list로 대규모 연결 수용 |
@@ -299,9 +289,9 @@ graph TD
 
 | 주제 | 핵심 |
 |------|------|
-| **스레드 모델** | IOCP Worker(8) · Logic(4) · DB(2) · 지원(2), 6그룹 구성 |
+| **스레드 모델** | IOCP Worker(8) · Logic(4) · DB(2) · ProcessThread(1) · TimeoutThread(1), 6그룹 구성 |
 | **메모리 관리** | ObjectPool + LockFreeStack Free-list, Zero-Allocation 핫패스 |
-| **동기화 전략** | Lock-Free 3종(MPSC/MPMC/Stack) + SPSC 링버퍼(acquire/release 메모리 오더링) + 의도적 Mutex 3곳 |
+| **동기화 전략** | Lock-Free 3종(MPSC/MPMC/Stack) + atomic_flag CAS(Fast Path 라우팅) + 의도적 Mutex 3곳 |
 | **네트워크 구조** | AcceptEx Pending 100개, Generation + RefCount 이중 방어 |
 
 > 코드 스니펫, 다이어그램, Memory Ordering 선택 근거 등 상세 내용은 [구현 상세 문서](Docs/구현%20상세.md)를 참조해 주십시오.
@@ -348,13 +338,12 @@ git clone https://github.com/kanghyoungwoo/IOCPChatServer.git
 
 **단기 개선**
 
-- [ ] **ProcessThread(Dispatcher) 제거** — IO Worker가 Room 패킷을 StrandProcessor로 직접 라우팅
+- [x] ~~**ProcessThread(Dispatcher) 제거** — IO Worker가 Room 패킷을 StrandProcessor로 직접 라우팅~~
   ```
-  현재: IO Worker → mutex+CV → ProcessThread → StrandProcessor
-  개선: IO Worker → StrandProcessor (lock-free CAS, 컨텍스트 스위치 0회)
-  로그인 등 비-Room 패킷은 경량 MPSCQueue + 전용 LoginThread로 분리
+  이전: IO Worker → mutex+CV → ProcessThread → StrandProcessor
+  현재: IO Worker → CAS(atomic_flag) → StrandProcessor 직접 라우팅 (Fast Path, context switch 0회)
+        CAS 실패 or 비-Room 패킷 → double buffering → ProcessThread (Slow Path 전용 핸들러)
   ```
-  모든 패킷 경로에서 mutex/condition_variable 제거, Dispatch 레이턴시 감소
 
 
 **장기 개선 (아키텍처 수준)**

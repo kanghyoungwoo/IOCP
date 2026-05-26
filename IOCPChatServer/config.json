@@ -1,4 +1,5 @@
 {
+    "TestMode": true,
     "Network": {
         "ServerPort": 11021,
         "MaxClient": 10000,
