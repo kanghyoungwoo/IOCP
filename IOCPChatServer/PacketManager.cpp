@@ -209,7 +209,7 @@ bool PacketManager::ReceivePacketData(const UINT32 clientIndex_, const UINT32 ge
 			if (pRoom == nullptr)
 			{
 				LOG_ERROR("client %d의 방이 유효하지 않음. 강제 LOGIN 전환 및 현재 패킷 드랍\n", clientIndex_);
-				
+
 				// 1. 유저의 상태를 ROOM에서 LOGIN으로 원자적 강등 (기존 SlowPath 정책과 동일)
 				pUser->ResetRoom();
 
@@ -365,7 +365,7 @@ void PacketManager::ProcessPacket()
 							LOG_ERROR("client %d의 방이 유효하지 않음.\n", task.clientIndex);
 							pUser->SetDomainState(User::DOMAIN_STATE::LOGIN);
 							pUser->ResetRoom();
-							return; 
+							return;
 						}
 						m_strandProcessor.EnqueueJob(pRoom, task.clientIndex, pRoom->GetGeneration(),pUser->GetSessionGeneration(), packetData.PacketId, packetData.DataSize, packetData.pDataPtr);
 					}

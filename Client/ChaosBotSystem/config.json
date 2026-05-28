@@ -1,27 +1,35 @@
 {
     "engine": {
-        "serverHost": "127.0.0.1",
+        "serverHost": "192.168.0.2",
         "serverPort": 11021,
-        "totalBots": 100,
+        "totalBots": 950,
         "ioWorkerThreads": 4,
         "connectBatchSize": 50,
-        "connectIntervalMs": 100
+        "connectIntervalMs": 100,
+	"roomCount": 10
     },
     "proxy": {
-        "enabled": true,
-        "listenPort": 12021,
-        "targetHost": "127.0.0.1",
-        "targetPort": 11021,
-        "fragmentEnabled": false,
-        "delayEnabled": true,
-        "dropEnabled": false,
-        "reorderEnabled": false
+    	"enabled": false,
+	"listenPort": 12021,
+	"targetHost": "127.0.0.1",
+	"targetPort": 11021,
+    	"holdEnabled": true,
+    	"holdPacketId": 215,
+    	"holdTargetSessionIndex": 0,
+    	"holdDurationMs": 5000,
+    	"fragmentEnabled": false,
+    	"delayEnabled": false,
+    	"dropEnabled": false,
+    	"reorderEnabled": false
     },
     "scenario": {
-        "type": 0,
+        "type": 1,
         "reconnectCycleCount": 70000,
         "repeatCount": 1000,
         "zombieBotCount": 200,
-        "durationSec": 60
+        "durationSec": 1800,
+    	"botCount": 200,
+    	"botsPerRoom": 1,
+    	"chatBeforeLeave": 3
     }
 }

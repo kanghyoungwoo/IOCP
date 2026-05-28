@@ -28,6 +28,7 @@ bool LoadConfig(const std::string& filename, ChaosConfig& config)
             config.engine.ioWorkerThreads = e.value("ioWorkerThreads", 4);
             config.engine.connectBatchSize = e.value("connectBatchSize", 50);
             config.engine.connectIntervalMs = e.value("connectIntervalMs", 100);
+            config.engine.roomCount = e.value("roomCount", 100);
         }
         if (j.contains("proxy"))
         {
@@ -59,6 +60,9 @@ bool LoadConfig(const std::string& filename, ChaosConfig& config)
             config.scenario.scenarioA.reconnectCycleCount = s.value("reconnectCycleCount", 70000);
             config.scenario.scenarioB.repeatCount = s.value("repeatCount", 1000);
             config.scenario.scenarioC.zombieBotCount = s.value("zombieBotCount", 200);
+            config.scenario.scenarioD.botCount = s.value("botCount", 200);
+            config.scenario.scenarioD.botsPerRoom = s.value("botsPerRoom", 10);
+            config.scenario.scenarioD.chatBeforeLeave = s.value("chatBeforeLeave", 3);
             config.scenario.durationSec = s.value("durationSec", 60);
         }
     }

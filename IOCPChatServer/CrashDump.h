@@ -2,6 +2,8 @@
 #include <Windows.h>
 #include <DbgHelp.h>
 #include <cstdio>
+#include <csignal>
+#include <exception>
 #include "Define.h"
 
 #pragma comment(lib, "Dbghelp.lib")
@@ -39,5 +41,16 @@ namespace CrashDump
 	inline void Init()
 	{
 		SetUnhandledExceptionFilter(UnhandledExceptionHandler);
+
+		// std::terminate (미처리 C++ 예외) → SEH로 전환
+		std::set_terminate([]() {
+			RaiseException(0xE0000001, EXCEPTION_NONCONTINUABLE, 0, nullptr);
+		});
+
+		// abort() → SEH로 전환
+		_set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
+		signal(SIGABRT, [](int) {
+			RaiseException(0xE0000002, EXCEPTION_NONCONTINUABLE, 0, nullptr);
+		});
 	}
 }

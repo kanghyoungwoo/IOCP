@@ -572,7 +572,8 @@ void IOCompletionPort::WorkerThread()
 			else if (IOOperation::ZOMBIE_CLEANUP == op)
 			{
 				CloseSocket(pClientSession);
-				delete reinterpret_cast<stOverlappedEx*>(lpOverlapped);
+				// mZombieContext는 ClientSession 멤버 변수 — delete 하면 안 됨
+				// (heap 할당 방식에서 멤버 변수로 전환 시 delete 제거 누락된 버그)
 
 				// 가짜 I/O 처리가 끝났으므로 참조 카운트 감소
 				if (pClientSession->ReleaseRef())

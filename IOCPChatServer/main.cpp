@@ -5,6 +5,8 @@
 #include "ConfigManager.h"
 #include <string>
 #include <iostream>
+#include <csignal>
+#include <exception>
 //const UINT16 SERVER_PORT = 11021;
 //const UINT16 MAX_CLIENT = 10000;	// 한 번에 접속할 클라이언트 수
 //const UINT32 MAX_IO_WORKER_THREAD =8;
