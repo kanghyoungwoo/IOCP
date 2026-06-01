@@ -457,6 +457,35 @@ TEST_F(RoomEnqueueTest, EnqueueAfterResetUsesNewGeneration)
 
 // ==================== Concurrent EnqueueJob (Phase 2 MPSC) ====================
 
+TEST_F(RoomEnqueueTest, ResetWithFreeFunc_DrainsResidualJobs)
+{
+    uint32_t gen = room.GetGeneration();
+    for (int i = 0; i < 5; ++i)
+        initPacketJob(jobStorage[i], i + 1, gen, (uint16_t)PACKET_ID::ROOM_CHAT_REQUEST);
+
+    // Job 5개 Push (drain 안 함 → 큐에 잔류)
+    for (int i = 0; i < 5; ++i)
+        room.EnqueueJob(&jobStorage[i]);
+
+    int freeCount = 0;
+    room.Reset([&freeCount](PacketJob*) { ++freeCount; });
+
+    EXPECT_EQ(freeCount, 5);       // 잔여 Job 전부 회수됐는지
+    EXPECT_FALSE(room.IsBroken()); // 문 열렸는지
+}
+
+TEST_F(RoomEnqueueTest, ResetWithNullFreeFunc_SkipsDrain)
+{
+    uint32_t gen = room.GetGeneration();
+    initPacketJob(jobStorage[0], 1, gen, (uint16_t)PACKET_ID::ROOM_CHAT_REQUEST);
+    room.EnqueueJob(&jobStorage[0]);
+
+    int freeCount = 0;
+    room.Reset(nullptr); // drain 안 해야 함
+
+    EXPECT_EQ(freeCount, 0);
+}
+
 TEST(RoomConcurrentEnqueue, OnlyOneSuccessFirstAcross8Threads)
 {
     // 8 threads race to push the first job — exactly one must get SUCCESS_FIRST.
