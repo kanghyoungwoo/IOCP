@@ -45,9 +45,8 @@ public:
 	void NotifyChat(INT32 clientIndex_, const char* userID_, const ROOM_CHAT_REQUEST_PACKET* pChatPacket);
 
 	std::function<void(UINT32, UINT32, UINT32, char*)> SendPacketFunc;
-	std::function<void(PacketJob*)> FreeJobFunc;
-	void Reset();
-	void Reset(INT32 roomNumber_, INT32 maxUserCount_);
+	void Reset(std::function<void(PacketJob*)> freeFunc = nullptr);
+	void Reset(INT32 roomNumber_, INT32 maxUserCount_, std::function<void(PacketJob*)> freeFunc = nullptr);
 
 	EnqueueResult EnqueueJob(PacketJob* pJob);
 

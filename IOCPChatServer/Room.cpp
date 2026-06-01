@@ -66,25 +66,25 @@ void Room::NotifyChat(INT32 clientIndex_, const char* userID_, const ROOM_CHAT_R
 }
 
 
-void Room::Reset(INT32 roomNumber_, INT32 maxUserCount_)
+void Room::Reset(INT32 roomNumber_, INT32 maxUserCount_, std::function<void(PacketJob*)> freeFunc)
 {
 	// 방 정보 초기화
 	mRoomNumber = roomNumber_;
 	mMaxUserCount = maxUserCount_;
 	mCurrentUserCount = 0;
-	//mUserList.clear();
 	mUserMap.clear();
 	// Strand 상태 초기화
 	mMsgCount.store(0, std::memory_order_relaxed);
-	mGeneration.fetch_add(1, std::memory_order_release);	// generation 증가
-	mIsBroken.store(false, std::memory_order_relaxed);
+	mGeneration.fetch_add(1, std::memory_order_release);
 
-	// localQueue에 남은 잔여 Job drain
-	// ObjectPool<PacketJob>이 준비되면 여기서 Free
-	while (auto* pJob = mLocalQueue.Pop())
+	// 1. 청소 먼저 (방 아직 broken 상태): MPSC hole 해소 보장 시점에 잔여 Job 회수
+	if (freeFunc)
 	{
-		FreeJobFunc(pJob);
+		while (auto* pJob = mLocalQueue.Pop())
+			freeFunc(pJob);
 	}
+
+	mIsBroken.store(false, std::memory_order_relaxed);	// 2. 청소 완료 후 문 열기
 }
 
 Room::EnqueueResult Room::EnqueueJob(PacketJob* pJob)
@@ -143,7 +143,7 @@ void Room::SendToAllUser(const UINT16 dataSize_, char* data_, const INT32 skipUs
 
 }
 
-void Room::Reset()
+void Room::Reset(std::function<void(PacketJob*)> freeFunc)
 {
-	Reset(mRoomNumber, mMaxUserCount);
+	Reset(mRoomNumber, mMaxUserCount, freeFunc);
 }

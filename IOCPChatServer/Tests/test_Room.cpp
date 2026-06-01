@@ -49,8 +49,6 @@ protected:
             sendCalls.push_back(call);
         };
 
-        // Install mock FreeJobFunc (no-op)
-        room.FreeJobFunc = [](PacketJob*) {};
 
         // Initialize users with distinct indices
         for (int i = 0; i < 5; ++i)
@@ -360,15 +358,13 @@ protected:
     void SetUp() override
     {
         room.Init(1, 100);
-        room.FreeJobFunc = [](PacketJob*) {};
         room.SendPacketFunc = [](UINT32, UINT32, UINT32, char*) {};
     }
 
     // Reset room back to a clean generation for each sub-test
     void ResetRoom()
     {
-        // drain any leftover jobs (FreeJobFunc is a no-op here)
-        room.Reset();
+        room.Reset([](PacketJob*) {});
     }
 };
 
@@ -466,7 +462,6 @@ TEST(RoomConcurrentEnqueue, OnlyOneSuccessFirstAcross8Threads)
     // 8 threads race to push the first job — exactly one must get SUCCESS_FIRST.
     Room room;
     room.Init(1, 100);
-    room.FreeJobFunc = [](PacketJob*) {};
     room.SendPacketFunc = [](UINT32, UINT32, UINT32, char*) {};
 
     constexpr int THREADS = 8;
@@ -511,7 +506,6 @@ TEST(RoomConcurrentEnqueue, MsgCountMatchesSuccessfulEnqueues)
     // or SUCCESS_APPENDED after N concurrent pushes.
     Room room;
     room.Init(1, 100);
-    room.FreeJobFunc = [](PacketJob*) {};
     room.SendPacketFunc = [](UINT32, UINT32, UINT32, char*) {};
 
     constexpr int THREADS = 8;
@@ -554,7 +548,6 @@ TEST(RoomConcurrentEnqueue, BrokenRoomDropsAllConcurrentJobs)
 {
     Room room;
     room.Init(1, 100);
-    room.FreeJobFunc = [](PacketJob*) {};
     room.SendPacketFunc = [](UINT32, UINT32, UINT32, char*) {};
 
     room.SetBroken();

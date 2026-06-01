@@ -290,7 +290,7 @@ bool IOCompletionPort::CreateWorkerThread()
 
 	mIsWorkerRun = true;
 	// WaitingThread Queue에 대기 상태로 만들 스레드들, 권장갯수는 (cpu코어 * 2) + 1
-	for (int i = 0;i < config.MaxWorkerThread;i++)
+	for (UINT32 i = 0;i < config.MaxWorkerThread;i++)
 	{
 		mIOWorkerThreads.emplace_back([this]() {WorkerThread();});
 	}
@@ -348,7 +348,7 @@ void IOCompletionPort::TimeoutCheckThread()
 
 			// 최근 활동이 있으면 아무것도 하지 않고 넘어감
 		}
-		Sleep(config.CheckIntervalMs); // 10초
+		Sleep(static_cast<DWORD>(config.CheckIntervalMs)); // 10초
 	}
 }
 

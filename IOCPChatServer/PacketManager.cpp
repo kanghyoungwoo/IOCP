@@ -458,7 +458,7 @@ void PacketManager::ProcessPacket()
 			{
 				auto pRoom = mRoomManager->GetRoomByNumber(pNotify->cb.roomNumber);
 				if (pRoom)
-					pRoom->Reset();
+					pRoom->Reset(mRoomManager->FreeJobFunc);
 				break;
 			}
 			}

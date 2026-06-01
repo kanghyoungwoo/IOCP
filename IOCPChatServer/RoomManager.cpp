@@ -11,7 +11,6 @@ void RoomManager::Init(const INT32 beginRoomNumber_, const INT32 maxRoomCount_, 
 	{
 		auto room = std::make_unique<Room>();
 		room->SendPacketFunc = SendPacketFunc;
-		room->FreeJobFunc = FreeJobFunc;
 		room->Init(i + beginRoomNumber_, maxRoomUserCount_);
 		mRooms.push_back(std::move(room));
 	}
@@ -35,7 +34,7 @@ void RoomManager::Init(const INT32 beginRoomNumber_, const INT32 maxRoomCount_, 
 //	{
 //		return (INT16)ERROR_CODE::ROOM_INVALID_INDEX;
 //	}
-//	// ╢ы╫ц ╥н╨Я╥н ╩Себ ╨╞╟Ф
+//	// О©╫ы╫О©╫ О©╫н╨О©╫О©╫ О©╫О©╫О©╫О©╫ О©╫О©╫О©╫О©╫
 //	user_->SetDomainState(User::DOMAIN_STATE::LOGIN);
 //	room->LeaveUser(user_);
 //

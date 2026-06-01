@@ -12,8 +12,8 @@ bool ClientSession::OnConnect(HANDLE iocpHandle, SOCKET socket)
 
 	Clear();
 	// 모든 준비가 끝난 후 문 엶(이후 부턴 CloseSocket으로만 닫아야함)
-	mIsConnected.store(true, std::memory_order_release);
-	mIsDisconnecting.store(false, std::memory_order_relaxed);
+	mIsDisconnecting.store(false, std::memory_order_relaxed);	// 먼저 내부 상태 정리
+	mIsConnected.store(true, std::memory_order_release);	// 마지막에 문 열기
 	// IOCP등록 및 Recv대기
 	if (BindIOCompletionPort(iocpHandle) == false)
 	{
@@ -143,6 +143,7 @@ bool ClientSession::BindRecv()
 	DWORD dwRecvNumBytes = 0;
 
 	// Overlapped I/O를 위한 각 정보를 세팅
+	ZeroMemory(&m_stRecvOverlappedEx.base.wsaOverlapped, sizeof(WSAOVERLAPPED));
 	m_stRecvOverlappedEx.base.wsaBuf.len = MAX_SOCKBUF;
 	m_stRecvOverlappedEx.base.wsaBuf.buf = mRecvBuf;
 	m_stRecvOverlappedEx.base.operation = IOOperation::RECV;
