@@ -269,7 +269,7 @@ graph TD
 | **SendPool Alloc Fail** | **0회** | 전 테스트 구간 누적 |
 | **JobPool Alloc Fail** | **0회** | Pool 고갈 없이 안정 순환 |
 
-### 채팅 빈도별 한계 탐색 — LockFree 아키텍처, 안정 한계선(Knee of the Curve) 확인
+### 채팅 빈도별 한계 탐색
 
 채팅 간격을 점진적으로 줄이며 서버의 안정 한계를 탐색한 결과입니다.
 
@@ -281,8 +281,18 @@ graph TD
 | 500방×20명 | **L16/IO8** | **100/300** | **~539K/s** | **~32ms** | **95%** | **✅ 안정** |
 | 1000방×10명 | L8/IO16 | 100/300 | ~390K/s | ~28ms | 78% | ✅ 안정 |
 
-> **핵심 발견**: IO Worker 증가(8→16)는 CPU +2%p로 효과 없음. Logic Thread 증가(8→16)는 Death Spiral을 완전 해소.
-> **브로드캐스트 비용이 서버 한계를 결정**: 방당 인원 절반(20명→10명) = 안정 한계 채팅 빈도 2배 확장.
+### Fast-Path 아키텍처 개선 효과 (v3 → v4)
+
+IO Worker가 ProcessThread를 우회해 Strand에 직접 라우팅하는 CAS Fast Path 도입 후 동일 조건에서 재측정한 결과입니다.
+
+| 방 구성 | 스레드 (Logic/IO) | chatMin/Max | recv_pkt/s | lat_avg | p99 | CPU | v3 상태 | v4 상태 |
+|---------|:-----------------:|:----------:|:---------:|:------:|:---:|:---:|:-------:|:-------:|
+| 500방×20명 | L8/IO16 | 150/450 | ~407K/s | **~29ms** | ~91ms | 92% | 🔴 Death Spiral | **✅ 안정** |
+| 500방×20명 | L8/IO16 | 100/300 | ~507K/s | **~40ms** | ~128ms | 95% | 🔴 완전 붕괴 | **✅ 안정** |
+| 1000방×10명 | **L16/IO8** | **50/150** | **~506K/s** | **~41ms** | **~123ms** | — | 미측정 | **✅ 안정** |
+
+> **Fast Path 효과**: ProcessThread 적체가 병목이던 500방×20명에서 Death Spiral 완전 해소. 동일 스레드 구성(L8/IO16)에서 안정 한계가 chatMin=200 → chatMin=100으로 **2배 확장**.
+> **한계**: 1000방×10명처럼 Strand 처리 용량 자체가 병목인 시나리오에서는 Fast Path 효과 없음 — Logic Thread 증가(L8→L16)로 해결.
 > 상세 분석은 [부하 테스트 리포트](Docs/부하%20테스트.md)를 참조해 주십시오.
 
 ---
@@ -342,9 +352,13 @@ git clone https://github.com/kanghyoungwoo/IOCPChatServer.git
 
 - [x] ~~**ProcessThread(Dispatcher) 제거** — IO Worker가 Room 패킷을 StrandProcessor로 직접 라우팅~~
   ```
-  이전: IO Worker → mutex+CV → ProcessThread → StrandProcessor
-  현재: IO Worker → CAS(atomic_flag) → StrandProcessor 직접 라우팅 (Fast Path, context switch 0회)
-        CAS 실패 or 비-Room 패킷 → double buffering → ProcessThread (Slow Path 전용 핸들러)
+  이전 (v3): IO Worker → 유저별 RingBuffer + Double Buffering Queue(mutex) → ProcessThread(1)
+                           → PacketJob 할당 → Room SPSC LocalQueue → Logic Thread
+                           (모든 ROOM 패킷이 ProcessThread 경유)
+
+  현재 (v4): IO Worker → CAS Fast Path(atomic_flag) → Room SPSC LocalQueue → Logic Thread
+                          (ROOM 패킷, context switch 0회)
+             IO Worker → Double Buffering Queue → ProcessThread (Login/Connect/Disconnect/Callback)
   ```
 
 

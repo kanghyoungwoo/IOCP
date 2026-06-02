@@ -144,18 +144,23 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="CallbackDispatcher.cpp" />
     <ClCompile Include="ClientSession.cpp" />
     <ClCompile Include="GlobalQueue_LockFree.cpp" />
     <ClCompile Include="IOCP.cpp" />
+    <ClCompile Include="LobbyHandler.cpp" />
+    <ClCompile Include="LoginHandler.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="PacketManager.cpp" />
     <ClCompile Include="Room.cpp" />
     <ClCompile Include="RoomManager.cpp" />
+    <ClCompile Include="SessionHandler.cpp" />
     <ClCompile Include="StrandProcessor.cpp" />
     <ClCompile Include="User.cpp" />
     <ClCompile Include="UserManager.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="CallbackDispatcher.h" />
     <ClInclude Include="ClientSession.h" />
     <ClInclude Include="ConfigManager.h" />
     <ClInclude Include="CrashDump.h" />
@@ -165,7 +170,9 @@
     <ClInclude Include="GlobalQueue_LockFree.h" />
     <ClInclude Include="GlobalQueue_MutexCV.h" />
     <ClInclude Include="IOCP.h" />
+    <ClInclude Include="LobbyHandler.h" />
     <ClInclude Include="LockFreeStack.h" />
+    <ClInclude Include="LoginHandler.h" />
     <ClInclude Include="MPSCQueue.h" />
     <ClInclude Include="MysqlManager.h" />
     <ClInclude Include="MySQLTaskDefine.h" />
@@ -180,6 +187,7 @@
     <ClInclude Include="RingBuffer.h" />
     <ClInclude Include="Room.h" />
     <ClInclude Include="RoomManager.h" />
+    <ClInclude Include="SessionHandler.h" />
     <ClInclude Include="SPSCQueue.h" />
     <ClInclude Include="StrandCallback.h" />
     <ClInclude Include="StrandProcessor.h" />

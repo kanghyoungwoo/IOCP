@@ -8,7 +8,6 @@
 #include "MysqlManager.h"
 #include "Define.h"
 #include <chrono>
-#include <ctime>
 
 PacketManager::PacketManager() = default;
 PacketManager::~PacketManager() = default;
@@ -18,8 +17,6 @@ void PacketManager::Init(const UINT32 maxClient_)
 	RegisterHandlers();
 	CreateComponent(maxClient_);
 
-	//mRedisManager = new RedisManager;
-	//mMySQLManager = new MySQLManager;
 	mRedisManager = std::make_unique<RedisManager>();
 	mMySQLManager = std::make_unique<MySQLManager>();
 
@@ -27,39 +24,33 @@ void PacketManager::Init(const UINT32 maxClient_)
 	{
 		NotifyPacketEvent();
 	};
+
+	// Handler 초기화 — 모든 컴포넌트 생성 완료 후
+	mLoginHandler       = std::make_unique<LoginHandler>(mUserManager.get(), mRedisManager.get(), mMySQLManager.get(), SendPacketFunc);
+	mSessionHandler     = std::make_unique<SessionHandler>(mUserManager.get(), mRoomManager.get(), &m_strandProcessor);
+	mLobbyHandler       = std::make_unique<LobbyHandler>(mUserManager.get(), mRoomManager.get(), &m_strandProcessor, SendPacketFunc);
+	mCallbackDispatcher = std::make_unique<CallbackDispatcher>(mUserManager.get(), mRoomManager.get(), mMySQLManager.get(), &m_strandProcessor);
 }
 
 void PacketManager::RegisterHandlers()
 {
-	// 시스템 패킷 핸들러
-	mPacketHandlers[(UINT16)PACKET_ID::SYS_USER_CONNECT] = [this](UINT32 clientIndex, UINT32 generation, UINT16 packetSize, char* pPacket)
-		{
-			ProcessUserConnect(clientIndex, generation, packetSize, pPacket);
-		};
-	mPacketHandlers[(UINT16)PACKET_ID::SYS_USER_DISCONNECT] = [this](UINT32 clientIndex, UINT32 generation, UINT16 packetSize, char* pPacket)
-		{
-			ProcessUserDisconnect(clientIndex, generation, packetSize, pPacket);
-		};
-	// 로그인 핸들러
-    mPacketHandlers[(UINT16)PACKET_ID::LOGIN_REQUEST] = [this](UINT32 clientIndex, UINT32 generation, UINT16 packetSize, char* pPacket)
-        {
-            ProcessLogin(clientIndex, generation, packetSize, pPacket);
-        };
-    mPacketHandlers[(UINT16)RedisTaskID::RESPONSE_LOGIN] = [this](UINT32 clientIndex, UINT32 generation, UINT16 packetSize, char* pPacket)
-        {
-            ProcessLoginDBResult(clientIndex, generation, packetSize, pPacket);
-        };
-	// 방 관련 핸들러
-	mPacketHandlers[(UINT16)PACKET_ID::ROOM_ENTER_REQUEST] = [this](UINT32 clientIndex, UINT32 generation, UINT16 packetSize, char* pPacket)
-		{
-			ProcessEnterRoom(clientIndex, generation, packetSize, pPacket);
-		};
+	mPacketHandlers[(UINT16)PACKET_ID::SYS_USER_CONNECT] = [this](UINT32 ci, UINT32 gen, UINT16 sz, char* p)
+		{ mSessionHandler->ProcessUserConnect(ci, gen, sz, p); };
 
-	// 좀비세션 관련 핸들러
-	mPacketHandlers[(UINT16)PACKET_ID::SYS_PONG] = [this](UINT32 clientIndex, UINT32 generation, UINT16 packetSize, char* pPacket)
-		{
-			LOG_DEBUG("[PacketManager] Client Index(%d)로부터 PONG 수신 완료\n", clientIndex);
-		};
+	mPacketHandlers[(UINT16)PACKET_ID::SYS_USER_DISCONNECT] = [this](UINT32 ci, UINT32 gen, UINT16 sz, char* p)
+		{ mSessionHandler->ProcessUserDisconnect(ci, gen, sz, p); };
+
+	mPacketHandlers[(UINT16)PACKET_ID::LOGIN_REQUEST] = [this](UINT32 ci, UINT32 gen, UINT16 sz, char* p)
+		{ mLoginHandler->ProcessLogin(ci, gen, sz, p); };
+
+	mPacketHandlers[(UINT16)RedisTaskID::RESPONSE_LOGIN] = [this](UINT32 ci, UINT32 gen, UINT16 sz, char* p)
+		{ mLoginHandler->ProcessLoginDBResult(ci, gen, sz, p); };
+
+	mPacketHandlers[(UINT16)PACKET_ID::ROOM_ENTER_REQUEST] = [this](UINT32 ci, UINT32 gen, UINT16 sz, char* p)
+		{ mLobbyHandler->ProcessEnterRoom(ci, gen, sz, p); };
+
+	mPacketHandlers[(UINT16)PACKET_ID::SYS_PONG] = [this](UINT32 ci, UINT32 gen, UINT16 sz, char* p)
+		{ LOG_DEBUG("[PacketManager] Client Index(%d)로부터 PONG 수신 완료\n", ci); };
 }
 
 void PacketManager::CreateComponent(const UINT32 maxClient_)
@@ -330,7 +321,7 @@ void PacketManager::ProcessPacket()
 				//// 악성 유저이므로 연결을 끊어버림 (Strand를 통해 안전하게 종료 처리)
 				//m_strandProcessor.EnqueueJob(nullptr, task.clientIndex, 0, pUser->GetSessionGeneration(), (UINT16)PACKET_ID::SYS_USER_DISCONNECT, 0, nullptr);
 				pUser->ReleaseRouting();
-				ClearConnectionInfo(task.clientIndex);
+				mSessionHandler->ClearConnectionInfo(task.clientIndex);
 				continue;
 			}
 
@@ -405,65 +396,7 @@ void PacketManager::ProcessPacket()
 		}
 
 		while (auto* pNotify = m_strandProcessor.PopCallback())
-		{
-			auto pUser = mUserManager->GetUserByConnIdx(pNotify->clientIndex);
-
-			// 유저 없음 or 세대 불일치
-			if (!pUser || pUser->GetSessionGeneration() != pNotify->sessionGeneration)
-			{
-				m_strandProcessor.FreeCallback(pNotify);
-				continue;
-			}
-			switch (pNotify->cb.type)
-			{
-			case StrandCallbackType::FREE_USER:
-			{
-				mUserManager->DeleteUserInfo(pUser);
-				break;
-			}
-			case StrandCallbackType::USER_LEFT_ROOM:
-			{
-				pUser->SetDomainState(User::DOMAIN_STATE::LOGIN);
-				pUser->ResetRoom();
-				break;
-			}
-			case StrandCallbackType::USER_ENTERED_ROOM:
-			{
-				if (pNotify->cb.result == (UINT16)ERROR_CODE::NONE)
-				{
-					pUser->EnterRoom(pNotify->cb.roomNumber);
-
-					// MySQL 로그
-					MySQLRoomEventReq req{};
-					strcpy_s(req.UserID, pUser->GetUserID().c_str());
-					req.RoomNumber = pNotify->cb.roomNumber;
-					req.EventType = RoomEventType::ENTER;
-					req.TimeStampSec = (UINT64)time(nullptr);
-
-					MySQLTask task{};
-					task.UserIndex = pNotify->clientIndex;
-					task.TaskID = MySQLTaskID::INSERT_ROOM_EVENT;
-					task.DataSize = sizeof(MySQLRoomEventReq);
-					//task.pData = new char[task.DataSize];
-					CopyMemory(task.body, &req, task.DataSize);
-					if (!ConfigManager::GetInstance().Get().TestMode)
-					{
-						mMySQLManager->PushTask(task);
-					}
-				}
-				
-				break;
-			}
-			case StrandCallbackType::ROOM_BROKEN:
-			{
-				auto pRoom = mRoomManager->GetRoomByNumber(pNotify->cb.roomNumber);
-				if (pRoom)
-					pRoom->Reset(mRoomManager->FreeJobFunc);
-				break;
-			}
-			}
-			m_strandProcessor.FreeCallback(pNotify);
-		}
+			mCallbackDispatcher->Dispatch(pNotify);
 
 	}
 	// 이미 연결이 된 유저가 보낸 패킷이 있는지 알아보고 
@@ -486,29 +419,6 @@ void PacketManager::EnqueuePacketData(const UINT32 clientIndex_, const UINT32 ge
 }
 
 
-void PacketManager::ProcessUserConnect(UINT32 clientIndex_, UINT32 generation_, UINT16 packetSize_, char* pPacket)
-{
-	LOG_DEBUG("[ProcessUserConnect] ClientIndex : %d\n", clientIndex_);
-	auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
-	pUser->SetSessionGeneration(generation_);  //접속 시점에 세대 설정
-}
-
-void PacketManager::ProcessUserDisconnect(UINT32 clientIndex_, UINT32 generation_, UINT16 packetSize_, char* pPacket)
-{
-	auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
-	if (pUser == nullptr) return;
-
-	// Stale Disconnect 방어
-	if (pUser->GetSessionGeneration() != generation_)
-	{
-		LOG_DEBUG("Stale Disconnect 무시 (Gen: %d vs %d)\n",
-			generation_, pUser->GetSessionGeneration());
-		return;
-	}
-	LOG_DEBUG("[ProcessUserDisconnect] ClientIndex : %d\n", clientIndex_);
-	ClearConnectionInfo(clientIndex_);
-	
-}
 
 void PacketManager::PushSystemPacket(PacketInfo packet_)
 {
@@ -535,245 +445,6 @@ void PacketManager::ProcessRecvPacket(const UINT32 clientIndex_, const UINT32 ge
 }
 
 
-void PacketManager::ProcessLogin(UINT32 clientIndex_, UINT32 generation_,  UINT16 packetSize_, char* pPacket_) // 최대 접속자 수, 중복 정도만 확인
-{
-	if (LOGIN_REQUEST_PACKET_SIZE != packetSize_)
-	{
-		return;
-	}
-
-	auto pLoginReqPacket = reinterpret_cast<LOGIN_REQUEST_PACKET*>(pPacket_);
-	
-	auto pUserID = pLoginReqPacket->UserID;
-	LOG_DEBUG("Requested user ID : %s\n", pUserID);
-
-	//// 로드 테스트용 코드
-	//// id가 test_user일시 인증 뛰어넘고 즉시 로그인 처리
-	const char* prefix = "test_user";
-	size_t prefixLen = strlen(prefix);
-	if (strncmp(pUserID, prefix, prefixLen) == 0) // prefic로 시작하는 아이디면
-	{
-		// usermanager에 사용자 추가
-		auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
-
-		LOGIN_RESPONSE_PACKET loginResPacket;
-		loginResPacket.PacketId = (UINT16)PACKET_ID::LOGIN_RESPONSE;
-		loginResPacket.PacketLength = sizeof(loginResPacket);
-
-		auto result = mUserManager->Adduser(pUserID, clientIndex_);
-		loginResPacket.Result = (UINT16)result;  // 성공이면 NONE, 실패면 에러코드
-
-		if (result == ERROR_CODE::NONE)
-		{
-			pUser->SetSessionGeneration(generation_);
-			mUserManager->IncreaseUserCnt();
-			LOG_DEBUG("[Load Test] Dummy login Success: %s\n", pUserID);
-		}
-
-		SendPacketFunc(clientIndex_, generation_, sizeof(LOGIN_RESPONSE_PACKET), (char*)&loginResPacket);
-		
-		return;
-	}
-
-	//// 여기까지가 로드테스트용도를 위한 코드
-
-
-	LOGIN_RESPONSE_PACKET loginResPacket;
-	loginResPacket.PacketId = (UINT16)PACKET_ID::LOGIN_RESPONSE;
-	loginResPacket.PacketLength = sizeof(LOGIN_RESPONSE_PACKET);
-
-	// 디버깅
-	auto existingIndex = mUserManager->FindUserIndexByID(pUserID);
-	LOG_DEBUG("기존 사용자 검색 : UserID = %s -> Index = %d\n", pUserID, existingIndex);
-
-	// 기존 접속 유저 찾은 경우(중복 로그인)
-	if (existingIndex != -1)
-	{
-		LOG_DEBUG("중복 로그인 차단! UserID = %s\n", pUserID);
-		loginResPacket.Result = (UINT16)ERROR_CODE::LOGIN_USER_ALREADY;
-		SendPacketFunc(clientIndex_, generation_, sizeof(LOGIN_RESPONSE_PACKET), (char*)&loginResPacket);
-		return; // 중복이므로 차단
-	}
-
-
-	LOG_DEBUG("Login To Redis USER ID : %s\n", pUserID);
-	
-
-
-	// 접속자 수가 최대수인지 확인
-	if (mUserManager->GetCurrentUserCnt() >= mUserManager->GetMaxUserCnt())
-	{
-		// 접속자 수가 최대라면 접속 불가
-		loginResPacket.Result = (UINT16)ERROR_CODE::LOGIN_USER_USED_ALL_OBJ;
-		SendPacketFunc(clientIndex_, generation_, sizeof(LOGIN_RESPONSE_PACKET), (char*)&loginResPacket);
-		return;
-	}
-
-
-	// 신규로그인 redis 인증요청
-	LOG_DEBUG("새로운 사용자 - Redis로 전송\n");
-
-	RedisLoginReq redisReq;
-	CopyMemory(redisReq.UserID, pLoginReqPacket->UserID, (MAX_USER_ID_LENGTH + 1));
-	CopyMemory(redisReq.UserPW, pLoginReqPacket->UserPW, (MAX_USER_PW_LENGTH + 1));
-
-	RedisTask redistask;
-	redistask.UserIndex = clientIndex_;
-	redistask.Generation = generation_;
-	redistask.TaskID = RedisTaskID::REQUEST_LOGIN;
-	redistask.DataSize = sizeof(RedisLoginReq);
-
-	//redistask.pData = new char[redistask.DataSize];
-	CopyMemory(redistask.body, (char*)&redisReq, redistask.DataSize);
-	mRedisManager->PushTask(redistask);
-
-	LOG_DEBUG("Login To Redis USER ID : %s\n", pUserID);
-}
-
-void PacketManager::ProcessLoginDBResult(UINT32 clientIndex_, UINT32 generation_, UINT16 packetSize_, char* pPacket_)
-{
-	LOG_DEBUG("ProcessLoginDBResult. UserIndex : %d \n", clientIndex_);
-
-	auto pBody = (RedisLoginRes*)pPacket_;
-
-	// redis 성공시
-	if (pBody->Result == (UINT16)ERROR_CODE::NONE)
-	{
-		LOG_DEBUG("[DEBUG] Login successful for UserID: '%s'\n", pBody->UserID);
-
-		//OnLoginSuccess(clientIndex_, pBody->UserID);
-		//UserManager에 사용자 추가
-		auto result = mUserManager->Adduser(pBody->UserID, clientIndex_);
-		if (result != ERROR_CODE::NONE) {
-			LOG_ERROR("Failed to add user to UserManager\n");
-			pBody->Result = (UINT16)ERROR_CODE::LOGIN_USER_USED_ALL_OBJ;
-		}
-		else {
-			auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
-			pUser->SetSessionGeneration(generation_);
-			LOG_DEBUG("User added successfully. UserID: '%s'\n", pUser->GetUserID().c_str());
-			mUserManager->IncreaseUserCnt();
-
-			// MySQL: 로그인 기록
-			MySQLLoginEventReq mysqlReq{};
-			strcpy_s(mysqlReq.UserID, pUser->GetUserID().c_str());
-			mysqlReq.TimestampSec = (UINT64)time(nullptr);
-
-			MySQLTask mysqlTask;
-			mysqlTask.UserIndex = clientIndex_;
-			mysqlTask.TaskID = MySQLTaskID::INSERT_LOGIN_EVENT;
-			mysqlTask.DataSize = sizeof(MySQLLoginEventReq);
-
-			//mysqlTask.pData = new char[mysqlTask.DataSize];
-			CopyMemory(mysqlTask.body, &mysqlReq, mysqlTask.DataSize);
-			if (!ConfigManager::GetInstance().Get().TestMode)
-			{
-				mMySQLManager->PushTask(mysqlTask);
-			}
-		}
-	}
-
-	LOGIN_RESPONSE_PACKET loginResPacket;
-	loginResPacket.PacketId = (UINT16)PACKET_ID::LOGIN_RESPONSE;
-	loginResPacket.PacketLength = sizeof(LOGIN_RESPONSE_PACKET);
-	loginResPacket.Result = pBody->Result;
-	SendPacketFunc(clientIndex_, generation_, sizeof(LOGIN_RESPONSE_PACKET), (char*)&loginResPacket);
-}
-
-void PacketManager::ClearConnectionInfo(INT32 clientIndex_)
-{
-	// 로직은 이미 processPacket에서 진행
-	//{
-	//	// queue에서 해당 유저의 대기중인 task 제거
-	//	std::lock_guard<std::mutex>guard(mLock);
-	//	//auto it = mInComingPacketUserIndex.begin();
-	//	auto it = mWriteBuffer.begin();
-	//	while (it != mWriteBuffer.end())
-	//	{
-	//		if (it->clientIndex == clientIndex_)
-	//		{
-	//			it = mWriteBuffer.erase(it);
-	//			LOG_DEBUG("remove enqueue packetdata for disconnected used : %d\n", clientIndex_);
-	//		}
-	//		else
-	//			++it;
-	//	}
-	//}
-
-	auto pReqUser = mUserManager->GetUserByConnIdx(clientIndex_);
-
-	if (pReqUser->GetDomainState() == User::DOMAIN_STATE::ROOM)
-	{
-		//auto roomNum = pReqUser->GetRoomIndex();
-		//mRoomManager->LeaveUser(roomNum, pReqUser);
-
-		pReqUser->SetDisconnecting(); // flag만 세우고 DOMAINSTATE는 ROOM유지
-		auto pRoom = mRoomManager->GetRoomByNumber(pReqUser->GetRoomIndex());
-		if (pRoom == nullptr)
-		{
-			LOG_ERROR("클라이언트 %d의 방이 유효하지 않음. 유저 상태 초기화.\n", clientIndex_);
-			mUserManager->DeleteUserInfo(pReqUser);
-			return;
-		}
-		// roomIndex를 정상적으로 읽을 수 있음
-		m_strandProcessor.EnqueueJob(pRoom, clientIndex_, pRoom->GetGeneration(),pReqUser->GetSessionGeneration(), (UINT16)PACKET_ID::SYS_USER_DISCONNECT, 0, nullptr);
-
-	}
-	else
-	{
-		// 방에 없는 유저 -> 즉시정리 Strand거칠 필요 X
-		if (pReqUser->GetDomainState() != User::DOMAIN_STATE::NONE)
-		{
-			mUserManager->DeleteUserInfo(pReqUser);
-		}
-	}
-
-}
-
-void PacketManager::ProcessEnterRoom(UINT32 clientIndex_, UINT32 generation_, UINT16 packetSize_, char* pPacket)
-{
-	UNREFERENCED_PARAMETER(packetSize_);
-
-	//  방 입장 요청 패킷을 받는다.
-	auto pRoomEnterReqPacket = reinterpret_cast<ROOM_ENTER_REQUEST_PACKET*>(pPacket);
-	//	유효한 유저인지 검사한다.
-	auto pReqUser = mUserManager->GetUserByConnIdx(clientIndex_);
-	if (pReqUser == nullptr)
-	{
-		LOG_ERROR("유효하지 않은 유저 !. ClientIndex : %d\n", clientIndex_);
-		return;
-	}
-
-	// 로그인 상태 검증 추가
-	if (pReqUser->GetDomainState() != User::DOMAIN_STATE::LOGIN)
-	{
-		ROOM_ENTER_RESPONSE_PACKET errorPacket;
-		errorPacket.PacketId = (UINT16)PACKET_ID::ROOM_ENTER_RESPONSE;
-		errorPacket.PacketLength = sizeof(ROOM_ENTER_RESPONSE_PACKET);
-		errorPacket.Result = (UINT16)ERROR_CODE::ENTER_ROOM_INVALID_USER_STATUS;
-		SendPacketFunc(clientIndex_, generation_, sizeof(ROOM_ENTER_RESPONSE_PACKET), (char*)&errorPacket);
-		return;
-		
-	}
-
-	// 방 존재 여부 확인
-	auto pRoom = mRoomManager->GetRoomByNumber(pRoomEnterReqPacket->RoomNumber);
-	if (pRoom == nullptr)
-	{
-		ROOM_ENTER_RESPONSE_PACKET errorPacket;
-		errorPacket.PacketId = (UINT16)PACKET_ID::ROOM_ENTER_RESPONSE;
-		errorPacket.PacketLength = sizeof(ROOM_ENTER_RESPONSE_PACKET);
-		errorPacket.Result = (UINT16)ERROR_CODE::ROOM_INVALID_INDEX;
-		SendPacketFunc(clientIndex_, generation_, sizeof(ROOM_ENTER_RESPONSE_PACKET), (char*)&errorPacket);
-		return;
-	}
-
-	// 실제 입장 Strand에 넘김
-	m_strandProcessor.EnqueueJob(pRoom, clientIndex_, pRoom->GetGeneration(),pReqUser->GetSessionGeneration(), (UINT16)PACKET_ID::ROOM_ENTER_REQUEST, packetSize_, pPacket);
-
-
-
-}
 
 
 

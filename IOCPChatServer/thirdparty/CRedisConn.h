@@ -45,7 +45,7 @@ typedef std::map<std::string , std::string> ValueMap;
 {
 	BEFORE,			///< 插入到指定元素之前。
 	AFTER
-} E_INSERT_POS;
+};
 
 /**
  *@brief 此类基于 hiredis 用于保持与 redis-server 的链接。
@@ -1007,7 +1007,7 @@ private:
 	static const char* _errDes[ERR_BOTTOM];	///< describe error
 };
 
-const char* CRedisConn::_errDes[ERR_BOTTOM] =
+inline const char* CRedisConn::_errDes[ERR_BOTTOM] =
 {
 		"No error.",
 		"NULL pointer ",
