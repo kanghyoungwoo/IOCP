@@ -1,0 +1,56 @@
+name: C++ CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main", "track3-iocp-direct-routing" ]
+  pull_request:
+    branches: [ "main", "track3-iocp-direct-routing" ]
+
+permissions:
+  contents: read
+  checks: write          # 테스트 결과를 PR 체크 탭에 쓰기 위해 필요
+  pull-requests: write   # PR에 테스트 결과 코멘트를 달기 위해 필요
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+
+    env:
+      SOLUTION_FILE: IOCPChatServer.sln
+      BUILD_CONFIGURATION: Release
+      BUILD_PLATFORM: x64
+      SLN_DIR: IOCP/IOCPChatServer
+
+    steps:
+      # 1. 소스코드 체크아웃
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. MSBuild 환경 설정
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v2
+
+      # 3. NuGet 패키지 복원
+      - name: Restore NuGet packages
+        working-directory: ${{ env.SLN_DIR }}
+        run: nuget restore ${{ env.SOLUTION_FILE }}
+
+      # 4. 솔루션 전체 빌드 (멀티코어 병렬 빌드)
+      - name: Build the solution
+        working-directory: ${{ env.SLN_DIR }}
+        run: msbuild ${{ env.SOLUTION_FILE }} /p:Configuration=${{ env.BUILD_CONFIGURATION }} /p:Platform=${{ env.BUILD_PLATFORM }} /m
+
+      # 5. 테스트 실행 및 XML 리포트 생성
+      - name: Run Google Tests
+        working-directory: ${{ env.SLN_DIR }}/Tests/x64/${{ env.BUILD_CONFIGURATION }}
+        run: .\IOCPChatServer_Tests.exe --gtest_output="xml:test_results.xml"
+
+      # 6. 테스트 결과 GitHub UI 시각화
+      - name: Publish Test Results
+        uses: dorny/test-reporter@v1
+        if: success() || failure()
+        with:
+          name: C++ Google Test Results
+          path: ${{ env.SLN_DIR }}/Tests/x64/${{ env.BUILD_CONFIGURATION }}/test_results.xml
+          reporter: java-junit
+          fail-on-error: true
