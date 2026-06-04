@@ -407,12 +407,22 @@ bool ClientSession::AcceptCompletion(SOCKET listenSock_)
 	if (setsockopt(m_socketClient, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT,
 		(char*)&listenSock_, sizeof(SOCKET)) == SOCKET_ERROR)
 	{
-		LOG_ERROR("SO_UPDATE_ACCEPT_CONTEXT 실패 : %d \n", WSAGetLastError());
+		LOG_ERROR("SO_UPDATE_ACCEPT_CONTEXT 실패 : %d", WSAGetLastError());
 		return false;
 	}
 
+	// Nagle 알고리즘 비활성화
+	// 채팅 서버는 소형 패킷을 즉시 전송해야 하므로 반드시 설정
+	// 미설정 시 OS가 패킷을 최대 200ms까지 버퍼링해서 묶어 전송할 수 있음
+	int noDelay = 1;
+	if (setsockopt(m_socketClient, IPPROTO_TCP, TCP_NODELAY,
+		(const char*)&noDelay, sizeof(noDelay)) == SOCKET_ERROR)
+	{
+		// 치명적 오류는 아니므로 연결은 유지하되 경고 기록
+		LOG_ERROR("TCP_NODELAY 설정 실패 : %d", WSAGetLastError());
+	}
 
-	LOG_DEBUG("AcceptCompletion : SessionIndex(%d)\n", mIndex);
+	LOG_DEBUG("AcceptCompletion : SessionIndex(%d)", mIndex);
 
 	if (OnConnect(mIOCPHandle, m_socketClient) == false)
 	{
