@@ -47,7 +47,18 @@ private:
 	void CreateComponent(const UINT32 maxClient_);
 
 	void EnqueuePacketData(const UINT32 clientIndex_, const UINT32 generation_);
-	void ProcessPacket();
+
+	// ── ProcessPacket 파이프라인 ──────────────────────────────────────
+	void ProcessPacket();           // 오케스트레이터 (흐름만 기술)
+
+	void WaitAndSwapBuffers();      // 1. CV wait + 더블버퍼 스왑
+	void ProcessSystemPackets();    // 2. 시스템 패킷 (connect/disconnect) 처리
+	void ProcessUserPackets();      // 3. 일반 유저 패킷 라우팅
+	void RouteSingleUserTask(const PacketTask& task, char* packetBuf); // └ 유저 1명 처리
+	void ProcessRedisTasks();       // 4. Redis 비동기 응답 처리
+	void ProcessStrandCallbacks();  // 5. Strand 콜백 디스패치
+	// ─────────────────────────────────────────────────────────────────
+
 	void ProcessRecvPacket(const UINT32 clientIndex_, const UINT32 generation_, const UINT16 packetId_, const UINT16 packetSize_, char* pPacket_);
 
 	void NotifyPacketEvent();

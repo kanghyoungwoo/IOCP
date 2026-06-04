@@ -229,179 +229,186 @@ bool PacketManager::ReceivePacketData(const UINT32 clientIndex_, const UINT32 ge
 }
 
 
+// ──────────────────────────────────────────────────────────────────────────
+//  ProcessPacket : 오케스트레이터
+//  "무엇을 하는가"만 기술하고 "어떻게 하는가"는 각 단계 함수에 위임한다.
+// ──────────────────────────────────────────────────────────────────────────
 void PacketManager::ProcessPacket()
 {
-	char packetBuf[MAX_SINGLE_PACKET_SIZE];
 	while (mIsRunProcessThread)
 	{
-		// 1. wait + swap (lock은 1회만)
-		{
-			std::unique_lock<std::mutex> lock(mLock);
+		WaitAndSwapBuffers();           // 1. 동기화 및 버퍼 스왑
+		if (!mIsRunProcessThread) break;
 
-			mPacketEventCV.wait(lock, [this]()
-			{
-				if (!mIsRunProcessThread)
-					return true;
-
-				if (!mSystemWriteBuffer.empty())
-					return true;
-
-				if (!mWriteBuffer.empty())
-					return true;
-
-				if (mRedisManager && mRedisManager->HasResponseTask())
-					return true;
-
-				return false;
-			});
-
-			if (!mIsRunProcessThread)
-				break;
-
-			// 더블 버퍼링, swap and release lock
-			std::swap(mSystemWriteBuffer, mSystemReadBuffer);
-			std::swap(mWriteBuffer, mReadBuffer);
-		}
-
-		// lock 해제, 아래는 전부 lock-free
-		
-		// Queue Depth logging (5sec interval)
-		{
-			// thread_local을 써서 스레드 충돌 방지
-			thread_local auto lastQueueLog = std::chrono::steady_clock::now();
-			auto now = std::chrono::steady_clock::now();
-			auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - lastQueueLog).count();
-
-			if (elapsed >= 1)
-			{
-				LOG_DEBUG("[QueueDepth] ThreadID=%lu, batch_size=%zu  sys_batch=%zu",
-					GetCurrentThreadId(), mReadBuffer.size(), mSystemReadBuffer.size());
-
-				lastQueueLog = now;
-			}
-		 }
-
-		// 시스템 패킷 처리
-		for (auto& sysPacket : mSystemReadBuffer)
-		{
-			ProcessRecvPacket(sysPacket.ClientIndex, sysPacket.Generation, sysPacket.PacketId, sysPacket.DataSize, sysPacket.pDataPtr);
-		}
-		mSystemReadBuffer.clear();
-
-
-		// 일반 패킷 처리
-		for (auto& task : mReadBuffer)
-		{
-			auto pUser = mUserManager->GetUserByConnIdx(task.clientIndex);
-			if (!pUser)
-				continue;
-
-			// 죽어가는 유저의 잔여 패킷은 버림 
-			if (pUser->IsDisconnecting())
-			{
-				// 링버퍼에 남은 데이터 전부 소진(drain)
-				pUser->ClearPacketBuffer();  // 링버퍼 한방에 초기화
-				continue;
-			}
-			// 독점권 먼저 획득
-			if (!pUser->TryAcquireRouting())
-				continue;  // IOCP Worker Fast Path 처리 중 -> 안전하게 skip
-
-			auto packetData = pUser->GetPacket(packetBuf, sizeof(packetBuf));
-			if (packetData.PacketId == 0)
-			{
-				pUser->ReleaseRouting();
-				continue;
-			}
-
-			if (packetData.DataSize == 0 || packetData.DataSize > MAX_SINGLE_PACKET_SIZE)
-			{
-				//LOG_ERROR("비정상적인 패킷 크기 수신 (해킹 시도)! Size: %d\n", packetData.DataSize);
-				//pUser->SetDisconnecting();
-				//// 악성 유저이므로 연결을 끊어버림 (Strand를 통해 안전하게 종료 처리)
-				//m_strandProcessor.EnqueueJob(nullptr, task.clientIndex, 0, pUser->GetSessionGeneration(), (UINT16)PACKET_ID::SYS_USER_DISCONNECT, 0, nullptr);
-				pUser->ReleaseRouting();
-				mSessionHandler->ClearConnectionInfo(task.clientIndex);
-				continue;
-			}
-
-			// 완전한 패킷이 조립되었으므로 활동 시간 갱신
-			if (UpdateActivityFunc)
-				UpdateActivityFunc(task.clientIndex);
-
-			packetData.ClientIndex = task.clientIndex;
-			packetData.Generation = task.generation;
-
-			auto packetId = packetData.PacketId;
-			// 시스템 패킷과 로그인 요청 패킷은 세대 검사에서 제외 (무사 통과)
-			if (packetId != (UINT16)PACKET_ID::SYS_USER_CONNECT && packetId != (UINT16)PACKET_ID::LOGIN_REQUEST)
-			{
-				// 이미 로그인된 유저인데 세대가 다르다면 (이전 세대의 지각 패킷) 버림
-				if (pUser->GetSessionGeneration() != task.generation)
-				{
-					LOG_DEBUG("Stale Packet 버림 (Gen: %d vs %d)\n", pUser->GetSessionGeneration(), task.generation);
-					pUser->ReleaseRouting();
-					continue;
-				}
-			}
-
-			// 첫 패킷 + 잔여 패킷 공통 처리
-			auto processOnePacket = [&](PacketInfo& packetData)
-				{
-					if (pUser->GetDomainState() == User::DOMAIN_STATE::ROOM)
-					{
-						auto pRoom = mRoomManager->GetRoomByNumber(pUser->GetRoomIndex());
-						if (pRoom == nullptr)
-						{
-							LOG_ERROR("client %d의 방이 유효하지 않음.\n", task.clientIndex);
-							pUser->SetDomainState(User::DOMAIN_STATE::LOGIN);
-							pUser->ResetRoom();
-							return;
-						}
-						m_strandProcessor.EnqueueJob(pRoom, task.clientIndex, pRoom->GetGeneration(),pUser->GetSessionGeneration(), packetData.PacketId, packetData.DataSize, packetData.pDataPtr);
-					}
-					else
-					{
-						ProcessRecvPacket(packetData.ClientIndex, packetData.Generation, packetData.PacketId, packetData.DataSize, packetData.pDataPtr);
-					}
-				};
-			processOnePacket(packetData);
-
-			// 같은 유저의 링버퍼에 남은 패킷 있으면 계속 처리
-			while (true)
-			{
-				auto nextPacket = pUser->GetPacket(packetBuf, sizeof(packetBuf));
-				if (nextPacket.PacketId == 0)
-				{
-					break;
-				}
-				nextPacket.ClientIndex = task.clientIndex;
-				processOnePacket(nextPacket);
-			}
-
-			pUser->ReleaseRouting();  // 루프 끝에 반환
-		}
-		mReadBuffer.clear();
-
-		
-	
-		while (true)
-		{
-			auto task = mRedisManager->TakeResponseTask();
-			if (task.TaskID == RedisTaskID::INVALID)
-				break;
-
-			ProcessRecvPacket(task.UserIndex, task.Generation, (UINT16)task.TaskID, task.DataSize, task.body);
-			//task.release();
-		}
-
-		while (auto* pNotify = m_strandProcessor.PopCallback())
-			mCallbackDispatcher->Dispatch(pNotify);
-
+		ProcessSystemPackets();         // 2. connect / disconnect 시스템 패킷
+		ProcessUserPackets();           // 3. 일반 유저 패킷 라우팅
+		ProcessRedisTasks();            // 4. Redis 비동기 응답
+		ProcessStrandCallbacks();       // 5. Strand 콜백 디스패치
 	}
-	// 이미 연결이 된 유저가 보낸 패킷이 있는지 알아보고 
-	// 있으면 처리하고 
-	// 시스템 패킷(네트워크가 보낸것, 연결, 연결종료 등..) 을 있으면 처리하고 
+}
+
+// ── 1단계: CV wait + 더블버퍼 스왑 ──────────────────────────────────────
+void PacketManager::WaitAndSwapBuffers()
+{
+	std::unique_lock<std::mutex> lock(mLock);
+
+	mPacketEventCV.wait(lock, [this]()
+	{
+		if (!mIsRunProcessThread)          return true;
+		if (!mSystemWriteBuffer.empty())   return true;
+		if (!mWriteBuffer.empty())         return true;
+		if (mRedisManager && mRedisManager->HasResponseTask()) return true;
+		return false;
+	});
+
+	if (!mIsRunProcessThread) return;
+
+	// lock 보유 상태에서 swap → 이후 처리는 전부 lock-free
+	std::swap(mSystemWriteBuffer, mSystemReadBuffer);
+	std::swap(mWriteBuffer, mReadBuffer);
+}
+
+// ── 2단계: 시스템 패킷 처리 (connect / disconnect) ────────────────────────
+void PacketManager::ProcessSystemPackets()
+{
+	for (auto& sysPacket : mSystemReadBuffer)
+	{
+		ProcessRecvPacket(sysPacket.ClientIndex, sysPacket.Generation,
+			sysPacket.PacketId, sysPacket.DataSize, sysPacket.pDataPtr);
+	}
+	mSystemReadBuffer.clear();
+}
+
+// ── 3단계: 일반 유저 패킷 라우팅 ─────────────────────────────────────────
+void PacketManager::ProcessUserPackets()
+{
+	// Queue Depth 모니터링 (1초 간격)
+	{
+		thread_local auto lastQueueLog = std::chrono::steady_clock::now();
+		auto now     = std::chrono::steady_clock::now();
+		auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - lastQueueLog).count();
+		if (elapsed >= 1)
+		{
+			LOG_DEBUG("[QueueDepth] ThreadID=%lu, batch_size=%zu  sys_batch=%zu",
+				GetCurrentThreadId(), mReadBuffer.size(), mSystemReadBuffer.size());
+			lastQueueLog = now;
+		}
+	}
+
+	char packetBuf[MAX_SINGLE_PACKET_SIZE];
+	for (auto& task : mReadBuffer)
+	{
+		RouteSingleUserTask(task, packetBuf);
+	}
+	mReadBuffer.clear();
+}
+
+// ── 3-1: 유저 1명의 패킷 라우팅 ──────────────────────────────────────────
+void PacketManager::RouteSingleUserTask(const PacketTask& task, char* packetBuf)
+{
+	auto pUser = mUserManager->GetUserByConnIdx(task.clientIndex);
+	if (!pUser) return;
+
+	// 접속 종료 중인 유저의 잔여 패킷은 링버퍼째 폐기
+	if (pUser->IsDisconnecting())
+	{
+		pUser->ClearPacketBuffer();
+		return;
+	}
+
+	// 동시 라우팅 방지 (IOCP Worker Fast Path와 경합 차단)
+	if (!pUser->TryAcquireRouting()) return;
+
+	auto packetData = pUser->GetPacket(packetBuf, MAX_SINGLE_PACKET_SIZE);
+	if (packetData.PacketId == 0)
+	{
+		pUser->ReleaseRouting();
+		return;
+	}
+
+	// 비정상 크기 패킷 → 연결 강제 종료
+	if (packetData.DataSize == 0 || packetData.DataSize > MAX_SINGLE_PACKET_SIZE)
+	{
+		pUser->ReleaseRouting();
+		mSessionHandler->ClearConnectionInfo(task.clientIndex);
+		return;
+	}
+
+	// 유효 패킷 수신 → 활동 시간 갱신
+	if (UpdateActivityFunc)
+		UpdateActivityFunc(task.clientIndex);
+
+	packetData.ClientIndex = task.clientIndex;
+	packetData.Generation  = task.generation;
+
+	// 로그인 전/시스템 패킷 이외는 세대 검사 (지각 패킷 폐기)
+	const auto packetId = packetData.PacketId;
+	if (packetId != (UINT16)PACKET_ID::SYS_USER_CONNECT &&
+		packetId != (UINT16)PACKET_ID::LOGIN_REQUEST)
+	{
+		if (pUser->GetSessionGeneration() != task.generation)
+		{
+			LOG_DEBUG("Stale Packet 버림 (Gen: %d vs %d)", pUser->GetSessionGeneration(), task.generation);
+			pUser->ReleaseRouting();
+			return;
+		}
+	}
+
+	// 방 안 패킷 → Strand, 로비 패킷 → ProcessRecvPacket
+	auto routeOnePacket = [&](PacketInfo& pkt)
+	{
+		if (pUser->GetDomainState() == User::DOMAIN_STATE::ROOM)
+		{
+			auto pRoom = mRoomManager->GetRoomByNumber(pUser->GetRoomIndex());
+			if (pRoom == nullptr)
+			{
+				LOG_ERROR("client %d의 방이 유효하지 않음.", task.clientIndex);
+				pUser->SetDomainState(User::DOMAIN_STATE::LOGIN);
+				pUser->ResetRoom();
+				return;
+			}
+			m_strandProcessor.EnqueueJob(pRoom, task.clientIndex,
+				pRoom->GetGeneration(), pUser->GetSessionGeneration(),
+				pkt.PacketId, pkt.DataSize, pkt.pDataPtr);
+		}
+		else
+		{
+			ProcessRecvPacket(pkt.ClientIndex, pkt.Generation,
+				pkt.PacketId, pkt.DataSize, pkt.pDataPtr);
+		}
+	};
+
+	// 첫 번째 패킷 처리 후 링버퍼에 남은 패킷도 연속 처리
+	routeOnePacket(packetData);
+	while (true)
+	{
+		auto nextPacket = pUser->GetPacket(packetBuf, MAX_SINGLE_PACKET_SIZE);
+		if (nextPacket.PacketId == 0) break;
+		nextPacket.ClientIndex = task.clientIndex;
+		routeOnePacket(nextPacket);
+	}
+
+	pUser->ReleaseRouting();
+}
+
+// ── 4단계: Redis 비동기 응답 처리 ────────────────────────────────────────
+void PacketManager::ProcessRedisTasks()
+{
+	while (true)
+	{
+		auto task = mRedisManager->TakeResponseTask();
+		if (task.TaskID == RedisTaskID::INVALID) break;
+
+		ProcessRecvPacket(task.UserIndex, task.Generation,
+			(UINT16)task.TaskID, task.DataSize, task.body);
+	}
+}
+
+// ── 5단계: Strand 콜백 디스패치 ──────────────────────────────────────────
+void PacketManager::ProcessStrandCallbacks()
+{
+	while (auto* pNotify = m_strandProcessor.PopCallback())
+		mCallbackDispatcher->Dispatch(pNotify);
 }
 
 void PacketManager::EnqueuePacketData(const UINT32 clientIndex_, const UINT32 generation_)
