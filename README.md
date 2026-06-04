@@ -174,6 +174,57 @@ DB 스레드(Redis/MySQL)는 작업 큐를 완전히 소진한 후 종료합니�
 
 ---
 
+### 3-8. ProcessThread 단일 스레드 병목과 CAS Fast Path 전환
+
+**[Issue]** v3 LockFree 아키텍처에서 채팅 빈도를 높이면(chatMin=150ms 이하) 서버가 Death Spiral에 빠지며 응답 불능 상태가 됩니다. lat_avg가 수렴하지 않고 수십 초까지 지속 증가하고 Job Pool이 완전 소진됩니다.
+
+**[Analyze]** VS Concurrency Visualizer로 부하 테스트 중 스레드 동작을 분석한 결과, `PacketManager::Run`(ProcessThread)이 단일 스레드 병목임을 확인했습니다.
+
+```
+[Concurrency Visualizer 실행 샘플 콜스택]
+PacketManager::Run::'2'::<lambda_1>
+  └─ PacketManager::ProcessPacket   ← PacketManager.cpp:189
+       └─ _Cnd_wait
+            └─ SleepConditionVariableSRW   ← 배치 처리 후 CV 대기 반복
+```
+
+```
+[Death Spiral 진입 시 패턴]
+ProcessThread → SleepConditionVariableSRW 2,776ms 대기
+→ Job Pool 소진으로 신규 PacketJob 할당 불가
+→ IOCPChatServer CPU 사용률 0으로 붕괴 (코어 뷰 확인)
+```
+
+전체 스레드의 **42%가 동기화 대기** 상태였으며, IO Worker들이 패킷을 생성하는 속도가 ProcessThread 단일 스레드의 처리 속도를 초과하는 구조적 한계가 원인이었습니다.
+
+StrandProcessor의 실행 경로도 함께 확인했습니다:
+```
+StrandProcessor::ProcessRoom
+  └─ Room::NotifyChat       ← Room.cpp:40
+       └─ ClientSession::SendMsg   ← ClientSession.cpp:83
+            └─ ClientSession::SendIO   ← ClientSession.cpp:188
+                 └─ WSASend
+```
+
+**[Action]** `atomic_flag` CAS 연산으로 ROOM 패킷에 한해 ProcessThread를 완전 우회하는 **Fast Path**를 도입했습니다. IO Worker가 CAS에 성공하면 Room SPSC LocalQueue에 직접 enqueue하고, 비-ROOM 패킷(Login/Connect/Disconnect)만 기존 Double Buffering 경로(Slow Path)를 유지합니다.
+
+```cpp
+// Fast Path: atomic_flag CAS로 ProcessThread 우회
+if (mFastPathFlag.test_and_set(std::memory_order_acquire) == false) {
+    // IO Worker가 직접 Room LocalQueue에 enqueue
+    room->EnqueueJob(packetJob);
+    // ...
+}
+```
+
+**[Result]** 동일 스레드 구성(L8/IO16)에서 v3가 Death Spiral에 빠지던 조건(chatMin=150~450)에서도 **lat_avg 29ms로 완전 안정**. 안정 한계선이 chatMin=200ms → chatMin=100ms로 **2배 확장**됐습니다.
+
+| 조건 (L8/IO16, chatMin=150~450) | v3 | v4 |
+|---|:---:|:---:|
+| lat_avg | 🔴 5,719ms (Death Spiral) | ✅ **~29ms** |
+| Job Pool | 🔴 소진 | ✅ 정상 |
+
+---
 ### Edge Case 방어
 
 | 공격 시나리오 | 방어 로직 |
