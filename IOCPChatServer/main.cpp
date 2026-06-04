@@ -7,6 +7,9 @@
 #include <iostream>
 #include <csignal>
 #include <exception>
+#include <plog/Init.h>
+#include <plog/Appenders/ColorConsoleAppender.h>
+#include <plog/Appenders/RollingFileAppender.h>
 //const UINT16 SERVER_PORT = 11021;
 //const UINT16 MAX_CLIENT = 10000;	// 한 번에 접속할 클라이언트 수
 //const UINT32 MAX_IO_WORKER_THREAD =8;
@@ -40,6 +43,14 @@ BOOL WINAPI ConsoleCtrlHandler(DWORD ctrlType)
 }
 int main()
 {
+	// ── 로깅 초기화 ─────────────────────────────────────────────────────
+	// server.log: 최대 10 MB, 최대 3개 롤링 보관
+	static plog::RollingFileAppender<plog::TxtFormatter>  fileApp("server.log", 10 * 1024 * 1024, 3);
+	// 콘솔: 레벨별 색상 출력 (DEBUG=흰색, INFO=녹색, ERROR=빨간색)
+	static plog::ColorConsoleAppender<plog::TxtFormatter> consoleApp;
+	plog::init(plog::debug, &fileApp).addAppender(&consoleApp);
+	// ────────────────────────────────────────────────────────────────────
+
 	CrashDump::Init();
 
 	ConfigManager::GetInstance().Load("config.json");
@@ -73,7 +84,7 @@ int main()
 	}
 	Server.Run(config.MaxClient);
 
-	printf("'quit' 입력으로 서버 종료.\n");
+	LOG_INFO("'quit' 입력으로 서버 종료.");
 
 	while (true)
 	{

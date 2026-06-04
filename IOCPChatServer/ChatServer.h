@@ -83,10 +83,10 @@ public:
 		bool expected = false;
 		if (!mIsEnded.exchange(true))
 		{
-			// 벤치마크 (콘솔 + 파일)
-			printf("\n=== Benchmark Result ===\n");
-			printf("SendPool Alloc Fail: %llu\n", GetSendPoolAllocFailCount());
-			printf("========================\n\n");
+			// 벤치마크 (콘솔 + server.log + 별도 파일)
+			LOG_INFO("=== Benchmark Result ===");
+			LOG_INFO("SendPool Alloc Fail: %llu", GetSendPoolAllocFailCount());
+			LOG_INFO("========================");
 
 			FILE* fp = nullptr;
 			fopen_s(&fp, "benchmark_result.txt", "a");

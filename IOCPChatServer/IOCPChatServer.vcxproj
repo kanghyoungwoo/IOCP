@@ -108,7 +108,7 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\nlohmann;C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\hiredis;$(ProjectDir)\include;C:\Program Files\MySQL\MySQL Server 8.0\include;$(ProjectDir)thirdparty\hiredis</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\nlohmann;C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\hiredis;$(ProjectDir)\include;C:\Program Files\MySQL\MySQL Server 8.0\include;$(ProjectDir)thirdparty\hiredis;$(ProjectDir)thirdparty\plog\include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -129,7 +129,7 @@
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\nlohmann;C:\Program Files\MySQL\MySQL Server 8.0\include;C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\hiredis;%(AdditionalIncludeDirectories);$(ProjectDir)thirdparty\hiredis</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\nlohmann;C:\Program Files\MySQL\MySQL Server 8.0\include;C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\hiredis;%(AdditionalIncludeDirectories);$(ProjectDir)thirdparty\hiredis;$(ProjectDir)thirdparty\plog\include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

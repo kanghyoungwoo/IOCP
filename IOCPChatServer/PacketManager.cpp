@@ -274,7 +274,7 @@ void PacketManager::ProcessPacket()
 
 			if (elapsed >= 1)
 			{
-				printf("[QueueDepth] ThreadID=%lu, batch_size=%zu  sys_batch=%zu\n",
+				LOG_DEBUG("[QueueDepth] ThreadID=%lu, batch_size=%zu  sys_batch=%zu",
 					GetCurrentThreadId(), mReadBuffer.size(), mSystemReadBuffer.size());
 
 				lastQueueLog = now;
