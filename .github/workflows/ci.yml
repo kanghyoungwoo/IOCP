@@ -16,10 +16,10 @@ jobs:
     runs-on: windows-latest
 
     env:
-      SOLUTION_FILE: IOCPChatServer.sln
       BUILD_CONFIGURATION: Release
       BUILD_PLATFORM: x64
       SLN_DIR: IOCPChatServer
+      TEST_PROJECT: IOCPChatServer/Tests/IOCPChatServer_Tests.vcxproj
 
     steps:
       # 1. 소스코드 체크아웃
@@ -30,15 +30,20 @@ jobs:
       - name: Add MSBuild to PATH
         uses: microsoft/setup-msbuild@v2
 
-      # 3. NuGet 패키지 복원
-      - name: Restore NuGet packages
-        working-directory: ${{ env.SLN_DIR }}
-        run: nuget restore ${{ env.SOLUTION_FILE }}
+      # 3. vcpkg 설치 및 gtest 빌드 (테스트 프로젝트 의존성)
+      - name: Setup vcpkg and install gtest
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git C:\vcpkg
+          C:\vcpkg\bootstrap-vcpkg.bat -disableMetrics
+          C:\vcpkg\vcpkg install gtest:x64-windows --no-binarycaching
 
-      # 4. 솔루션 전체 빌드 (멀티코어 병렬 빌드)
-      - name: Build the solution
-        working-directory: ${{ env.SLN_DIR }}
-        run: msbuild ${{ env.SOLUTION_FILE }} /p:Configuration=${{ env.BUILD_CONFIGURATION }} /p:Platform=${{ env.BUILD_PLATFORM }} /m
+      # 4. 테스트 프로젝트만 빌드 (MySQL 등 서버 의존성 불필요)
+      - name: Build test project
+        run: |
+          msbuild ${{ env.TEST_PROJECT }} `
+            /p:Configuration=${{ env.BUILD_CONFIGURATION }} `
+            /p:Platform=${{ env.BUILD_PLATFORM }} `
+            /m
 
       # 5. 테스트 실행 및 XML 리포트 생성
       - name: Run Google Tests
