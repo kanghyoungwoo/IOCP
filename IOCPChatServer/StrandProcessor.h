@@ -81,7 +81,16 @@ private:
     UserManager* mUserManager = nullptr;
     void WorkerThreadMain();
 
-    void ProcessRoom(Room* pRoom);
+    void ProcessRoom(Room* pRoom);      // 오케스트레이터 (switch 디스패치)
+
+    // ── ProcessRoom 핸들러 ────────────────────────────────────────────
+    // ※ 콜백 큐에 pJob을 넘기는 핸들러 → 소유권 이전, Free 금지
+    void HandleUserDisconnect(Room* pRoom, User* pUser, PacketJob* pJob);
+    void HandleRoomLeave     (Room* pRoom, User* pUser, PacketJob* pJob);
+    void HandleRoomEnter     (Room* pRoom,              PacketJob* pJob);
+    // ※ 처리 후 자체 Free 하는 핸들러
+    void HandleRoomChat      (Room* pRoom, User* pUser, PacketJob* pJob);
+    // ─────────────────────────────────────────────────────────────────
 
     PacketJob* PopWithBackoff(Room* pRoom);
 
