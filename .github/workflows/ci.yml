@@ -19,7 +19,7 @@ jobs:
       SOLUTION_FILE: IOCPChatServer.sln
       BUILD_CONFIGURATION: Release
       BUILD_PLATFORM: x64
-      SLN_DIR: IOCP/IOCPChatServer
+      SLN_DIR: IOCPChatServer/IOCP/IOCPChatServer
 
     steps:
       # 1. 소스코드 체크아웃
