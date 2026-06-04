@@ -328,6 +328,13 @@ void IOCPClient::WorkerThread()
 				}
 
 				setsockopt(bot.socket, SOL_SOCKET, SO_UPDATE_CONNECT_CONTEXT, NULL, 0);
+
+				// Nagle 알고리즘 비활성화: 소형 패킷(요청/응답)을 즉시 전송
+				// 서버와 동일하게 설정해야 레이턴시 측정값이 왜곡되지 않음
+				int noDelay = 1;
+				setsockopt(bot.socket, IPPROTO_TCP, TCP_NODELAY,
+					(const char*)&noDelay, sizeof(noDelay));
+
 				bot.connected = true;
 
 				if (mOnConnectComplete)

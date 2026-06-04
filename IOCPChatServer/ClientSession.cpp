@@ -412,8 +412,6 @@ bool ClientSession::AcceptCompletion(SOCKET listenSock_)
 	}
 
 	// Nagle 알고리즘 비활성화
-	// 채팅 서버는 소형 패킷을 즉시 전송해야 하므로 반드시 설정
-	// 미설정 시 OS가 패킷을 최대 200ms까지 버퍼링해서 묶어 전송할 수 있음
 	int noDelay = 1;
 	if (setsockopt(m_socketClient, IPPROTO_TCP, TCP_NODELAY,
 		(const char*)&noDelay, sizeof(noDelay)) == SOCKET_ERROR)
