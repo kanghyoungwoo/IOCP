@@ -572,7 +572,7 @@ void IOCompletionPort::WorkerThread()
 			else if (IOOperation::ZOMBIE_CLEANUP == op)
 			{
 				CloseSocket(pClientSession);
-				delete reinterpret_cast<stOverlappedEx*>(lpOverlapped);
+				//delete reinterpret_cast<stOverlappedEx*>(lpOverlapped);
 
 				// 가짜 I/O 처리가 끝났으므로 참조 카운트 감소
 				if (pClientSession->ReleaseRef())

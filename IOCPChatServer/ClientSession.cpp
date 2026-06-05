@@ -410,6 +410,13 @@ bool ClientSession::AcceptCompletion(SOCKET listenSock_)
 		return false;
 	}
 
+	// Nagle 알고리즘 비활성화 (TCP_NODELAY) — p99 지연 감소
+	BOOL noDelay = TRUE;
+	if (setsockopt(m_socketClient, IPPROTO_TCP, TCP_NODELAY, (char*)&noDelay, sizeof(noDelay)) == SOCKET_ERROR)
+	{
+		LOG_ERROR("TCP_NODELAY 설정 실패 : %d \n", WSAGetLastError());
+		return false;
+	}
 
 	LOG_DEBUG("AcceptCompletion : SessionIndex(%d)\n", mIndex);
 
