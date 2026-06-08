@@ -1,4 +1,4 @@
-#include "UserManager.h"
+ï»¿#include "UserManager.h"
 
 void UserManager::Init(const UINT32 maxUserCount_)
 {
@@ -18,17 +18,17 @@ ERROR_CODE UserManager::Adduser(char* userID_, UINT32 clientIndex_)
 {
 	std::string userIDStr = userID_;
 
-	// Áßº¹ °Ë»ç ÈÄ »ğÀÔ
-	auto result = mUserIDDictionary.insert(std::pair<std::string, int>(userIDStr, clientIndex_));	// ¸Ê¿¡ ¸ÕÀú µî·Ï
+	// ì¤‘ë³µ ê²€ì‚¬ í›„ ì‚½ì…
+	auto result = mUserIDDictionary.insert(std::pair<std::string, int>(userIDStr, clientIndex_));	// ë§µì— ë¨¼ì € ë“±ë¡
 
-	if (!result.second) // ÀÌ¹Ì Á¸ÀçÇÏ¸é »ğÀÔ ½ÇÆĞ
+	if (!result.second) // ì´ë¯¸ ì¡´ì¬í•˜ë©´ ì‚½ì… ì‹¤íŒ¨
 	{
-		LOG_DEBUG("Áßº¹ ·Î±×ÀÎ ½Ãµµ ! :%s\n", userID_);
+		LOG_DEBUG("ì¤‘ë³µ ë¡œê·¸ì¸ ì‹œë„ ! :%s\n", userID_);
 		return ERROR_CODE::LOGIN_USER_ALREADY;
 	}
 
-	// »ğÀÔ ¼º°ø ½Ã user °´Ã¼ ¼³Á¤
-	mUserObjPool[clientIndex_]->SetLogin(userID_);	// ±× ÈÄ user »óÅÂ º¯°æ
+	// ì‚½ì… ì„±ê³µ ì‹œ user ê°ì²´ ì„¤ì •
+	mUserObjPool[clientIndex_]->SetLogin(userID_);	// ê·¸ í›„ user ìƒíƒœ ë³€ê²½
 	LOG_DEBUG("User registered : %s (ClientIndex : %d)\n", userID_, clientIndex_);
 
 	return ERROR_CODE::NONE;
@@ -37,9 +37,9 @@ ERROR_CODE UserManager::Adduser(char* userID_, UINT32 clientIndex_)
 void UserManager::DeleteUserInfo(User* user_)
 {
 	LOG_DEBUG("User info deleted : %s\n", user_->GetUserID().c_str());
-	mUserIDDictionary.erase(user_->GetUserID());	// id·Î ¸Ê¿¡¼­ Á¦°Å
+	mUserIDDictionary.erase(user_->GetUserID());	// idë¡œ ë§µì—ì„œ ì œê±°
 	user_->Clear();		// clear() -> mUserid = ""
-	DecreaseUserCnt();	// Ä«¿îÆ® °¨¼Ò
+	DecreaseUserCnt();	// ì¹´ìš´íŠ¸ ê°ì†Œ
 }
 
 

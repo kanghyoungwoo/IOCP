@@ -1,4 +1,4 @@
-#include "RoomManager.h"
+﻿#include "RoomManager.h"
 
 void RoomManager::Init(const INT32 beginRoomNumber_, const INT32 maxRoomCount_, const INT32 maxRoomUserCount_)
 {
@@ -10,7 +10,8 @@ void RoomManager::Init(const INT32 beginRoomNumber_, const INT32 maxRoomCount_, 
 	for (int i = 0;i < maxRoomCount_;i++)
 	{
 		auto room = std::make_unique<Room>();
-		room->SendPacketFunc = SendPacketFunc;
+		room->SendPacketFunc   = SendPacketFunc;
+		room->EnqueueOnlyFunc  = EnqueueOnlyFunc;
 		room->Init(i + beginRoomNumber_, maxRoomUserCount_);
 		mRooms.push_back(std::move(room));
 	}

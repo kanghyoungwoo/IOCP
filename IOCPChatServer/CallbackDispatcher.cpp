@@ -1,4 +1,4 @@
-#include "CallbackDispatcher.h"
+﻿#include "CallbackDispatcher.h"
 #include "UserManager.h"
 #include "RoomManager.h"
 #include "MysqlManager.h"

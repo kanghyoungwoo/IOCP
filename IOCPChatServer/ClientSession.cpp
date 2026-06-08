@@ -1,5 +1,13 @@
 ﻿#include "ClientSession.h"
 
+// ── Deferred Send: thread_local 플러시 리스트 ────────────────────────────
+namespace {
+    constexpr int FLUSH_LIST_CAP = 20;          // 방당 최대 인원 수와 맞춤
+    thread_local ClientSession* tl_flushList[FLUSH_LIST_CAP]{};
+    thread_local int            tl_flushCount = 0;
+}
+// ────────────────────────────────────────────────────────────────────────
+
 bool ClientSession::OnConnect(HANDLE iocpHandle, SOCKET socket)
 {
 	m_socketClient = socket;
@@ -108,7 +116,7 @@ bool ClientSession::SendMsg(const UINT32 dataSize, char* pMsg)
 	pSendOvl->base.wsaBuf.len = dataSize;
 	pSendOvl->base.wsaBuf.buf = pSendOvl->buffer;
 	CopyMemory(pSendOvl->buffer, pMsg, dataSize);
-	pSendOvl->base.operation = IOOperation::SEND;
+	pSendOvl->base.op = CompletionOp::IO(IOOperation::SEND);
 	pSendOvl->base.generation = mGeneration.load(std::memory_order_acquire);
 
 	// lock 안에선 큐 조작 + 판단만
@@ -137,6 +145,86 @@ bool ClientSession::SendMsg(const UINT32 dataSize, char* pMsg)
 	return true;
 }
 
+// ── Deferred Send 구현 ───────────────────────────────────────────────────
+
+void ClientSession::RegisterFlush(ClientSession* p)
+{
+    for (int i = 0; i < tl_flushCount; ++i)
+        if (tl_flushList[i] == p) return;   // 중복 방지
+    if (tl_flushCount < FLUSH_LIST_CAP)
+        tl_flushList[tl_flushCount++] = p;
+}
+
+void ClientSession::FlushAll()
+{
+    for (int i = 0; i < tl_flushCount; ++i)
+        tl_flushList[i]->TryFlush();
+    tl_flushCount = 0;
+}
+
+bool ClientSession::EnqueueOnly(const UINT32 dataSize, char* pMsg)
+{
+    if (!IsConnected())
+        return false;
+
+    if (dataSize == 0 || dataSize > MAX_SOCKBUF)
+    {
+        LOG_ERROR("비정상적인 패킷 크기 감지 (Buffer Overflow 시도)! Size: %d\n", dataSize);
+        DisconnectAsync(GetGeneration());
+        return false;
+    }
+
+    auto pSendOvl = mSendPool->Alloc();
+    if (pSendOvl == nullptr)
+    {
+        mSendPool->IncrementAllocFail();
+        LOG_ERROR_ONCE("SendPool 소진! dataSize=%d\n", dataSize);
+        return false;
+    }
+
+    ZeroMemory(&pSendOvl->base.wsaOverlapped, sizeof(WSAOVERLAPPED));
+    pSendOvl->base.wsaBuf.len = dataSize;
+    pSendOvl->base.wsaBuf.buf = pSendOvl->buffer;
+    CopyMemory(pSendOvl->buffer, pMsg, dataSize);
+    pSendOvl->base.op         = CompletionOp::IO(IOOperation::SEND);
+    pSendOvl->base.generation = mGeneration.load(std::memory_order_acquire);
+
+    {
+        std::lock_guard<std::mutex> guard(mSendLock);
+        mSendDataqueue.push(pSendOvl);
+    }
+
+    RegisterFlush(this);    // thread_local 플러시 리스트에 등록
+    return true;
+}
+
+bool ClientSession::TryFlush()
+{
+    if (!IsConnected())
+        return false;
+
+    bool shouldSend = false;
+    {
+        std::lock_guard<std::mutex> guard(mSendLock);
+        if (!mIsSending && !mSendDataqueue.empty())
+        {
+            mIsSending = true;
+            shouldSend = true;
+        }
+    }
+
+    if (shouldSend)
+    {
+        if (!SendIO())
+        {
+            DisconnectAsync(GetGeneration());
+            return false;
+        }
+    }
+    return true;
+}
+// ────────────────────────────────────────────────────────────────────────
+
 bool ClientSession::BindRecv()
 {
 	DWORD dwFlag = 0;
@@ -146,7 +234,7 @@ bool ClientSession::BindRecv()
 	ZeroMemory(&m_stRecvOverlappedEx.base.wsaOverlapped, sizeof(WSAOVERLAPPED));
 	m_stRecvOverlappedEx.base.wsaBuf.len = MAX_SOCKBUF;
 	m_stRecvOverlappedEx.base.wsaBuf.buf = mRecvBuf;
-	m_stRecvOverlappedEx.base.operation = IOOperation::RECV;
+	m_stRecvOverlappedEx.base.op = CompletionOp::IO(IOOperation::RECV);
 	m_stRecvOverlappedEx.base.generation = mGeneration.load(std::memory_order_acquire);
 
 	AddRef();
@@ -457,7 +545,7 @@ bool ClientSession::PostImmediateAccept(SOCKET listenSock)
 	DWORD flags = 0;
 	mAcceptContext.base.wsaBuf.len = 0;
 	mAcceptContext.base.wsaBuf.buf = nullptr;
-	mAcceptContext.base.operation = IOOperation::ACCEPT;
+	mAcceptContext.base.op = CompletionOp::IO(IOOperation::ACCEPT);
 	mAcceptContext.base.clientSessionIndex = mIndex;
 
 	bool bRet = AcceptEx(listenSock, m_socketClient, mAcceptbuf, 0,
@@ -533,7 +621,7 @@ void ClientSession::DisconnectAsync(UINT32 expectedGeneration)
 				// 3. 블랙홀 상태 → Worker에 즉시 정리
 				//auto pMarker = new stOverlappedEx();
 				ZeroMemory(&mZombieContext, sizeof(stOverlappedEx));
-				mZombieContext.base.operation = IOOperation::ZOMBIE_CLEANUP;
+				mZombieContext.base.op = CompletionOp::Signal(AppSignal::ZOMBIE_CLEANUP);
 				mZombieContext.base.clientSessionIndex = mIndex;
 				mZombieContext.base.generation = mGeneration.load(std::memory_order_acquire);
 

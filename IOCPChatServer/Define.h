@@ -64,12 +64,40 @@ const UINT32 MAX_SOCKBUF = 1024;
         } \
     } while(0)
 
+// ── 진짜 네트워크 I/O 완료 이벤트 ───────────────────────────────────────
 enum class IOOperation
 {
-	RECV,
-	SEND,
-	ACCEPT,
-	ZOMBIE_CLEANUP
+    RECV,
+    SEND,
+    ACCEPT
+};
+
+// ── 애플리케이션 내부 신호 (비-I/O) ─────────────────────────────────────
+enum class AppSignal
+{
+    ZOMBIE_CLEANUP,     // 세션 정리: CancelIoEx 불가 시 Worker에게 CloseSocket 위임
+    SEND_DISPATCH       // 예약: Logic Thread → IO Worker send 위임 (현재 미사용)
+};
+
+// ── 완료 포트 이벤트 판별 래퍼 ──────────────────────────────────────────
+struct CompletionOp
+{
+    enum class Kind : uint8_t { IO, SIGNAL } kind = Kind::IO;
+    union {
+        IOOperation io  = IOOperation::RECV;
+        AppSignal   sig;
+    };
+
+    static CompletionOp IO(IOOperation op)
+    {
+        CompletionOp c; c.kind = Kind::IO; c.io = op; return c;
+    }
+    static CompletionOp Signal(AppSignal s)
+    {
+        CompletionOp c; c.kind = Kind::SIGNAL; c.sig = s; return c;
+    }
+    bool IsIO()     const { return kind == Kind::IO; }
+    bool IsSignal() const { return kind == Kind::SIGNAL; }
 };
 
 // 1. 공통 헤더
@@ -77,7 +105,7 @@ struct OverlappedBase
 {
 	WSAOVERLAPPED   wsaOverlapped;          // offset 0 - 반드시 첫 번째
 	WSABUF          wsaBuf;
-	IOOperation     operation;
+	CompletionOp    op;                     // I/O 완료 or 애플리케이션 신호 판별자
 	UINT32          clientSessionIndex = 0;
 	UINT32          generation = 0;
 };

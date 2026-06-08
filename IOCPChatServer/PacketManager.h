@@ -38,6 +38,7 @@ public:
 	void PushSystemPacket(PacketInfo packet_);
 
 	std::function<void(UINT32, UINT32, UINT32, char*)> SendPacketFunc;
+	std::function<void(UINT32, UINT32, UINT32, char*)> EnqueueOnlyFunc;
 	std::function<void(UINT32)> UpdateActivityFunc;
 
 private:

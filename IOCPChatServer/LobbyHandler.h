@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Define.h"
 #include <functional>
 

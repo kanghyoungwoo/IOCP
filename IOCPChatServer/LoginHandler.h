@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Packet.h"
 #include "ErrorCode.h"
 #include <functional>

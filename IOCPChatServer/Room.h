@@ -45,6 +45,8 @@ public:
 	void NotifyChat(INT32 clientIndex_, const char* userID_, const ROOM_CHAT_REQUEST_PACKET* pChatPacket);
 
 	std::function<void(UINT32, UINT32, UINT32, char*)> SendPacketFunc;
+	// 브로드캐스트 전용 — 큐 적재만 하고 WSASend는 Logic Thread 배치 종료 후 일괄 처리
+	std::function<void(UINT32, UINT32, UINT32, char*)> EnqueueOnlyFunc;
 	void Reset(std::function<void(PacketJob*)> freeFunc = nullptr);
 	void Reset(INT32 roomNumber_, INT32 maxUserCount_, std::function<void(PacketJob*)> freeFunc = nullptr);
 

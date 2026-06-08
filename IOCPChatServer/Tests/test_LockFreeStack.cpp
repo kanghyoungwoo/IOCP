@@ -1,4 +1,4 @@
-#include <gtest/gtest.h>
+﻿#include <gtest/gtest.h>
 #include "../LockFreeStack.h"
 #include <thread>
 #include <vector>

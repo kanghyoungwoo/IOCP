@@ -1,0 +1,251 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites tests="184" failures="0" disabled="0" errors="0" time="0.051" timestamp="2026-06-09T00:08:20.591" name="AllTests">
+  <testsuite name="GlobalQueueInit" tests="2" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-06-09T00:08:20.591">
+    <testcase name="ThrowsOnNonPowerOfTwo" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_GlobalQueue_LockFree.cpp" line="45" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.591" classname="GlobalQueueInit" />
+    <testcase name="PowerOfTwoSucceeds" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_GlobalQueue_LockFree.cpp" line="54" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.591" classname="GlobalQueueInit" />
+  </testsuite>
+  <testsuite name="GlobalQueueTest" tests="8" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-06-09T00:08:20.592">
+    <testcase name="ShutdownEmptyReturnsNull" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_GlobalQueue_LockFree.cpp" line="62" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.592" classname="GlobalQueueTest" />
+    <testcase name="SinglePushPop" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_GlobalQueue_LockFree.cpp" line="69" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.592" classname="GlobalQueueTest" />
+    <testcase name="FIFOOrdering" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_GlobalQueue_LockFree.cpp" line="82" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.592" classname="GlobalQueueTest" />
+    <testcase name="PushFullCapacity" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_GlobalQueue_LockFree.cpp" line="98" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.592" classname="GlobalQueueTest" />
+    <testcase name="PushAfterDrain" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_GlobalQueue_LockFree.cpp" line="113" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.592" classname="GlobalQueueTest" />
+    <testcase name="WrapAround" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_GlobalQueue_LockFree.cpp" line="128" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.592" classname="GlobalQueueTest" />
+    <testcase name="RapidPushPopCycles" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_GlobalQueue_LockFree.cpp" line="142" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.592" classname="GlobalQueueTest" />
+    <testcase name="ShutdownAfterPartialFill" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_GlobalQueue_LockFree.cpp" line="159" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.592" classname="GlobalQueueTest" />
+  </testsuite>
+  <testsuite name="GlobalQueueSPMC" tests="3" failures="0" disabled="0" skipped="0" errors="0" time="0.012" timestamp="2026-06-09T00:08:20.592">
+    <testcase name="NoDataLoss" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_GlobalQueue_LockFree.cpp" line="180" status="run" result="completed" time="0.002" timestamp="2026-06-09T00:08:20.592" classname="GlobalQueueSPMC" />
+    <testcase name="NoDuplicate" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_GlobalQueue_LockFree.cpp" line="217" status="run" result="completed" time="0.001" timestamp="2026-06-09T00:08:20.595" classname="GlobalQueueSPMC" />
+    <testcase name="HighThroughput" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_GlobalQueue_LockFree.cpp" line="273" status="run" result="completed" time="0.008" timestamp="2026-06-09T00:08:20.596" classname="GlobalQueueSPMC" />
+  </testsuite>
+  <testsuite name="GlobalQueueMPMC" tests="3" failures="0" disabled="0" skipped="0" errors="0" time="0.003" timestamp="2026-06-09T00:08:20.605">
+    <testcase name="MultipleProducersNoLoss" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_GlobalQueue_LockFree.cpp" line="315" status="run" result="completed" time="0.001" timestamp="2026-06-09T00:08:20.605" classname="GlobalQueueMPMC" />
+    <testcase name="MultipleProducersNoDuplicates" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_GlobalQueue_LockFree.cpp" line="362" status="run" result="completed" time="0.001" timestamp="2026-06-09T00:08:20.606" classname="GlobalQueueMPMC" />
+    <testcase name="HighThroughput8Producers" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_GlobalQueue_LockFree.cpp" line="426" status="run" result="completed" time="0.001" timestamp="2026-06-09T00:08:20.607" classname="GlobalQueueMPMC" />
+  </testsuite>
+  <testsuite name="RingBufferTest" tests="15" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-06-09T00:08:20.609">
+    <testcase name="EmptyDefaults" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_RingBuffer.cpp" line="13" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.609" classname="RingBufferTest" />
+    <testcase name="WriteSingleByte" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_RingBuffer.cpp" line="20" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.609" classname="RingBufferTest" />
+    <testcase name="ReadSingleByte" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_RingBuffer.cpp" line="27" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.609" classname="RingBufferTest" />
+    <testcase name="ReadFromEmptyFails" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_RingBuffer.cpp" line="36" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.609" classname="RingBufferTest" />
+    <testcase name="WriteReadBlock" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_RingBuffer.cpp" line="42" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.609" classname="RingBufferTest" />
+    <testcase name="PartialWriteWhenNearFull" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_RingBuffer.cpp" line="53" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.609" classname="RingBufferTest" />
+    <testcase name="WrapAround" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_RingBuffer.cpp" line="65" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.609" classname="RingBufferTest" />
+    <testcase name="FullBufferRejectsWrite" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_RingBuffer.cpp" line="83" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.609" classname="RingBufferTest" />
+    <testcase name="PeekDoesNotConsume" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_RingBuffer.cpp" line="93" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.609" classname="RingBufferTest" />
+    <testcase name="PeekOutOfRange" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_RingBuffer.cpp" line="105" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.609" classname="RingBufferTest" />
+    <testcase name="PeekBlockCrossWrap" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_RingBuffer.cpp" line="112" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.609" classname="RingBufferTest" />
+    <testcase name="PeekBlockTooLarge" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_RingBuffer.cpp" line="129" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.609" classname="RingBufferTest" />
+    <testcase name="ClearResetsState" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_RingBuffer.cpp" line="136" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.609" classname="RingBufferTest" />
+    <testcase name="NullptrHandling" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_RingBuffer.cpp" line="145" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.609" classname="RingBufferTest" />
+    <testcase name="RepeatedWriteReadCycles" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_RingBuffer.cpp" line="152" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.609" classname="RingBufferTest" />
+  </testsuite>
+  <testsuite name="LockFreeStackTest" tests="5" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-06-09T00:08:20.609">
+    <testcase name="PopFromEmptyReturnsNull" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_LockFreeStack.cpp" line="26" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.609" classname="LockFreeStackTest" />
+    <testcase name="PushPopSingle" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_LockFreeStack.cpp" line="31" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.609" classname="LockFreeStackTest" />
+    <testcase name="PushPopMultipleLIFO" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_LockFreeStack.cpp" line="42" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.609" classname="LockFreeStackTest" />
+    <testcase name="PushAllPopAll" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_LockFreeStack.cpp" line="63" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.609" classname="LockFreeStackTest" />
+    <testcase name="IsLockFreeCheck" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_LockFreeStack.cpp" line="83" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.609" classname="LockFreeStackTest" />
+  </testsuite>
+  <testsuite name="LockFreeStackConcurrent" tests="1" failures="0" disabled="0" skipped="0" errors="0" time="0.001" timestamp="2026-06-09T00:08:20.609">
+    <testcase name="ConcurrentPushPop" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_LockFreeStack.cpp" line="88" status="run" result="completed" time="0.001" timestamp="2026-06-09T00:08:20.609" classname="LockFreeStackConcurrent" />
+  </testsuite>
+  <testsuite name="LockFreeStackBatchTest" tests="7" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-06-09T00:08:20.610">
+    <testcase name="PopBatchFromEmptyReturnsZero" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_LockFreeStack.cpp" line="152" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.610" classname="LockFreeStackBatchTest" />
+    <testcase name="PopBatchCorrectCount" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_LockFreeStack.cpp" line="164" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.610" classname="LockFreeStackBatchTest" />
+    <testcase name="PopBatchReturnsUniquePointers" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_LockFreeStack.cpp" line="171" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.610" classname="LockFreeStackBatchTest" />
+    <testcase name="PopBatchPartialWhenFewerAvailable" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_LockFreeStack.cpp" line="186" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.610" classname="LockFreeStackBatchTest" />
+    <testcase name="PopBatchTotalMatchesPushed" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_LockFreeStack.cpp" line="199" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.610" classname="LockFreeStackBatchTest" />
+    <testcase name="PopBatchNoOverlapBetweenCalls" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_LockFreeStack.cpp" line="214" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.610" classname="LockFreeStackBatchTest" />
+    <testcase name="PopBatchSingleItem" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_LockFreeStack.cpp" line="227" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.610" classname="LockFreeStackBatchTest" />
+  </testsuite>
+  <testsuite name="LockFreeStackBatchConcurrent" tests="2" failures="0" disabled="0" skipped="0" errors="0" time="0.001" timestamp="2026-06-09T00:08:20.610">
+    <testcase name="ConcurrentPopBatchNoLoss" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_LockFreeStack.cpp" line="235" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.610" classname="LockFreeStackBatchConcurrent" />
+    <testcase name="ConcurrentPopBatchNoDuplicates" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_LockFreeStack.cpp" line="272" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.611" classname="LockFreeStackBatchConcurrent" />
+  </testsuite>
+  <testsuite name="MPSCQueueTest" tests="5" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-06-09T00:08:20.612">
+    <testcase name="PopFromEmptyReturnsNull" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_MPSCQueue.cpp" line="20" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.612" classname="MPSCQueueTest" />
+    <testcase name="SinglePushPop" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_MPSCQueue.cpp" line="25" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.612" classname="MPSCQueueTest" />
+    <testcase name="FIFOOrdering" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_MPSCQueue.cpp" line="37" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.612" classname="MPSCQueueTest" />
+    <testcase name="PushAfterDrain" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_MPSCQueue.cpp" line="57" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.612" classname="MPSCQueueTest" />
+    <testcase name="RapidPushPopCycles" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_MPSCQueue.cpp" line="116" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.612" classname="MPSCQueueTest" />
+  </testsuite>
+  <testsuite name="MPSCQueueConcurrent" tests="1" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-06-09T00:08:20.612">
+    <testcase name="MultiProducerSingleConsumer" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_MPSCQueue.cpp" line="71" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.612" classname="MPSCQueueConcurrent" />
+  </testsuite>
+  <testsuite name="ObjectPoolBasic" tests="1" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-06-09T00:08:20.613">
+    <testcase name="AllocBeforeInitReturnsNull" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_ObjectPool.cpp" line="25" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.613" classname="ObjectPoolBasic" />
+  </testsuite>
+  <testsuite name="ObjectPoolTest" tests="9" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-06-09T00:08:20.613">
+    <testcase name="InitSetsSize" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_ObjectPool.cpp" line="31" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.613" classname="ObjectPoolTest" />
+    <testcase name="AllocReturnsNonNull" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_ObjectPool.cpp" line="37" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.613" classname="ObjectPoolTest" />
+    <testcase name="AllocAllUnique" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_ObjectPool.cpp" line="43" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.613" classname="ObjectPoolTest" />
+    <testcase name="AllocExhaustedReturnsNull" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_ObjectPool.cpp" line="56" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.613" classname="ObjectPoolTest" />
+    <testcase name="FreeAndRealloc" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_ObjectPool.cpp" line="63" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.613" classname="ObjectPoolTest" />
+    <testcase name="FreeNullptrSafe" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_ObjectPool.cpp" line="76" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.613" classname="ObjectPoolTest" />
+    <testcase name="FreeCountTracking" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_ObjectPool.cpp" line="83" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.613" classname="ObjectPoolTest" />
+    <testcase name="AllocFailCount" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_ObjectPool.cpp" line="101" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.613" classname="ObjectPoolTest" />
+    <testcase name="IsLockFree" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_ObjectPool.cpp" line="109" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.613" classname="ObjectPoolTest" />
+  </testsuite>
+  <testsuite name="ObjectPoolConcurrent" tests="1" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-06-09T00:08:20.613">
+    <testcase name="ConcurrentAllocFree" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_ObjectPool.cpp" line="114" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.613" classname="ObjectPoolConcurrent" />
+  </testsuite>
+  <testsuite name="ObjectPoolBatchTest" tests="6" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-06-09T00:08:20.614">
+    <testcase name="AllocBatchBasic" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_ObjectPool.cpp" line="163" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.614" classname="ObjectPoolBatchTest" />
+    <testcase name="AllocBatchReturnsUniquePointers" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_ObjectPool.cpp" line="174" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.614" classname="ObjectPoolBatchTest" />
+    <testcase name="AllocBatchPartialWhenNearExhausted" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_ObjectPool.cpp" line="189" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.614" classname="ObjectPoolBatchTest" />
+    <testcase name="AllocBatchFromEmptyReturnsZero" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_ObjectPool.cpp" line="203" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.614" classname="ObjectPoolBatchTest" />
+    <testcase name="AllocBatchFreeCountTracking" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_ObjectPool.cpp" line="214" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.614" classname="ObjectPoolBatchTest" />
+    <testcase name="AllocBatchAndSingleAllocDoNotOverlap" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_ObjectPool.cpp" line="225" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.614" classname="ObjectPoolBatchTest" />
+  </testsuite>
+  <testsuite name="ObjectPoolBatchConcurrent" tests="2" failures="0" disabled="0" skipped="0" errors="0" time="0.001" timestamp="2026-06-09T00:08:20.614">
+    <testcase name="ConcurrentAllocBatch8Threads" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_ObjectPool.cpp" line="250" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.614" classname="ObjectPoolBatchConcurrent" />
+    <testcase name="ConcurrentAllocBatchNoDuplicates" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_ObjectPool.cpp" line="300" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.615" classname="ObjectPoolBatchConcurrent" />
+  </testsuite>
+  <testsuite name="PacketStructSize" tests="8" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-06-09T00:08:20.616">
+    <testcase name="HeaderIs5Bytes" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Packet.cpp" line="11" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.616" classname="PacketStructSize" />
+    <testcase name="LoginRequestPacket" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Packet.cpp" line="17" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.616" classname="PacketStructSize" />
+    <testcase name="LoginResponsePacket" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Packet.cpp" line="24" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.616" classname="PacketStructSize" />
+    <testcase name="RoomEnterRequest" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Packet.cpp" line="30" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.616" classname="PacketStructSize" />
+    <testcase name="RoomEnterResponse" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Packet.cpp" line="36" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.616" classname="PacketStructSize" />
+    <testcase name="RoomLeaveRequest" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Packet.cpp" line="42" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.616" classname="PacketStructSize" />
+    <testcase name="RoomChatRequest" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Packet.cpp" line="48" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.616" classname="PacketStructSize" />
+    <testcase name="RoomChatNotify" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Packet.cpp" line="54" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.616" classname="PacketStructSize" />
+  </testsuite>
+  <testsuite name="PacketParsing" tests="2" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-06-09T00:08:20.616">
+    <testcase name="ByteArrayToHeader" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Packet.cpp" line="63" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.616" classname="PacketParsing" />
+    <testcase name="LoginRequestFields" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Packet.cpp" line="81" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.616" classname="PacketParsing" />
+  </testsuite>
+  <testsuite name="PacketConstants" tests="4" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-06-09T00:08:20.616">
+    <testcase name="RingBufferSize" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Packet.cpp" line="101" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.616" classname="PacketConstants" />
+    <testcase name="MaxSinglePacketSize" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Packet.cpp" line="106" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.616" classname="PacketConstants" />
+    <testcase name="MaxUserIDLength" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Packet.cpp" line="111" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.616" classname="PacketConstants" />
+    <testcase name="MaxChatMsg" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Packet.cpp" line="116" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.616" classname="PacketConstants" />
+  </testsuite>
+  <testsuite name="PacketID" tests="1" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-06-09T00:08:20.616">
+    <testcase name="NoCollisions" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Packet.cpp" line="123" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.616" classname="PacketID" />
+  </testsuite>
+  <testsuite name="ErrorCode" tests="2" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-06-09T00:08:20.616">
+    <testcase name="NoneIsZero" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Packet.cpp" line="149" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.616" classname="ErrorCode" />
+    <testcase name="EnterRoomFullUser" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Packet.cpp" line="154" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.616" classname="ErrorCode" />
+  </testsuite>
+  <testsuite name="SPSCQueueTest" tests="9" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-06-09T00:08:20.616">
+    <testcase name="PopFromEmptyReturnsNull" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_SPSCQueue.cpp" line="30" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.616" classname="SPSCQueueTest" />
+    <testcase name="SinglePushPop" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_SPSCQueue.cpp" line="38" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.616" classname="SPSCQueueTest" />
+    <testcase name="FIFOOrdering" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_SPSCQueue.cpp" line="50" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.616" classname="SPSCQueueTest" />
+    <testcase name="FullQueueRejectsPush" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_SPSCQueue.cpp" line="67" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.616" classname="SPSCQueueTest" />
+    <testcase name="IsEmptyAndSize" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_SPSCQueue.cpp" line="86" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.616" classname="SPSCQueueTest" />
+    <testcase name="PushAfterDrain" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_SPSCQueue.cpp" line="107" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.616" classname="SPSCQueueTest" />
+    <testcase name="WrapAround" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_SPSCQueue.cpp" line="121" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.616" classname="SPSCQueueTest" />
+    <testcase name="RapidPushPopCycles" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_SPSCQueue.cpp" line="140" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.616" classname="SPSCQueueTest" />
+    <testcase name="CapacityConstant" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_SPSCQueue.cpp" line="163" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.617" classname="SPSCQueueTest" />
+  </testsuite>
+  <testsuite name="SPSCQueueConcurrent" tests="3" failures="0" disabled="0" skipped="0" errors="0" time="0.017" timestamp="2026-06-09T00:08:20.617">
+    <testcase name="SingleProducerSingleConsumer" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_SPSCQueue.cpp" line="174" status="run" result="completed" time="0.008" timestamp="2026-06-09T00:08:20.617" classname="SPSCQueueConcurrent" />
+    <testcase name="HighThroughputNoDuplicate" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_SPSCQueue.cpp" line="224" status="run" result="completed" time="0.002" timestamp="2026-06-09T00:08:20.625" classname="SPSCQueueConcurrent" />
+    <testcase name="BackpressureNeverDrops" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_SPSCQueue.cpp" line="276" status="run" result="completed" time="0.006" timestamp="2026-06-09T00:08:20.627" classname="SPSCQueueConcurrent" />
+  </testsuite>
+  <testsuite name="UserTest" tests="28" failures="0" disabled="0" skipped="0" errors="0" time="0.003" timestamp="2026-06-09T00:08:20.634">
+    <testcase name="InitialStateIsNone" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_User.cpp" line="20" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.634" classname="UserTest" />
+    <testcase name="InitialRoomIndexIsInvalid" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_User.cpp" line="25" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.634" classname="UserTest" />
+    <testcase name="InitialNetConnIndex" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_User.cpp" line="30" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.634" classname="UserTest" />
+    <testcase name="InitialUserIDIsEmpty" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_User.cpp" line="35" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.634" classname="UserTest" />
+    <testcase name="SetLoginChangesState" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_User.cpp" line="42" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.634" classname="UserTest" />
+    <testcase name="EnterRoomChangesState" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_User.cpp" line="50" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.634" classname="UserTest" />
+    <testcase name="ResetRoomClearsRoomIndex" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_User.cpp" line="60" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.634" classname="UserTest" />
+    <testcase name="ClearResetsEverything" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_User.cpp" line="71" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.634" classname="UserTest" />
+    <testcase name="SessionGenerationDefault" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_User.cpp" line="85" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.634" classname="UserTest" />
+    <testcase name="SetSessionGeneration" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_User.cpp" line="90" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.634" classname="UserTest" />
+    <testcase name="IsDisconnectingDefault" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_User.cpp" line="98" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.634" classname="UserTest" />
+    <testcase name="SetDisconnecting" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_User.cpp" line="103" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.634" classname="UserTest" />
+    <testcase name="ClearResetsDisconnecting" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_User.cpp" line="109" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.634" classname="UserTest" />
+    <testcase name="SetPacketDataAndGetPacket" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_User.cpp" line="118" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.634" classname="UserTest" />
+    <testcase name="GetPacketFromEmptyBuffer" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_User.cpp" line="144" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.634" classname="UserTest" />
+    <testcase name="SetPacketDataNullptr" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_User.cpp" line="152" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.635" classname="UserTest" />
+    <testcase name="MultiplePacketsInBuffer" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_User.cpp" line="159" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.635" classname="UserTest" />
+    <testcase name="FragmentedPacketReassembly" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_User.cpp" line="191" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.635" classname="UserTest" />
+    <testcase name="FragmentedHeaderOnly" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_User.cpp" line="230" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.635" classname="UserTest" />
+    <testcase name="ThreeFragmentsReassembly" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_User.cpp" line="255" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.635" classname="UserTest" />
+    <testcase name="TryAcquireRoutingFirstCallSucceeds" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_User.cpp" line="288" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.635" classname="UserTest" />
+    <testcase name="TryAcquireRoutingWhileLockedFails" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_User.cpp" line="294" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.635" classname="UserTest" />
+    <testcase name="ReleaseAllowsReacquisition" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_User.cpp" line="301" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.635" classname="UserTest" />
+    <testcase name="ClearResetsRoutingLock" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_User.cpp" line="309" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.635" classname="UserTest" />
+    <testcase name="EnterRoomOrderingRoomIndexBeforeState" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_User.cpp" line="319" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.635" classname="UserTest" />
+    <testcase name="ResetRoomSetsLoginStateAndNegativeIndex" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_User.cpp" line="330" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.635" classname="UserTest" />
+    <testcase name="ConcurrentTryAcquireOnlyOneSucceeds" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_User.cpp" line="343" status="run" result="completed" time="0.001" timestamp="2026-06-09T00:08:20.635" classname="UserTest" />
+    <testcase name="ConcurrentEnterRoomAndReadNoInconsistency" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_User.cpp" line="367" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.637" classname="UserTest" />
+  </testsuite>
+  <testsuite name="RoomTest" tests="18" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-06-09T00:08:20.637">
+    <testcase name="EnterUserSuccess" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Room.cpp" line="79" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.637" classname="RoomTest" />
+    <testcase name="EnterMultipleUsersUpToMax" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Room.cpp" line="85" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.637" classname="RoomTest" />
+    <testcase name="EnterUserFullRoomReturnsError" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Room.cpp" line="95" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.637" classname="RoomTest" />
+    <testcase name="EnterAfterLeaveSucceeds" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Room.cpp" line="106" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.637" classname="RoomTest" />
+    <testcase name="LeaveUserNotInRoomSafe" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Room.cpp" line="120" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.638" classname="RoomTest" />
+    <testcase name="LeaveUserDecrementsCount" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Room.cpp" line="128" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.638" classname="RoomTest" />
+    <testcase name="FindUserByClientIndexFound" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Room.cpp" line="147" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.638" classname="RoomTest" />
+    <testcase name="FindUserByClientIndexNotFound" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Room.cpp" line="154" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.638" classname="RoomTest" />
+    <testcase name="FindUserAfterLeaveReturnsNull" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Room.cpp" line="161" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.638" classname="RoomTest" />
+    <testcase name="NotifyChatBroadcastsToAllUsers" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Room.cpp" line="171" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.638" classname="RoomTest" />
+    <testcase name="NotifyChatContainsCorrectPacketData" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Room.cpp" line="189" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.638" classname="RoomTest" />
+    <testcase name="NotifyChatSendsToCorrectConnIndices" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Room.cpp" line="212" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.638" classname="RoomTest" />
+    <testcase name="NotifyChatSessionGenerationCorrect" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Room.cpp" line="236" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.638" classname="RoomTest" />
+    <testcase name="NotifyChatEmptyRoomNoCalls" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Room.cpp" line="263" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.638" classname="RoomTest" />
+    <testcase name="NotifyChatAfterLeaveSendsToRemaining" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Room.cpp" line="276" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.638" classname="RoomTest" />
+    <testcase name="ResetClearsAllUsers" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Room.cpp" line="307" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.638" classname="RoomTest" />
+    <testcase name="ResetWithParamsChangesCapacity" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Room.cpp" line="323" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.638" classname="RoomTest" />
+    <testcase name="GetRoomNumber" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Room.cpp" line="344" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.638" classname="RoomTest" />
+  </testsuite>
+  <testsuite name="RoomEnqueueTest" tests="9" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-06-09T00:08:20.638">
+    <testcase name="EnqueueJobSuccessFirstReturnedOnce" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Room.cpp" line="385" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.638" classname="RoomEnqueueTest" />
+    <testcase name="EnqueueJobSuccessAppendedAfterFirst" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Room.cpp" line="397" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.638" classname="RoomEnqueueTest" />
+    <testcase name="EnqueueJobDropsOnGenerationMismatch" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Room.cpp" line="414" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.638" classname="RoomEnqueueTest" />
+    <testcase name="EnqueueJobDropsWhenBroken" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Room.cpp" line="425" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.638" classname="RoomEnqueueTest" />
+    <testcase name="MsgCountIncreasesPerEnqueue" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Room.cpp" line="437" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.638" classname="RoomEnqueueTest" />
+    <testcase name="ResetIncrementsGeneration" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Room.cpp" line="453" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.638" classname="RoomEnqueueTest" />
+    <testcase name="EnqueueAfterResetUsesNewGeneration" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Room.cpp" line="461" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.638" classname="RoomEnqueueTest" />
+    <testcase name="ResetWithFreeFunc_DrainsResidualJobs" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Room.cpp" line="474" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.638" classname="RoomEnqueueTest" />
+    <testcase name="ResetWithNullFreeFunc_SkipsDrain" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Room.cpp" line="491" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.638" classname="RoomEnqueueTest" />
+  </testsuite>
+  <testsuite name="RoomConcurrentEnqueue" tests="3" failures="0" disabled="0" skipped="0" errors="0" time="0.002" timestamp="2026-06-09T00:08:20.638">
+    <testcase name="OnlyOneSuccessFirstAcross8Threads" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Room.cpp" line="503" status="run" result="completed" time="0.001" timestamp="2026-06-09T00:08:20.638" classname="RoomConcurrentEnqueue" />
+    <testcase name="MsgCountMatchesSuccessfulEnqueues" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Room.cpp" line="547" status="run" result="completed" time="0.001" timestamp="2026-06-09T00:08:20.639" classname="RoomConcurrentEnqueue" />
+    <testcase name="BrokenRoomDropsAllConcurrentJobs" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_Room.cpp" line="592" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.640" classname="RoomConcurrentEnqueue" />
+  </testsuite>
+  <testsuite name="RoomManagerTest" tests="6" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-06-09T00:08:20.641">
+    <testcase name="ValidRoomNumberReturnsNonNull" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_RoomManager.cpp" line="30" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.641" classname="RoomManagerTest" />
+    <testcase name="RoomNumberMatchesInit" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_RoomManager.cpp" line="40" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.641" classname="RoomManagerTest" />
+    <testcase name="NegativeRoomNumberReturnsNull" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_RoomManager.cpp" line="51" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.641" classname="RoomManagerTest" />
+    <testcase name="ExceedMaxRoomNumberReturnsNull" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_RoomManager.cpp" line="56" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.641" classname="RoomManagerTest" />
+    <testcase name="BoundaryRoomNumbers" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_RoomManager.cpp" line="63" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.641" classname="RoomManagerTest" />
+    <testcase name="EnterUserViaRoomFromManager" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_RoomManager.cpp" line="99" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.641" classname="RoomManagerTest" />
+  </testsuite>
+  <testsuite name="RoomManagerOffset" tests="1" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-06-09T00:08:20.641">
+    <testcase name="OffsetRoomNumbers" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_RoomManager.cpp" line="80" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.641" classname="RoomManagerOffset" />
+  </testsuite>
+  <testsuite name="DeferredSendRoomTest" tests="10" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-06-09T00:08:20.641">
+    <testcase name="NotifyChat_RoutesToEnqueueOnly_NotSendPacket" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_DeferredSend.cpp" line="82" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.641" classname="DeferredSendRoomTest" />
+    <testcase name="NotifyChat_CallCount_SingleUser" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_DeferredSend.cpp" line="97" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.641" classname="DeferredSendRoomTest" />
+    <testcase name="NotifyChat_CallCount_MatchesMemberCount" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_DeferredSend.cpp" line="106" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.641" classname="DeferredSendRoomTest" />
+    <testcase name="NotifyChat_EmptyRoom_NoCalls" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_DeferredSend.cpp" line="117" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.641" classname="DeferredSendRoomTest" />
+    <testcase name="NotifyChat_ConnIndices_AllMembersReceive" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_DeferredSend.cpp" line="128" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.641" classname="DeferredSendRoomTest" />
+    <testcase name="NotifyChat_Generations_CorrectPerUser" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_DeferredSend.cpp" line="146" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.641" classname="DeferredSendRoomTest" />
+    <testcase name="NotifyChat_PacketContent_Correct" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_DeferredSend.cpp" line="166" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.641" classname="DeferredSendRoomTest" />
+    <testcase name="NotifyChat_AfterLeave_LeftUserNotReceive" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_DeferredSend.cpp" line="186" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.641" classname="DeferredSendRoomTest" />
+    <testcase name="MultipleBroadcasts_AccumulateWithoutFlush" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_DeferredSend.cpp" line="214" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.641" classname="DeferredSendRoomTest" />
+    <testcase name="FlushAll_AfterBatch_ClearsFlushList" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_DeferredSend.cpp" line="237" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.641" classname="DeferredSendRoomTest" />
+  </testsuite>
+  <testsuite name="DeferredFlushList" tests="6" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-06-09T00:08:20.641">
+    <testcase name="FlushAll_EmptyList_NoCrash" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_DeferredSend.cpp" line="271" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.641" classname="DeferredFlushList" />
+    <testcase name="FlushAll_DisconnectedSessions_NoCrash" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_DeferredSend.cpp" line="278" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.641" classname="DeferredFlushList" />
+    <testcase name="FlushAll_ClearsList_AllowsReRegistration" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_DeferredSend.cpp" line="291" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.641" classname="DeferredFlushList" />
+    <testcase name="RegisterFlush_OverCapacity_NoCrash" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_DeferredSend.cpp" line="311" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.641" classname="DeferredFlushList" />
+    <testcase name="RegisterFlush_Deduplication_SamePointerCountedOnce" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_DeferredSend.cpp" line="328" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.641" classname="DeferredFlushList" />
+    <testcase name="ThreadLocal_FlushAll_DoesNotAffectOtherThread" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_DeferredSend.cpp" line="351" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.641" classname="DeferredFlushList" />
+  </testsuite>
+  <testsuite name="DeferredSendSession" tests="3" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-06-09T00:08:20.642">
+    <testcase name="TryFlush_Disconnected_ReturnsFalse" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_DeferredSend.cpp" line="401" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.642" classname="DeferredSendSession" />
+    <testcase name="EnqueueOnly_Disconnected_ReturnsFalse" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_DeferredSend.cpp" line="408" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.642" classname="DeferredSendSession" />
+    <testcase name="EnqueueOnly_ZeroSize_ReturnsFalse" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_DeferredSend.cpp" line="416" status="run" result="completed" time="0." timestamp="2026-06-09T00:08:20.642" classname="DeferredSendSession" />
+  </testsuite>
+</testsuites>

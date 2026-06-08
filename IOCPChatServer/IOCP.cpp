@@ -218,6 +218,14 @@ bool IOCompletionPort::SendMsg(const UINT32 ClientSessionIndex_, UINT32 generati
 	return pClient->SendMsg(dataSize_, pMsg_);
 }
 
+bool IOCompletionPort::EnqueueOnly(const UINT32 ClientSessionIndex_, UINT32 generation_, const UINT32 dataSize_, char* pMsg_)
+{
+	auto pClient = GetClientInfo(ClientSessionIndex_);
+	if (pClient == nullptr) return false;
+	if (pClient->GetGeneration() != generation_) return false;
+	return pClient->EnqueueOnly(dataSize_, pMsg_);
+}
+
 void IOCompletionPort::DisconnectClient(const UINT32 clientIndex)
 {
 	auto pClient = GetClientInfo(clientIndex);
@@ -439,11 +447,13 @@ void IOCompletionPort::WorkerThread()
 			}
 
 			auto pBase = reinterpret_cast<OverlappedBase*>(lpOverlapped);
-			auto op = pBase->operation;
+			auto cop = pBase->op;
 
 			// 단일 세션 조회
+			// · AppSignal 전체 + ACCEPT → clientSessionIndex 사용
+			// · RECV / SEND              → completionKey 사용
 			UINT32 sessionIndex;
-			if (op == IOOperation::ACCEPT || op == IOOperation::ZOMBIE_CLEANUP)
+			if (cop.IsSignal() || (cop.IsIO() && cop.io == IOOperation::ACCEPT))
 			{
 				sessionIndex = pBase->clientSessionIndex;
 			}
@@ -456,15 +466,16 @@ void IOCompletionPort::WorkerThread()
 			if (pClientSession == nullptr)
 				continue;
 			
-			// 단일 generation 검증
-			if (op != IOOperation::ACCEPT)
+			// 단일 generation 검증 (ACCEPT 제외)
+			if (!(cop.IsIO() && cop.io == IOOperation::ACCEPT))
 			{
 				if (pBase->generation != pClientSession->GetGeneration())
 				{
-					LOG_DEBUG("[Stale I/O] 이전 세대 I/O 무시 - op: %d, gen: %d vs %d\n",(int)op, pBase->generation, pClientSession->GetGeneration());
-				
-					// overlapped 리소스 정리
-					if (op == IOOperation::SEND)
+					LOG_DEBUG("[Stale I/O] 이전 세대 I/O 무시 - kind: %d, gen: %d vs %d\n",
+						static_cast<int>(cop.kind), pBase->generation, pClientSession->GetGeneration());
+
+					// overlapped 리소스 정리 (SEND 완료 구조체는 SendComplete 통해 반납)
+					if (cop.IsIO() && cop.io == IOOperation::SEND)
 					{
 						pClientSession->SendComplete(reinterpret_cast<SendOverlappedEx*>(lpOverlapped), dwIoSize);
 					}
@@ -482,113 +493,122 @@ void IOCompletionPort::WorkerThread()
 				}
 			}
 
-			//
-			if (IOOperation::ACCEPT == op)
+			// ── 디스패치: AppSignal vs I/O 완료 ─────────────────────────────
+			if (cop.IsSignal())
 			{
-				--mPendingAcceptCount;
-
-				// 종료중 or listensocket 닫힘
-				if (mIsShuttingDown.load(std::memory_order_acquire) || mListenSocket == INVALID_SOCKET)
+				switch (cop.sig)
 				{
-					pClientSession->CloseAcceptSocket();	// 열려있을 수 있는 Accept 소켓 닫기
-
+				case AppSignal::ZOMBIE_CLEANUP:
+					CloseSocket(pClientSession);
+					// mZombieContext는 ClientSession 멤버 변수 — delete 하면 안 됨
+					// 가짜 I/O 처리가 끝났으므로 참조 카운트 감소
 					if (pClientSession->ReleaseRef())
 					{
-						PushFreeSessionIndex(pBase->clientSessionIndex);
+						PushFreeSessionIndex(pClientSession->GetIndex());
+						TryPostAcceptEx();
 					}
-					continue; // 조용히 다음으로 넘어감
-				}
+					break;
 
-				if (pClientSession->AcceptCompletion(mListenSocket))
-				{
-					// 여러 스레드가 동시에 호출해도 안전하게 atomic 처리
-					++mClientCnt;
-					OnConnect(pClientSession->GetIndex(), pClientSession->GetGeneration());
-					LOG_DEBUG("######################################### 접속됨 #################################\n");
+				case AppSignal::SEND_DISPATCH:
+					// 예약: 현재 직접 flush(FlushAll) 방식으로 처리되므로 미사용
+					break;
+
+				default:
+					LOG_DEBUG("알 수 없는 AppSignal: %d\n", static_cast<int>(cop.sig));
+					break;
 				}
-				else
+			}
+			else
+			{
+				switch (cop.io)
 				{
-					// Accept 실패, 소켓 정리 + 인덱스 반납
-					if (pClientSession->IsConnected())
+				case IOOperation::ACCEPT:
+				{
+					--mPendingAcceptCount;
+
+					// 종료중 or listensocket 닫힘
+					if (mIsShuttingDown.load(std::memory_order_acquire) || mListenSocket == INVALID_SOCKET)
 					{
-						pClientSession->TryMarkDisconnected();
-						pClientSession->Closed(true);
+						pClientSession->CloseAcceptSocket();
+
+						if (pClientSession->ReleaseRef())
+						{
+							PushFreeSessionIndex(pBase->clientSessionIndex);
+						}
+						continue; // 조용히 다음으로 넘어감
+					}
+
+					if (pClientSession->AcceptCompletion(mListenSocket))
+					{
+						++mClientCnt;
+						OnConnect(pClientSession->GetIndex(), pClientSession->GetGeneration());
+						LOG_DEBUG("######################################### 접속됨 #################################\n");
 					}
 					else
 					{
-						pClientSession->CloseAcceptSocket();
+						// Accept 실패, 소켓 정리 + 인덱스 반납
+						if (pClientSession->IsConnected())
+						{
+							pClientSession->TryMarkDisconnected();
+							pClientSession->Closed(true);
+						}
+						else
+						{
+							pClientSession->CloseAcceptSocket();
+						}
+						// Accept IO의 ReleaseRef (PostImmediateAccept에서 AddRef한 것)
+						pClientSession->ReleaseRef();
+						PushFreeSessionIndex(pBase->clientSessionIndex);
 					}
 
-					// Accept IO의 ReleaseRef (PostImmediateAccept에서 AddRef한 것)
-					// 실패했으므로 OnConnect의 store(1)은 안 일어남 → 정상적으로 해제
-					pClientSession->ReleaseRef();
-					PushFreeSessionIndex(pBase->clientSessionIndex);
-
+					TryPostAcceptEx();
+					break;
 				}
 
-				// AcceptEx 재등록하기
-				TryPostAcceptEx();
-			}
-
-			// Overlapped I/O Recv 작업 완료 시 처리
-			// workerthread accept 처리
-			else if (IOOperation::RECV == op)
-			{
-				// 0바이트 수신, recv종료 처리
-				if (dwIoSize == 0)
+				case IOOperation::RECV:
 				{
-					CloseSocket(pClientSession);
-				}
-				else
-				{
-					pClientSession->UpdateActivity();
-					OnReceive(pClientSession->GetIndex(), pClientSession->GetGeneration(), dwIoSize, pClientSession->RecvBuff());
-					if (!pClientSession->BindRecv())
+					// 0바이트 수신 → 연결 종료 처리
+					if (dwIoSize == 0)
 					{
-						CloseSocket(pClientSession, true);
+						CloseSocket(pClientSession);
 					}
+					else
+					{
+						pClientSession->UpdateActivity();
+						OnReceive(pClientSession->GetIndex(), pClientSession->GetGeneration(), dwIoSize, pClientSession->RecvBuff());
+						if (!pClientSession->BindRecv())
+						{
+							CloseSocket(pClientSession, true);
+						}
+					}
+
+					if (pClientSession->ReleaseRef())
+					{
+						PushFreeSessionIndex(pClientSession->GetIndex());
+						TryPostAcceptEx();
+					}
+					break;
 				}
 
-				if (pClientSession->ReleaseRef())
+				case IOOperation::SEND:
 				{
-					PushFreeSessionIndex(pClientSession->GetIndex());
-					TryPostAcceptEx();
+					auto pSendOvl = reinterpret_cast<SendOverlappedEx*>(lpOverlapped);
+					pClientSession->SendComplete(pSendOvl, dwIoSize);
+
+					if (pClientSession->ReleaseRef())
+					{
+						PushFreeSessionIndex(pClientSession->GetIndex());
+						TryPostAcceptEx();
+					}
+					break;
+				}
+
+				default:
+					LOG_DEBUG("Client Index : (%d)에서 예외\n", pClientSession->GetIndex());
+					break;
 				}
 			}
-
-			else if (IOOperation::SEND == op) // 송신이 완료되면
-			{
-				auto pSendOvl = reinterpret_cast<SendOverlappedEx*>(lpOverlapped);
-
-				pClientSession->SendComplete(pSendOvl, dwIoSize);
-
-				if (pClientSession->ReleaseRef())
-				{
-					PushFreeSessionIndex(pClientSession->GetIndex());
-					TryPostAcceptEx();
-				}
-			}
-
-			else if (IOOperation::ZOMBIE_CLEANUP == op)
-			{
-				CloseSocket(pClientSession);
-				// mZombieContext는 ClientSession 멤버 변수 — delete 하면 안 됨
-				// (heap 할당 방식에서 멤버 변수로 전환 시 delete 제거 누락된 버그)
-
-				// 가짜 I/O 처리가 끝났으므로 참조 카운트 감소
-				if (pClientSession->ReleaseRef())
-				{
-					PushFreeSessionIndex(pClientSession->GetIndex());
-					TryPostAcceptEx();
-				}
-			}
-
-
-			// 예외
-			else
-			{
-				LOG_DEBUG("Client Index : (%d)에서 예외\n", pClientSession->GetIndex());
-			}
+			// ─────────────────────────────────────────────────────────────
 
 		}
 	}

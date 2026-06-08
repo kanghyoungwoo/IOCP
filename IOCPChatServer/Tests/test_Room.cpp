@@ -1,4 +1,4 @@
-#include <gtest/gtest.h>
+﻿#include <gtest/gtest.h>
 
 #define WIN32_LEAN_AND_MEAN
 #include <winsock2.h>
@@ -21,7 +21,6 @@ protected:
     Room room;
     static constexpr INT32 MAX_ROOM_USERS = 3;
 
-    // Mock capture for SendPacketFunc
     struct SendCall
     {
         UINT32 connIndex;
@@ -29,7 +28,11 @@ protected:
         UINT32 dataSize;
         std::vector<char> data;
     };
+
+    // SendPacketFunc 캡처 (응답 패킷 — unicast)
     std::vector<SendCall> sendCalls;
+    // EnqueueOnlyFunc 캡처 (브로드캐스트 — Deferred Send)
+    std::vector<SendCall> broadcastCalls;
 
     // Users for testing
     User users[5];
@@ -38,7 +41,7 @@ protected:
     {
         room.Init(1, MAX_ROOM_USERS);
 
-        // Install mock SendPacketFunc
+        // 응답 패킷 (unicast) — SendPacketFunc
         room.SendPacketFunc = [this](UINT32 connIdx, UINT32 gen, UINT32 size, char* pData)
         {
             SendCall call;
@@ -49,6 +52,16 @@ protected:
             sendCalls.push_back(call);
         };
 
+        // 브로드캐스트 (Deferred Send) — EnqueueOnlyFunc
+        room.EnqueueOnlyFunc = [this](UINT32 connIdx, UINT32 gen, UINT32 size, char* pData)
+        {
+            SendCall call;
+            call.connIndex = connIdx;
+            call.generation = gen;
+            call.dataSize = size;
+            call.data.assign(pData, pData + size);
+            broadcastCalls.push_back(call);
+        };
 
         // Initialize users with distinct indices
         for (int i = 0; i < 5; ++i)
@@ -166,11 +179,11 @@ TEST_F(RoomTest, NotifyChatBroadcastsToAllUsers)
     chatReq.PacketId = (UINT16)PACKET_ID::ROOM_CHAT_REQUEST;
     strncpy_s(chatReq.Message, "hello world", _TRUNCATE);
 
-    sendCalls.clear();
+    broadcastCalls.clear();
     room.NotifyChat(users[0].GetNetConnIndex(), "user0", &chatReq);
 
-    // SendPacketFunc should be called for ALL users (skip_=false in NotifyChat)
-    EXPECT_EQ(sendCalls.size(), 3u);
+    // EnqueueOnlyFunc should be called for ALL users (skip_=false in NotifyChat)
+    EXPECT_EQ(broadcastCalls.size(), 3u);
 }
 
 TEST_F(RoomTest, NotifyChatContainsCorrectPacketData)
@@ -182,15 +195,15 @@ TEST_F(RoomTest, NotifyChatContainsCorrectPacketData)
     chatReq.PacketId = (UINT16)PACKET_ID::ROOM_CHAT_REQUEST;
     strncpy_s(chatReq.Message, "test msg", _TRUNCATE);
 
-    sendCalls.clear();
+    broadcastCalls.clear();
     room.NotifyChat(users[0].GetNetConnIndex(), "user0", &chatReq);
 
-    ASSERT_EQ(sendCalls.size(), 1u);
+    ASSERT_EQ(broadcastCalls.size(), 1u);
 
     // Verify the sent data is a valid ROOM_CHAT_NOTIFY_PACKET
-    EXPECT_EQ(sendCalls[0].dataSize, sizeof(ROOM_CHAT_NOTIFY_PACKET));
+    EXPECT_EQ(broadcastCalls[0].dataSize, sizeof(ROOM_CHAT_NOTIFY_PACKET));
 
-    auto* notify = reinterpret_cast<ROOM_CHAT_NOTIFY_PACKET*>(sendCalls[0].data.data());
+    auto* notify = reinterpret_cast<ROOM_CHAT_NOTIFY_PACKET*>(broadcastCalls[0].data.data());
     EXPECT_EQ(notify->PacketId, (UINT16)PACKET_ID::ROOM_CHAT_NOTIFY);
     EXPECT_STREQ(notify->UserID, "user0");
     EXPECT_STREQ(notify->Message, "test msg");
@@ -207,12 +220,12 @@ TEST_F(RoomTest, NotifyChatSendsToCorrectConnIndices)
     chatReq.PacketId = (UINT16)PACKET_ID::ROOM_CHAT_REQUEST;
     strncpy_s(chatReq.Message, "ping", _TRUNCATE);
 
-    sendCalls.clear();
+    broadcastCalls.clear();
     room.NotifyChat(users[0].GetNetConnIndex(), "user0", &chatReq);
 
     // Collect all connection indices that received the broadcast
     std::set<UINT32> receivedIndices;
-    for (auto& call : sendCalls)
+    for (auto& call : broadcastCalls)
         receivedIndices.insert(call.connIndex);
 
     EXPECT_EQ(receivedIndices.count(10u), 1u);
@@ -232,13 +245,13 @@ TEST_F(RoomTest, NotifyChatSessionGenerationCorrect)
     chatReq.PacketId = (UINT16)PACKET_ID::ROOM_CHAT_REQUEST;
     strncpy_s(chatReq.Message, "gen test", _TRUNCATE);
 
-    sendCalls.clear();
+    broadcastCalls.clear();
     room.NotifyChat(users[0].GetNetConnIndex(), "user0", &chatReq);
 
-    ASSERT_EQ(sendCalls.size(), 2u);
+    ASSERT_EQ(broadcastCalls.size(), 2u);
 
     // Find each user's call and verify generation
-    for (auto& call : sendCalls)
+    for (auto& call : broadcastCalls)
     {
         if (call.connIndex == 10u)
             EXPECT_EQ(call.generation, 7u);
@@ -254,10 +267,10 @@ TEST_F(RoomTest, NotifyChatEmptyRoomNoCalls)
     chatReq.PacketId = (UINT16)PACKET_ID::ROOM_CHAT_REQUEST;
     strncpy_s(chatReq.Message, "nobody here", _TRUNCATE);
 
-    sendCalls.clear();
+    broadcastCalls.clear();
     room.NotifyChat(0, "ghost", &chatReq);
 
-    EXPECT_EQ(sendCalls.size(), 0u);
+    EXPECT_EQ(broadcastCalls.size(), 0u);
 }
 
 TEST_F(RoomTest, NotifyChatAfterLeaveSendsToRemaining)
@@ -274,14 +287,14 @@ TEST_F(RoomTest, NotifyChatAfterLeaveSendsToRemaining)
     chatReq.PacketId = (UINT16)PACKET_ID::ROOM_CHAT_REQUEST;
     strncpy_s(chatReq.Message, "after leave", _TRUNCATE);
 
-    sendCalls.clear();
+    broadcastCalls.clear();
     room.NotifyChat(users[0].GetNetConnIndex(), "user0", &chatReq);
 
     // Only 2 users remain
-    EXPECT_EQ(sendCalls.size(), 2u);
+    EXPECT_EQ(broadcastCalls.size(), 2u);
 
     std::set<UINT32> receivedIndices;
-    for (auto& call : sendCalls)
+    for (auto& call : broadcastCalls)
         receivedIndices.insert(call.connIndex);
 
     EXPECT_EQ(receivedIndices.count(10u), 1u);  // user[0]
@@ -358,7 +371,8 @@ protected:
     void SetUp() override
     {
         room.Init(1, 100);
-        room.SendPacketFunc = [](UINT32, UINT32, UINT32, char*) {};
+        room.SendPacketFunc    = [](UINT32, UINT32, UINT32, char*) {};
+        room.EnqueueOnlyFunc   = [](UINT32, UINT32, UINT32, char*) {};
     }
 
     // Reset room back to a clean generation for each sub-test
@@ -491,7 +505,8 @@ TEST(RoomConcurrentEnqueue, OnlyOneSuccessFirstAcross8Threads)
     // 8 threads race to push the first job — exactly one must get SUCCESS_FIRST.
     Room room;
     room.Init(1, 100);
-    room.SendPacketFunc = [](UINT32, UINT32, UINT32, char*) {};
+    room.SendPacketFunc  = [](UINT32, UINT32, UINT32, char*) {};
+    room.EnqueueOnlyFunc = [](UINT32, UINT32, UINT32, char*) {};
 
     constexpr int THREADS = 8;
     std::vector<PacketJob> jobs(THREADS);
@@ -535,7 +550,8 @@ TEST(RoomConcurrentEnqueue, MsgCountMatchesSuccessfulEnqueues)
     // or SUCCESS_APPENDED after N concurrent pushes.
     Room room;
     room.Init(1, 100);
-    room.SendPacketFunc = [](UINT32, UINT32, UINT32, char*) {};
+    room.SendPacketFunc  = [](UINT32, UINT32, UINT32, char*) {};
+    room.EnqueueOnlyFunc = [](UINT32, UINT32, UINT32, char*) {};
 
     constexpr int THREADS = 8;
     constexpr int JOBS_PER_THREAD = 16;
@@ -577,7 +593,8 @@ TEST(RoomConcurrentEnqueue, BrokenRoomDropsAllConcurrentJobs)
 {
     Room room;
     room.Init(1, 100);
-    room.SendPacketFunc = [](UINT32, UINT32, UINT32, char*) {};
+    room.SendPacketFunc  = [](UINT32, UINT32, UINT32, char*) {};
+    room.EnqueueOnlyFunc = [](UINT32, UINT32, UINT32, char*) {};
 
     room.SetBroken();
     uint32_t gen = room.GetGeneration();

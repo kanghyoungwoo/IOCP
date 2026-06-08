@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites tests="19" failures="0" disabled="0" errors="0" time="0.036" timestamp="2026-06-09T00:03:33.146" name="AllTests">
+  <testsuite name="DeferredSendRoomTest" tests="10" failures="0" disabled="0" skipped="0" errors="0" time="0.001" timestamp="2026-06-09T00:03:33.147">
+    <testcase name="NotifyChat_RoutesToEnqueueOnly_NotSendPacket" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_DeferredSend.cpp" line="82" status="run" result="completed" time="0." timestamp="2026-06-09T00:03:33.147" classname="DeferredSendRoomTest" />
+    <testcase name="NotifyChat_CallCount_SingleUser" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_DeferredSend.cpp" line="97" status="run" result="completed" time="0." timestamp="2026-06-09T00:03:33.147" classname="DeferredSendRoomTest" />
+    <testcase name="NotifyChat_CallCount_MatchesMemberCount" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_DeferredSend.cpp" line="106" status="run" result="completed" time="0." timestamp="2026-06-09T00:03:33.148" classname="DeferredSendRoomTest" />
+    <testcase name="NotifyChat_EmptyRoom_NoCalls" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_DeferredSend.cpp" line="117" status="run" result="completed" time="0." timestamp="2026-06-09T00:03:33.148" classname="DeferredSendRoomTest" />
+    <testcase name="NotifyChat_ConnIndices_AllMembersReceive" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_DeferredSend.cpp" line="128" status="run" result="completed" time="0." timestamp="2026-06-09T00:03:33.148" classname="DeferredSendRoomTest" />
+    <testcase name="NotifyChat_Generations_CorrectPerUser" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_DeferredSend.cpp" line="146" status="run" result="completed" time="0." timestamp="2026-06-09T00:03:33.148" classname="DeferredSendRoomTest" />
+    <testcase name="NotifyChat_PacketContent_Correct" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_DeferredSend.cpp" line="166" status="run" result="completed" time="0." timestamp="2026-06-09T00:03:33.148" classname="DeferredSendRoomTest" />
+    <testcase name="NotifyChat_AfterLeave_LeftUserNotReceive" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_DeferredSend.cpp" line="186" status="run" result="completed" time="0." timestamp="2026-06-09T00:03:33.148" classname="DeferredSendRoomTest" />
+    <testcase name="MultipleBroadcasts_AccumulateWithoutFlush" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_DeferredSend.cpp" line="214" status="run" result="completed" time="0." timestamp="2026-06-09T00:03:33.148" classname="DeferredSendRoomTest" />
+    <testcase name="FlushAll_AfterBatch_ClearsFlushList" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_DeferredSend.cpp" line="237" status="run" result="completed" time="0." timestamp="2026-06-09T00:03:33.148" classname="DeferredSendRoomTest" />
+  </testsuite>
+  <testsuite name="DeferredFlushList" tests="6" failures="0" disabled="0" skipped="0" errors="0" time="0.033" timestamp="2026-06-09T00:03:33.148">
+    <testcase name="FlushAll_EmptyList_NoCrash" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_DeferredSend.cpp" line="271" status="run" result="completed" time="0.018" timestamp="2026-06-09T00:03:33.148" classname="DeferredFlushList" />
+    <testcase name="FlushAll_DisconnectedSessions_NoCrash" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_DeferredSend.cpp" line="278" status="run" result="completed" time="0." timestamp="2026-06-09T00:03:33.167" classname="DeferredFlushList" />
+    <testcase name="FlushAll_ClearsList_AllowsReRegistration" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_DeferredSend.cpp" line="291" status="run" result="completed" time="0." timestamp="2026-06-09T00:03:33.167" classname="DeferredFlushList" />
+    <testcase name="RegisterFlush_OverCapacity_NoCrash" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_DeferredSend.cpp" line="311" status="run" result="completed" time="0." timestamp="2026-06-09T00:03:33.167" classname="DeferredFlushList" />
+    <testcase name="RegisterFlush_Deduplication_SamePointerCountedOnce" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_DeferredSend.cpp" line="328" status="run" result="completed" time="0." timestamp="2026-06-09T00:03:33.167" classname="DeferredFlushList" />
+    <testcase name="ThreadLocal_FlushAll_DoesNotAffectOtherThread" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_DeferredSend.cpp" line="351" status="run" result="completed" time="0.015" timestamp="2026-06-09T00:03:33.167" classname="DeferredFlushList" />
+  </testsuite>
+  <testsuite name="DeferredSendSession" tests="3" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-06-09T00:03:33.182">
+    <testcase name="TryFlush_Disconnected_ReturnsFalse" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_DeferredSend.cpp" line="401" status="run" result="completed" time="0." timestamp="2026-06-09T00:03:33.182" classname="DeferredSendSession" />
+    <testcase name="EnqueueOnly_Disconnected_ReturnsFalse" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_DeferredSend.cpp" line="408" status="run" result="completed" time="0." timestamp="2026-06-09T00:03:33.182" classname="DeferredSendSession" />
+    <testcase name="EnqueueOnly_ZeroSize_ReturnsFalse" file="C:\GitHub\IOCPChatServer\IOCP\IOCPChatServer\Tests\test_DeferredSend.cpp" line="416" status="run" result="completed" time="0." timestamp="2026-06-09T00:03:33.182" classname="DeferredSendSession" />
+  </testsuite>
+</testsuites>

@@ -138,7 +138,8 @@ void Room::SendToAllUser(const UINT16 dataSize_, char* data_, const INT32 skipUs
 			continue;
 		if (skip_ == true && pUser->GetNetConnIndex() == skipUserIndex_)
 			continue;
-		SendPacketFunc((UINT32)pUser->GetNetConnIndex(), pUser->GetSessionGeneration(), (UINT32)dataSize_, data_);
+		// 브로드캐스트는 Deferred Send — 큐 적재만 하고 WSASend는 배치 종료 후 FlushAll()이 처리
+		EnqueueOnlyFunc((UINT32)pUser->GetNetConnIndex(), pUser->GetSessionGeneration(), (UINT32)dataSize_, data_);
 	}
 
 }

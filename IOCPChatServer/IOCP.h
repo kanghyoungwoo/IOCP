@@ -41,6 +41,8 @@ public:
 	// 클라이언트의 데이터를 받아서
 	// 클라이언트에게 메시지를 send하는 함수
 	bool SendMsg(const UINT32 ClientSessionIndex_, UINT32 generation_, const UINT32 dataSize_, char* pMsg_);
+	// 큐에만 적재 — WSASend 호출 없음 (Deferred Send 전용)
+	bool EnqueueOnly(const UINT32 ClientSessionIndex_, UINT32 generation_, const UINT32 dataSize_, char* pMsg_);
 
 
 	void DisconnectClient(const UINT32 clientIndex);

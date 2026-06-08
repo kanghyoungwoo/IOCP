@@ -71,6 +71,17 @@ public:
 	// WSASend Overlapped I/O 작업을 수행
 	bool SendMsg(const UINT32 dataSize, char* pMsg);
 
+	// ── Deferred Send ────────────────────────────────────────────────────
+	// 큐에만 적재 (WSASend 호출 없음). Logic Thread 배치 처리 중 사용.
+	bool EnqueueOnly(const UINT32 dataSize, char* pMsg);
+	// mIsSending=false 이고 큐가 비어있지 않을 때만 SendIO() 호출.
+	bool TryFlush();
+	// thread_local 플러시 리스트에 세션 등록 (중복 방지).
+	static void RegisterFlush(ClientSession* p);
+	// 플러시 리스트 전체 TryFlush() 후 리스트 초기화.
+	static void FlushAll();
+	// ────────────────────────────────────────────────────────────────────
+
 	bool BindRecv();
 
 	// CompletionPort 객체와 소켓과 CompletionKey를 연결시키는 연결용 함수

@@ -1,8 +1,8 @@
-//{{NO_DEPENDENCIES}}
+ï»¿//{{NO_DEPENDENCIES}}
 // Microsoft Visual C++ generated include file.
 // Used by IOCPChatServer.rc
 
-// ´ÙÀ½Àº »õ °³Ã¼¿¡ »ç¿ëÇÒ ±âº»°ªÀÔ´Ï´Ù.
+// ë‹¤ìŒì€ ìƒˆ ê°œì²´ì— ì‚¬ìš©í•  ê¸°ë³¸ê°’ì…ë‹ˆë‹¤.
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS

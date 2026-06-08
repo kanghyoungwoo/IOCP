@@ -63,6 +63,12 @@ public:
 			SendMsg(clientIndex_, gen_, packetSize_, pSendPacket);
 		};
 
+		// 브로드캐스트 전용 — 큐 적재만, WSASend는 Logic Thread 배치 종료 후 일괄 처리
+		auto enqueueOnlyFunc = [&](UINT32 clientIndex_, UINT32 gen_, UINT32 packetSize_, char* pSendPacket)
+		{
+			EnqueueOnly(clientIndex_, gen_, packetSize_, pSendPacket);
+		};
+
 		// 유효 패킷 처리 시 활동 시간 갱신 콜백
 		auto updateActivityFunc = [&](UINT32 clientIndex_)
 		{
@@ -70,7 +76,8 @@ public:
 		};
 
 		m_pPacketManager = std::make_unique<PacketManager>();
-		m_pPacketManager->SendPacketFunc = sendPacketFunc;
+		m_pPacketManager->SendPacketFunc  = sendPacketFunc;
+		m_pPacketManager->EnqueueOnlyFunc = enqueueOnlyFunc;
 		m_pPacketManager->UpdateActivityFunc = updateActivityFunc;
 		m_pPacketManager->Init(maxClient);
 		m_pPacketManager->Run();

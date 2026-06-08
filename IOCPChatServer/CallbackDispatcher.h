@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "PacketJob.h"
 
 class UserManager;

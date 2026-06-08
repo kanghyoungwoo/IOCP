@@ -1,4 +1,5 @@
 ﻿#include "StrandProcessor.h"
+#include "ClientSession.h"     // ClientSession::FlushAll() (Deferred Send)
 
 void StrandProcessor::Init(uint32_t jobPoolSize, uint32_t maxRoomCount)
 {
@@ -178,6 +179,11 @@ void StrandProcessor::ProcessRoom(Room* pRoom)
         }
 
     } while (pRoom->GetMsgCount().fetch_sub(1, std::memory_order_acq_rel) > 1);
+
+    // ── Deferred Send flush ──────────────────────────────────────────────
+    // 배치 처리 중 EnqueueOnly로 적재된 패킷들을 세션당 1회 scatter-gather WSASend로 송신
+    ClientSession::FlushAll();
+    // ────────────────────────────────────────────────────────────────────
 }
 
 // ── 핸들러: 강제 접속 종료 ────────────────────────────────────────────────
