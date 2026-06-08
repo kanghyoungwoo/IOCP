@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "Room.h"
 #include <atomic>
+#include <semaphore>    // C++20 — MSVC STL: WaitOnAddress / WakeByAddressSingle 기반
 #include <emmintrin.h>
 #include <Windows.h>
 #include <cstdint>
@@ -28,30 +29,39 @@ private:
 	uint32_t m_bufferMask = 0;	// 비트마스크로 모듈러 연산
 	alignas(64) std::atomic<uint32_t> m_enqueuePos;	// Producer 위치
 	alignas(64) std::atomic<uint32_t> m_dequeuePos;	// Consumer 위치
-	std::atomic<bool> m_shutdown;
+	std::atomic<bool> m_shutdown{ false };
+
+	// 카운팅 세마포어: 카운트 == 큐 안의 아이템 수
+	//   Push()  → release() 1회  (토큰 발급)
+	//   Pop()   → acquire() 1회  (토큰 소비, 블로킹 대기)
+	// MSVC STL 내부: release → WakeByAddressSingle
+	//                acquire → WaitOnAddress  (Win32 HANDLE 불필요)
+	std::counting_semaphore<> mSem{ 0 };
 
 public:
 	GlobalQueue_LockFree()
 	{
 		m_enqueuePos = 0;
 		m_dequeuePos = 0;
-		m_shutdown = false;
-
 	}
 	~GlobalQueue_LockFree()
 	{
-		if (m_buffer)
-		{
-			delete[] m_buffer;
-		}
+		delete[] m_buffer;
 	}
 	Room* Pop();
 	void Init(uint32_t bufferSize);
 	void Push(Room* pRoom);
 	void Shutdown()
 	{
-		// 큐를 닫는 신호, 더이상 빈 큐 대기 X
-		m_shutdown.store(true, std::memory_order_release);
+		// CAS: 이중 호출 방지 (TearDown 등에서 중복 호출 안전)
+		bool expected = false;
+		if (!m_shutdown.compare_exchange_strong(expected, true,
+			std::memory_order_release, std::memory_order_relaxed))
+			return;
+
+		// 대기 중인 첫 번째 Pop() 스레드를 깨운다.
+		// Pop() 내부에서 m_shutdown 확인 후 재 release → cascade로 전체 전파
+		mSem.release();
 	}
 };
 
