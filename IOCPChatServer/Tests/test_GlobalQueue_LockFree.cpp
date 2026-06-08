@@ -466,3 +466,75 @@ TEST(GlobalQueueMPMC, HighThroughput8Producers)
 
     EXPECT_EQ(consumedCount.load(), TOTAL);
 }
+
+// ============================================================
+//  Semaphore blocking tests
+//  Sleep(0) 루프가 아니라 진짜 블로킹 대기인지 검증한다.
+// ============================================================
+
+// --- 16. 빈 큐에서 Pop이 블로킹되다가 Push 후 기상하는지 ----------
+TEST(GlobalQueueSemaphore, PopBlocksUntilPush)
+{
+    GlobalQueue_LockFree queue;
+    queue.Init(8);
+
+    std::atomic<bool> popReturned{ false };
+
+    // Consumer: 빈 큐에 Pop → WaitOnAddress 블로킹 대기
+    std::thread consumer([&]()
+    {
+        Room* r = queue.Pop();   // 여기서 블로킹
+        popReturned.store(true, std::memory_order_release);
+        (void)r;
+    });
+
+    // 50 ms 동안 Pop이 반환되지 않아야 한다 (진짜 블로킹)
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    EXPECT_FALSE(popReturned.load()) << "Pop should block on empty queue";
+
+    // Push → 대기 중인 Pop 즉시 기상
+    queue.Push(reinterpret_cast<Room*>(static_cast<uintptr_t>(0x100010)));
+    consumer.join();
+    EXPECT_TRUE(popReturned.load()) << "Pop should wake after Push";
+
+    queue.Shutdown();
+}
+
+// --- 17. Shutdown cascade: N개 모든 Consumer가 종료되는지 --------
+//  Consumer N개가 모두 빈 큐에서 블로킹 중일 때
+//  Shutdown() 호출 한 번으로 전부 cascade 기상 후 nullptr 반환.
+TEST(GlobalQueueSemaphore, ShutdownWakesAllBlockedConsumers)
+{
+    constexpr int CONSUMERS = 8;
+
+    GlobalQueue_LockFree queue;
+    queue.Init(16);
+
+    std::atomic<int> blockedCount{ 0 };
+    std::atomic<int> nullCount{ 0 };
+
+    std::vector<std::thread> consumers;
+    for (int i = 0; i < CONSUMERS; ++i)
+    {
+        consumers.emplace_back([&]()
+        {
+            blockedCount.fetch_add(1, std::memory_order_release);
+            Room* r = queue.Pop();  // 빈 큐 → 블로킹
+            if (r == nullptr)
+                nullCount.fetch_add(1, std::memory_order_relaxed);
+        });
+    }
+
+    // 모든 Consumer가 Pop에 진입할 때까지 대기
+    while (blockedCount.load(std::memory_order_acquire) < CONSUMERS)
+        std::this_thread::yield();
+    std::this_thread::sleep_for(std::chrono::milliseconds(20)); // 블로킹 안착 대기
+
+    // Shutdown 1회 → cascade로 CONSUMERS개 전부 기상
+    queue.Shutdown();
+
+    for (auto& t : consumers) t.join();
+
+    EXPECT_EQ(nullCount.load(), CONSUMERS)
+        << "All consumers should receive nullptr after Shutdown";
+}
