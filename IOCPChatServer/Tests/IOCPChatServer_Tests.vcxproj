@@ -186,6 +186,7 @@ xcopy /Y "C:\vcpkg\installed\x64-windows\bin\gtest_main.dll" "$(OutDir)" /D</Com
     <ClCompile Include="test_Room.cpp" />
     <ClCompile Include="test_RoomManager.cpp" />
     <ClCompile Include="test_DeferredSend.cpp" />
+    <ClCompile Include="test_PacketManager.cpp" />
     <ClCompile Include="..\User.cpp" />
     <ClCompile Include="..\Room.cpp" />
     <ClCompile Include="..\UserManager.cpp" />
