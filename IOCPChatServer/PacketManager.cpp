@@ -374,6 +374,19 @@ void PacketManager::RouteSingleUserTask(const PacketTask& task, char* packetBuf)
 		}
 		else
 		{
+			// ── Room 전용 패킷 · 상태 불일치 silent drop ─────────────────────
+			// 고부하 시 클라이언트가 방 퇴장/연결 해제 직후에도 채팅·퇴장 패킷을
+			// 전송할 수 있다. 이 경우 서버 상태는 이미 ROOM이 아니므로
+			// 핸들러가 없는 ProcessRecvPacket 으로 넘기지 않고 조용히 드랍한다.
+			const UINT16 id = pkt.PacketId;
+			if (id == (UINT16)PACKET_ID::ROOM_CHAT_REQUEST ||
+				id == (UINT16)PACKET_ID::ROOM_LEAVE_REQUEST)
+			{
+				LOG_DEBUG("[RouteSingleUserTask] Room 패킷 드랍 (상태 불일치) id=%d, client=%d",
+					id, task.clientIndex);
+				return;
+			}
+			// ──────────────────────────────────────────────────────────────────
 			ProcessRecvPacket(pkt.ClientIndex, pkt.Generation,
 				pkt.PacketId, pkt.DataSize, pkt.pDataPtr);
 		}
@@ -386,6 +399,15 @@ void PacketManager::RouteSingleUserTask(const PacketTask& task, char* packetBuf)
 		auto nextPacket = pUser->GetPacket(packetBuf, MAX_SINGLE_PACKET_SIZE);
 		if (nextPacket.PacketId == 0) break;
 		nextPacket.ClientIndex = task.clientIndex;
+		nextPacket.Generation  = task.generation;   // Fix: Generation 누락 버그
+
+		// Fix: 후속 패킷도 DataSize 검사 (첫 패킷과 동일한 기준 적용)
+		if (nextPacket.DataSize == 0 || nextPacket.DataSize > MAX_SINGLE_PACKET_SIZE)
+		{
+			pUser->ReleaseRouting();
+			mSessionHandler->ClearConnectionInfo(task.clientIndex);
+			return;
+		}
 		routeOnePacket(nextPacket);
 	}
 
