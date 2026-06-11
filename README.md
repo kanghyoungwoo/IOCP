@@ -42,13 +42,13 @@ Lock-Free 자료구조(MPSC/MPMC Queue), CAS 기반 Fast Path 직접 라우팅, 
 
 | 분류 | 내용 |
 |------|------|
-| **Language** | C++17 |
+| **Language** | C++20 |
 | **OS / API** | Windows IOCP (`AcceptEx`, `GetQueuedCompletionStatusEx`) |
 | **IDE** | Visual Studio 2022 |
 | **Platform** | Windows |
 | **Database** | Redis (hiredis), MySQL |
 | **Infra** | AWS EC2 c6i.4xlarge (Server), c6i.large × 4 (Client) |
-| **Test** | Google Test (163 cases), Chaos Bot System, Chat Load Tester |
+| **Test** | Google Test (192 cases), Chaos Bot System, Chat Load Tester |
 
 ---
 
@@ -294,7 +294,7 @@ graph TD
 | **비동기 DB 레이어** | Redis (로그인 인증) + MySQL (활동 로그 기록) 별도 스레드에서 비동기 처리 |
 | **로그 시스템** | `LOG_DEBUG` (Debug 빌드만 출력) / `LOG_ERROR` (항상 출력) / `LOG_ERROR_ONCE` (최초 1회만 출력) 매크로로 핫패스 오버헤드 최소화 |
 | **크래시 대응** | `SetUnhandledExceptionFilter` + `MiniDumpWriteDump`로 미처리 예외 발생 시 타임스탬프 기반 `.dmp` 파일 자동 생성 |
-
+| **Deferred Send (Batch Flush)** | Logic Thread가 브로드캐스트 시 WSASend를 즉시 호출하지 않고 thread_local 리스트에 누적(EnqueueOnly) 후 Room 배치 종료 시 일괄 FlushAll — 시스템 콜 횟수 감소 |
 ---
 
 ## 5. 성능 테스트
@@ -462,7 +462,7 @@ git clone https://github.com/kanghyoungwoo/IOCPChatServer.git
 | [구현 상세](Docs/구현%20상세.md) | 스레드 모델, 메모리 관리, 동기화 전략, 네트워크 구조 상세 |
 | [아키텍처 진화 과정](Docs/서버%20아키텍처%20진화%20및%20성능%20벤치마크.md) | Single-Thread에서 Lock-Free까지의 3단계 리팩토링 및 벤치마크 결과 |
 | [부하 테스트 리포트](Docs/부하%20테스트.md) | 10,000명 수용량 테스트, 채팅 빈도별 한계 탐색, MutexCV vs LockFree 비교 |
-| [단위 테스트](Docs/단위%20테스트.md) | Google Test 125개 항목을 통한 자료구조, 패킷, 도메인 로직 검증 결과 |
+| [단위 테스트](Docs/단위%20테스트.md) | Google Test 192개 항목을 통한 자료구조, 패킷, 도메인 로직 검증 결과 |
 | [카오스 엔지니어링](Docs/카오스%20엔지니어링%20기반%20안정성%20검증.md) | ABA 방어, Strand Race, 악성 네트워크 공격 테스트 결과 |
 | [기술적 도전과 해결](Docs/technical-challenges.md) | TCP 경계 파싱, Graceful Shutdown, Edge Case 방어 사례 |
 | [빌드 상세 가이드](Docs/빌드%20가이드.md) | 환경 설정, DB 연동, DLL 의존성, 테스터 실행법 |
