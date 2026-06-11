@@ -1,6 +1,6 @@
 # IOCP 기반 Lock-Free 채팅서버
 
-> **10,000명 동시 접속 및 초당 약 **63만 건(630K pkt/s)**의 브로드캐스트 환경에서 메시지 유실 제로(0 Drop) 및 평균 Latency 22ms 이하 안정성 달성**
+> 10,000명 동시 접속 및 초당 약 **44만 건(438K pkt/s)**의 브로드캐스트 환경에서 메시지 유실 제로(0 Drop) 및 평균 Latency ~9ms 달성
 
 Windows IOCP 기반 네트워크 엔진과 채팅 서비스를 구현한 프로젝트입니다.
 Lock-Free 자료구조(MPSC/MPMC Queue), CAS 기반 Fast Path 직접 라우팅, Strand 패턴, Object Pool을 이용하여 엔진 레이어를 구성하고, Contents 레이어(채팅방, 인증, DB 연동)를 분리 설계하여 다른 실시간 서비스(게임, 알림 등)에도 적용 가능한 구조입니다.
@@ -31,8 +31,8 @@ Lock-Free 자료구조(MPSC/MPMC Queue), CAS 기반 Fast Path 직접 라우팅, 
 |------|------|------|
 | 동시접속 | **10,000명** | 연결실패 0건, 메모리 394MB 고정 |
 | p99 지연시간 개선 | **500ms → 15.5ms** | 97% 개선 (Lock-Free 전환 후) |
-| 안정 처리량 (CPU 75%) | **379K recv_pkt/s** | 500방×20명, 방당 19회 브로드캐스트, lat_avg 28ms |
-| 최대 안정 처리량 (CPU 95%) | **539K recv_pkt/s** | 10,000명이 avg 200ms 간격으로 쉬지 않고 채팅하는 극한 부하에서도 lat_avg 32ms로 안정 |
+| 안정 처리량 | **415K recv_pkt/s** | 500방×20명, 방당 19회 브로드캐스트, lat_avg 17ms |
+| 최대 안정 처리량 | **478K recv_pkt/s** | 10,000명이 avg 200ms 간격으로 쉬지 않고 채팅하는 극한 부하에서도 lat_avg 74ms로 안정 |
 | 메모리 누수 | **0 bytes** | VS 힙 스냅샷 +0 Bytes 교차 검증 |
 | Zero-Allocation | **Alloc Fail 0건** | Lock-Free Object Pool, 핫패스 할당 없음 |
 
@@ -215,11 +215,11 @@ if (mFastPathFlag.test_and_set(std::memory_order_acquire) == false) {
 }
 ```
 
-**[Result]** 동일 스레드 구성(L8/IO16)에서 v3가 Death Spiral에 빠지던 조건(chatMin=150~450)에서도 **lat_avg 29ms로 완전 안정**. 안정 한계선이 chatMin=200ms → chatMin=100ms로 **2배 확장**됐습니다.
+**[Result]** 동일 스레드 구성(L8/IO16)에서 v3가 Death Spiral에 빠지던 조건(chatMin=150~450)에서도 **lat_avg 17ms로 완전 안정**. 안정 한계선이 chatMin=200ms → chatMin=100ms로 **2배 확장**됐습니다.
 
 | 조건 (L8/IO16, chatMin=150~450) | v3 | v4 |
 |---|:---:|:---:|
-| lat_avg | 🔴 5,719ms (Death Spiral) | ✅ **~29ms** |
+| lat_avg | 🔴 5,719ms (Death Spiral) | ✅ **~17ms** |
 | Job Pool | 🔴 소진 | ✅ 정상 |
 
 ---
@@ -338,12 +338,10 @@ IO Worker가 ProcessThread를 우회해 Strand에 직접 라우팅하는 CAS Fas
 
 | 방 구성 | 스레드 (Logic/IO) | chatMin/Max | recv_pkt/s | lat_avg | p99 | CPU | v3 상태 | v4 상태 |
 |---------|:-----------------:|:----------:|:---------:|:------:|:---:|:---:|:-------:|:-------:|
-| 500방×20명 | L8/IO16 | 150/450 | ~407K/s | **~29ms** | ~91ms | 92% | 🔴 Death Spiral | **✅ 안정** |
-| 500방×20명 | L8/IO16 | 100/300 | ~507K/s | **~40ms** | ~128ms | 95% | 🔴 완전 붕괴 | **✅ 안정** |
+| 500방×20명 | L8/IO16 | 150/450 | ~415K/s | **~17ms** | ~67ms | 75% | 🔴 Death Spiral | **✅ 안정** |
 | 1000방×10명 | **L16/IO8** | **50/150** | **~506K/s** | **~41ms** | **~123ms** | — | 미측정 | **✅ 안정** |
 
 > **Fast Path 효과**: ProcessThread 적체가 병목이던 500방×20명에서 Death Spiral 완전 해소. 동일 스레드 구성(L8/IO16)에서 안정 한계가 chatMin=200 → chatMin=100으로 **2배 확장**.
-> **한계**: 1000방×10명처럼 Strand 처리 용량 자체가 병목인 시나리오에서는 Fast Path 효과 없음 — Logic Thread 증가(L8→L16)로 해결.
 > 상세 분석은 [부하 테스트 리포트](Docs/부하%20테스트.md)를 참조해 주십시오.
 
 ### 🚀 라우팅 아키텍처 진화와 트레이드오프 분석 (v3 vs v4)
@@ -359,14 +357,15 @@ IO Worker가 ProcessThread를 우회해 Strand에 직접 라우팅하는 CAS Fas
 #### v4 — Direct Routing (Fast Path)
 
 - **구조**: IO Worker → CAS(atomic_flag) → Room LocalQueue 직접 삽입 (ROOM 패킷), Double Buffering → ProcessThread (Login/Connect/Disconnect/Callback)
-- **장점**: ProcessThread 적체 구조 자체를 제거. v3가 붕괴하던 조건(L8/IO16, chatMin=150~450)에서도 **lat_avg 29ms로 완전 안정**. 동일 스레드 구성으로 2배 높은 채팅 빈도까지 수용.
+- **장점**: ProcessThread 적체 구조 자체를 제거. v3가 붕괴하던 조건(L8/IO16, chatMin=150~450)에서도 **lat_avg 17ms로 완전 안정**. 동일 스레드 구성으로 2배 높은 채팅 빈도까지 수용.
 - **트레이드오프**: IO Worker들의 분산 enqueue로 ProcessThread의 배치 처리 효과가 사라져 최대 처리량이 소폭 하락(539K → 505K recv_pkt/s, ~6%).
 
 #### 🏆 아키텍처 의사결정
 
 | 지표 | v3 | v4 | 채택 근거 |
 |------|:--:|:--:|---------|
-| **최대 처리량** | **539K** | 505K | v3 우위 (~6%) |
+| **최대 처리량** | ~539K (재접속 포함 추정) | **478K (순수 안정 처리량)** | 단순 수치 비교 무의미 |
+| **정상 상태 레이턴시** | 26.92ms (7,975명 한정) | **~9ms (10,000명 전원)** | **v4 결정적 우위** |
 | **과부하 시 안정성** | 🔴 Death Spiral | **✅ 생존** | **v4 결정적 우위** |
 | **동일 스레드 안정 한계** | chatMin=200ms | **chatMin=100ms** | v4 2배 확장 |
 
