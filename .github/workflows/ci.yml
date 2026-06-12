@@ -23,6 +23,9 @@ jobs:
 
     steps:
       # 1. 소스코드 체크아웃
+      - name: Enable git long paths
+        run: git config --system core.longpaths true
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -33,7 +36,9 @@ jobs:
       # 3. vcpkg 설치 및 gtest 빌드 (테스트 프로젝트 의존성)
       - name: Setup vcpkg and install gtest
         run: |
-          git clone https://github.com/microsoft/vcpkg.git C:\vcpkg
+          if (-not (Test-Path C:\vcpkg\.vcpkg-root)) {
+            git clone https://github.com/microsoft/vcpkg.git C:\vcpkg
+          }
           C:\vcpkg\bootstrap-vcpkg.bat -disableMetrics
           C:\vcpkg\vcpkg install gtest:x64-windows --no-binarycaching
 
@@ -72,6 +77,9 @@ jobs:
       CHAOS_OUT: Client/ChaosBotSystem/x64/Release
 
     steps:
+      - name: Enable git long paths
+        run: git config --system core.longpaths true
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
