@@ -110,7 +110,6 @@ jobs:
             -FilePath "${{ env.SERVER_OUT }}\IOCPChatServer.exe" `
             -WorkingDirectory "${{ env.SERVER_OUT }}" `
             -PassThru `
-            -RedirectStandardInput  "NUL" `
             -RedirectStandardOutput "${{ env.SERVER_OUT }}\server_stdout.txt" `
             -RedirectStandardError  "${{ env.SERVER_OUT }}\server_stderr.txt"
           echo "SERVER_PID=$($proc.Id)" >> $env:GITHUB_ENV
@@ -165,7 +164,9 @@ jobs:
       - name: Stop server and dump logs
         if: always()
         run: |
-          Stop-Process -Id $env:SERVER_PID -Force -ErrorAction SilentlyContinue
+          if ($env:SERVER_PID) {
+            Stop-Process -Id $env:SERVER_PID -Force -ErrorAction SilentlyContinue
+          }
           Write-Host "=== server stdout (last 50 lines) ==="
           if (Test-Path "${{ env.SERVER_OUT }}\server_stdout.txt") {
             Get-Content "${{ env.SERVER_OUT }}\server_stdout.txt" | Select-Object -Last 50
