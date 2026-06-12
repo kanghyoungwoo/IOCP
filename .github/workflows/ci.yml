@@ -98,17 +98,23 @@ jobs:
           msbuild ${{ env.CHAOS_PROJECT }} `
             /p:Configuration=Release /p:Platform=x64 /m
 
-      # 3. 서버 백그라운드 실행
+      # 3. CI 전용 서버 config 배포 (MaxClient=500, JobPoolSize=5000)
+      - name: Deploy CI server config
+        run: |
+          Copy-Item "IOCPChatServer/ci_server_config.json" "${{ env.SERVER_OUT }}/config.json" -Force
+
+      # 4. 서버 백그라운드 실행
       - name: Start server
         run: |
           $proc = Start-Process `
             -FilePath "${{ env.SERVER_OUT }}\IOCPChatServer.exe" `
             -WorkingDirectory "${{ env.SERVER_OUT }}" `
             -PassThru `
+            -RedirectStandardInput  "NUL" `
             -RedirectStandardOutput "${{ env.SERVER_OUT }}\server_stdout.txt" `
             -RedirectStandardError  "${{ env.SERVER_OUT }}\server_stderr.txt"
           echo "SERVER_PID=$($proc.Id)" >> $env:GITHUB_ENV
-          Start-Sleep -Seconds 3
+          Start-Sleep -Seconds 10
 
       # 4. Scenario B — PIPELINE_BURST (30초)
       - name: Chaos Scenario B - Pipeline Burst
@@ -160,11 +166,15 @@ jobs:
         if: always()
         run: |
           Stop-Process -Id $env:SERVER_PID -Force -ErrorAction SilentlyContinue
-          Write-Host "=== server stdout ==="
+          Write-Host "=== server stdout (last 50 lines) ==="
           if (Test-Path "${{ env.SERVER_OUT }}\server_stdout.txt") {
             Get-Content "${{ env.SERVER_OUT }}\server_stdout.txt" | Select-Object -Last 50
           }
           Write-Host "=== server stderr ==="
           if (Test-Path "${{ env.SERVER_OUT }}\server_stderr.txt") {
             Get-Content "${{ env.SERVER_OUT }}\server_stderr.txt"
+          }
+          Write-Host "=== server.log (last 100 lines) ==="
+          if (Test-Path "${{ env.SERVER_OUT }}\server.log") {
+            Get-Content "${{ env.SERVER_OUT }}\server.log" | Select-Object -Last 100
           }
