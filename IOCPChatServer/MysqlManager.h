@@ -2,6 +2,8 @@
 #include "MySQLTaskDefine.h"
 #include "Define.h"
 
+#ifndef CI_BUILD
+
 #include<mysql.h>
 #include <thread>
 #include<string>
@@ -457,3 +459,16 @@ private:
 	unsigned int mPort = 0;
 	unsigned mConnectTimeoutSec = 5;
 };
+
+#else // CI_BUILD
+
+class MySQLManager
+{
+public:
+	void configure(const char*, const char*, const char*, const char*, unsigned int) {}
+	bool Run(UINT32) { return true; }
+	void End() {}
+	void PushTask(MySQLTask) {}
+};
+
+#endif // CI_BUILD

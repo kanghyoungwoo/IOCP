@@ -4,6 +4,8 @@
 #include "ErrorCode.h"
 #include "Define.h"
 
+#ifndef CI_BUILD
+
 #include "../thirdparty/CRedisConn.h"
 
 #include <vector>
@@ -294,3 +296,21 @@ private:
 	std::string mIP;
 	UINT16 mPort;
 };
+
+#else // CI_BUILD
+
+#include <functional>
+
+class RedisManager
+{
+public:
+	std::function<void()> OnResponsePushed;
+
+	bool Run(std::string, UINT16, UINT32) { return true; }
+	void End() {}
+	void PushTask(RedisTask) {}
+	RedisTask TakeResponseTask() { return RedisTask(); }
+	bool HasResponseTask() { return false; }
+};
+
+#endif // CI_BUILD

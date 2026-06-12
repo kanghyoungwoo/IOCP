@@ -59,3 +59,104 @@ jobs:
           path: ${{ env.SLN_DIR }}/Tests/x64/${{ env.BUILD_CONFIGURATION }}/test_results.xml
           reporter: java-junit
           fail-on-error: true
+
+  chaos-test:
+    runs-on: windows-latest
+    needs: build-and-test
+
+    env:
+      SERVER_PROJECT: IOCPChatServer/IOCPChatServer.vcxproj
+      CHAOS_PROJECT: Client/ChaosBotSystem/ChaosBotSystem.vcxproj
+      CHAOS_DIR: Client/ChaosBotSystem
+      SERVER_OUT: IOCPChatServer/x64/CI
+      CHAOS_OUT: Client/ChaosBotSystem/x64/Release
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v2
+
+      # 1. 서버 CI 구성 빌드 (MySQL/Redis 의존성 없음)
+      - name: Build server (CI config)
+        run: |
+          msbuild ${{ env.SERVER_PROJECT }} `
+            /p:Configuration=CI /p:Platform=x64 /m
+
+      # 2. ChaosBotSystem 빌드 (외부 의존성 없음)
+      - name: Build ChaosBotSystem
+        run: |
+          msbuild ${{ env.CHAOS_PROJECT }} `
+            /p:Configuration=Release /p:Platform=x64 /m
+
+      # 3. 서버 백그라운드 실행
+      - name: Start server
+        run: |
+          $proc = Start-Process `
+            -FilePath "${{ env.SERVER_OUT }}\IOCPChatServer.exe" `
+            -WorkingDirectory "${{ env.SERVER_OUT }}" `
+            -PassThru `
+            -RedirectStandardOutput "${{ env.SERVER_OUT }}\server_stdout.txt" `
+            -RedirectStandardError  "${{ env.SERVER_OUT }}\server_stderr.txt"
+          echo "SERVER_PID=$($proc.Id)" >> $env:GITHUB_ENV
+          Start-Sleep -Seconds 3
+
+      # 4. Scenario B — PIPELINE_BURST (30초)
+      - name: Chaos Scenario B - Pipeline Burst
+        working-directory: ${{ env.CHAOS_OUT }}
+        run: |
+          Copy-Item "${{ github.workspace }}/${{ env.CHAOS_DIR }}/ci_config_B.json" config.json
+          .\ChaosBotSystem.exe
+        timeout-minutes: 2
+
+      - name: Check server alive after Scenario B
+        run: |
+          if (-not (Get-Process -Id $env:SERVER_PID -ErrorAction SilentlyContinue)) {
+            Write-Error "Server crashed during Scenario B!"
+            exit 1
+          }
+
+      # 5. Scenario C — ZOMBIE_RACE (30초)
+      - name: Chaos Scenario C - Zombie Race
+        working-directory: ${{ env.CHAOS_OUT }}
+        run: |
+          Copy-Item "${{ github.workspace }}/${{ env.CHAOS_DIR }}/ci_config_C.json" config.json
+          .\ChaosBotSystem.exe
+        timeout-minutes: 2
+
+      - name: Check server alive after Scenario C
+        run: |
+          if (-not (Get-Process -Id $env:SERVER_PID -ErrorAction SilentlyContinue)) {
+            Write-Error "Server crashed during Scenario C!"
+            exit 1
+          }
+
+      # 6. Scenario D — FAST_PATH_BOUNDARY (30초)
+      - name: Chaos Scenario D - Fast Path Boundary
+        working-directory: ${{ env.CHAOS_OUT }}
+        run: |
+          Copy-Item "${{ github.workspace }}/${{ env.CHAOS_DIR }}/ci_config_D.json" config.json
+          .\ChaosBotSystem.exe
+        timeout-minutes: 2
+
+      - name: Check server alive after Scenario D
+        run: |
+          if (-not (Get-Process -Id $env:SERVER_PID -ErrorAction SilentlyContinue)) {
+            Write-Error "Server crashed during Scenario D!"
+            exit 1
+          }
+
+      # 7. 서버 종료 및 로그 출력
+      - name: Stop server and dump logs
+        if: always()
+        run: |
+          Stop-Process -Id $env:SERVER_PID -Force -ErrorAction SilentlyContinue
+          Write-Host "=== server stdout ==="
+          if (Test-Path "${{ env.SERVER_OUT }}\server_stdout.txt") {
+            Get-Content "${{ env.SERVER_OUT }}\server_stdout.txt" | Select-Object -Last 50
+          }
+          Write-Host "=== server stderr ==="
+          if (Test-Path "${{ env.SERVER_OUT }}\server_stderr.txt") {
+            Get-Content "${{ env.SERVER_OUT }}\server_stderr.txt"
+          }

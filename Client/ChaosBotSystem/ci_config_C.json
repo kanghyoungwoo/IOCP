@@ -1,0 +1,16 @@
+{
+    "engine": {
+        "serverHost": "127.0.0.1",
+        "serverPort": 11021,
+        "totalBots": 30,
+        "ioWorkerThreads": 2,
+        "connectBatchSize": 10,
+        "connectIntervalMs": 100,
+        "roomCount": 10
+    },
+    "scenario": {
+        "type": 3,
+        "zombieBotCount": 30,
+        "durationSec": 30
+    }
+}
