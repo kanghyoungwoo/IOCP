@@ -602,11 +602,19 @@ void ClientSession::DisconnectAsync(UINT32 expectedGeneration)
 		return;
 	}
 
-	// 단 한번만 실행
 	bool expected = false;
 	if (!mIsDisconnecting.compare_exchange_strong(expected, true))
-		return;
+		return;	// 이미 누군가 끊는 중
 
+	// CAS 획득 후 세대 재검사
+	if (mGeneration.load(std::memory_order_acquire) != expectedGeneration)
+	{
+		// 세션이 새 주인을 만남
+		// 새 주인이 쓰도록 flag 뽑고(false) fall back
+		mIsDisconnecting.store(false, std::memory_order_release);
+		return;
+	}
+	// 이제 내가 온전히 disconn할 권한이 있음
 	if (m_socketClient != INVALID_SOCKET)
 	{
 		// 1. Graceful shutdown 시도
