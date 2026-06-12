@@ -180,7 +180,19 @@ jobs:
             Get-Content "${{ env.SERVER_OUT }}\server.log" | Select-Object -Last 100
           }
 
-      # 8. 크래시 덤프 + 로그 파일 아티팩트 업로드
+      # 8. Windows Application Event Log에서 크래시 정보 확인
+      - name: Dump Windows crash event log
+        if: always()
+        run: |
+          Write-Host "=== Application Error events (last 10) ==="
+          try {
+            Get-EventLog -LogName Application -Source "Application Error" -Newest 10 |
+              Format-List TimeGenerated, EntryType, Message
+          } catch {
+            Write-Host "No Application Error events found or access denied."
+          }
+
+      # 9. 크래시 덤프 + 로그 파일 아티팩트 업로드
       - name: Upload crash artifacts
         if: always()
         uses: actions/upload-artifact@v4
