@@ -1,158 +1,153 @@
 ﻿#pragma once
+#include <atomic>
+#include <cstring>
 
-
+// SPSC(Single Producer Single Consumer) Lock-Free Ring Buffer
+// Producer : IOCP Worker  (SetPacketData) — head만 변경
+// Consumer : IOCP Worker Fast Path 또는 ProcessThread (GetPacket) — tail만 변경
+// mIsRouting 으로 Consumer가 항상 1개임이 보장됨
 template<size_t BufferSize>
 class RingBuffer
 {
-	static_assert(BufferSize > 0 && (BufferSize & (BufferSize - 1)) == 0, "RingBuffer: BufferSize must be a power of 2");
+	static_assert(BufferSize > 0 && (BufferSize & (BufferSize - 1)) == 0,
+		"RingBuffer: BufferSize must be a power of 2");
 private:
 	char buffer[BufferSize];
-	size_t head = 0;
-	size_t tail = 0;
 
-	size_t mSize = 0;
+	// False Sharing 방지: head(Producer)와 tail(Consumer)을 별도 캐시라인에 배치
+	alignas(64) std::atomic<size_t> head{ 0 };  // Producer만 변경
+	alignas(64) std::atomic<size_t> tail{ 0 };  // Consumer만 변경
+
 public:
 	RingBuffer() = default;
 	~RingBuffer() = default;
 
-	enum class BufferResult
+	// Consumer 기준 가용 데이터 크기
+	size_t Size() const
 	{
-		SUCCESS,
-		BUFFER_FULL,
-		INVALID_DATA
-	};
-
-	bool IsEmpty() const
-	{
-		return mSize == 0;
+		size_t h = head.load(std::memory_order_acquire);
+		size_t t = tail.load(std::memory_order_relaxed);
+		return h - t;
 	}
+
+	bool IsEmpty() const { return Size() == 0; }
 
 	bool IsFull() const
 	{
-		// 버퍼가 완전히 찼는지 확인
-		return mSize == BufferSize;
+		size_t h = head.load(std::memory_order_relaxed);
+		size_t t = tail.load(std::memory_order_acquire);
+		return (h - t) == BufferSize;
 	}
 
-	size_t Size() const
-	{
-		return mSize;
-	}
-
+	// Producer 전용
 	bool WriteByte(char byte)
 	{
-		if (IsFull())
-			return false;
+		size_t h = head.load(std::memory_order_relaxed);
+		size_t t = tail.load(std::memory_order_acquire);
+		if (h - t == BufferSize) return false;
 
-		buffer[head] = byte;
-		head = (head + 1) & (BufferSize - 1);
-
-		mSize++;
-
+		buffer[h & (BufferSize - 1)] = byte;
+		head.store(h + 1, std::memory_order_release);
 		return true;
 	}
 
+	// Consumer 전용
 	bool ReadByte(char& byte)
 	{
-		if (IsEmpty())
-			return false;
+		size_t t = tail.load(std::memory_order_relaxed);
+		size_t h = head.load(std::memory_order_acquire);
+		if (h == t) return false;
 
-		byte = buffer[tail];
-		tail = (tail + 1) & (BufferSize - 1);
-		mSize--;
-
+		byte = buffer[t & (BufferSize - 1)];
+		tail.store(t + 1, std::memory_order_release);
 		return true;
 	}
 
+	// Producer 전용: data를 버퍼에 씀
 	size_t Write(const char* data, size_t length)
 	{
-		// 쓰여진 총 바이트 수 반환
-		if (data == nullptr || length == 0)
-			return 0;
+		if (data == nullptr || length == 0) return 0;
 
-		size_t available = BufferSize - mSize;
-		size_t toWrite = (length < available) ? length : available;
-		if (toWrite == 0)
-			return 0;
+		size_t h = head.load(std::memory_order_relaxed);
+		size_t t = tail.load(std::memory_order_acquire);  // Consumer의 tail 동기화
 
-		size_t firstChunk = BufferSize - head;	// head -> 버퍼 끝까지 남은공간
+		size_t available = BufferSize - (h - t);
+		size_t toWrite   = (length < available) ? length : available;
+		if (toWrite == 0) return 0;
+
+		size_t head_index  = h & (BufferSize - 1);
+		size_t firstChunk  = BufferSize - head_index;
 		if (firstChunk >= toWrite)
 		{
-			memcpy(buffer + head, data, toWrite);
+			memcpy(buffer + head_index, data, toWrite);
 		}
 		else
 		{
-			memcpy(buffer + head, data, firstChunk);	// 경계 전
-			memcpy(buffer, data + firstChunk, toWrite - firstChunk);	// wrap 후 
+			memcpy(buffer + head_index, data, firstChunk);
+			memcpy(buffer, data + firstChunk, toWrite - firstChunk);
 		}
 
-		head = (head + toWrite) & (BufferSize - 1);
-
-		mSize += toWrite;
-
+		// 데이터 복사 완료 후 release → Consumer에게 데이터 가시성 보장
+		head.store(h + toWrite, std::memory_order_release);
 		return toWrite;
 	}
 
+	// Consumer 전용: 버퍼에서 데이터를 읽고 소비 (tail 전진)
 	size_t Read(char* output, size_t max_length)
 	{
-		// 읽어온 총 바이트 수 반환
-		if (output == nullptr || max_length == 0)
-			return 0;
+		if (output == nullptr || max_length == 0) return 0;
 
-		size_t available = mSize;
-		size_t toRead = (max_length < available) ? max_length : available;
-		if (toRead == 0)
-			return 0;
-		
-		size_t firstChunk = BufferSize - tail;	// tail -> 버퍼 끝까지 읽을 수 있는 양
+		size_t t = tail.load(std::memory_order_relaxed);
+		size_t h = head.load(std::memory_order_acquire);  // Producer의 head 동기화
+
+		size_t available = h - t;
+		size_t toRead    = (max_length < available) ? max_length : available;
+		if (toRead == 0) return 0;
+
+		size_t tail_index = t & (BufferSize - 1);
+		size_t firstChunk = BufferSize - tail_index;
 		if (firstChunk >= toRead)
 		{
-			memcpy(output, buffer + tail, toRead);
+			memcpy(output, buffer + tail_index, toRead);
 		}
 		else
 		{
-			memcpy(output, buffer + tail, firstChunk);
+			memcpy(output, buffer + tail_index, firstChunk);
 			memcpy(output + firstChunk, buffer, toRead - firstChunk);
 		}
-		tail = (tail + toRead) & (BufferSize - 1);
-		mSize -= toRead;
 
+		// 읽기 완료 후 release → Producer에게 공간 반환 가시성 보장
+		tail.store(t + toRead, std::memory_order_release);
 		return toRead;
 	}
 
-	bool Peek(char& byte, size_t offset = 0) const
-	{
-		if (offset >= mSize)
-			return false;
-
-		size_t peek_pos = (tail + offset) & (BufferSize - 1);
-		byte = buffer[peek_pos];
-
-		return true;
-	}
-
+	// Consumer 전용: tail을 이동하지 않고 데이터만 들여다봄 (GetPacket 헤더 파싱용)
 	bool PeekBlock(char* output, size_t length) const
 	{
-		if (output == nullptr || length == 0 || Size() < length)
-			return false;
+		if (output == nullptr || length == 0) return false;
 
-		size_t firstChunk = BufferSize - tail;
+		size_t t = tail.load(std::memory_order_relaxed);
+		size_t h = head.load(std::memory_order_acquire);
+		if (h - t < length) return false;
+
+		size_t tail_index = t & (BufferSize - 1);
+		size_t firstChunk = BufferSize - tail_index;
 		if (firstChunk >= length)
 		{
-			memcpy(output, buffer + tail, length);
+			memcpy(output, buffer + tail_index, length);
 		}
 		else
 		{
-			memcpy(output, buffer + tail, firstChunk);
+			memcpy(output, buffer + tail_index, firstChunk);
 			memcpy(output + firstChunk, buffer, length - firstChunk);
 		}
-
 		return true;
 	}
 
+	// disconnect/init 시에만 호출 — 동시 접근 없는 상태에서 사용
 	void Clear()
 	{
-		head = 0;
-		tail = 0;
-		mSize = 0;
+		head.store(0, std::memory_order_relaxed);
+		tail.store(0, std::memory_order_relaxed);
 	}
 };

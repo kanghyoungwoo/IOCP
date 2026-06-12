@@ -4,7 +4,6 @@
 #include "RingBuffer.h"
 #include "Define.h"
 #include <string>
-#include <mutex>
 #include <atomic>
 
 class User
@@ -31,7 +30,6 @@ public:
 
 	void ClearPacketBuffer()
 	{
-		std::lock_guard<std::mutex> lock(mPacketRingBuffMutex);
 		mPacketDataBuffer.Clear();
 	}
 
@@ -126,8 +124,6 @@ private:
 
 	std::atomic<DOMAIN_STATE> mCurDomainState{ DOMAIN_STATE::NONE };
 
-
-	std::mutex mPacketRingBuffMutex;
 
 	// 한 스레드만 사용할 패킷 임시 버퍼
 	//char m_tempPacketBuffer[MAX_PACKET_DATA_BUFFER_SIZE];

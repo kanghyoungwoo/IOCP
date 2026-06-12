@@ -2,8 +2,6 @@
 
 void User::Clear()
 {
-		std::lock_guard<std::mutex>lock(mPacketRingBuffMutex);
-
 		mUserID = "";
 		mCurDomainState = DOMAIN_STATE::NONE;
 		mPacketDataBuffer.Clear();
@@ -29,7 +27,6 @@ bool User::SetPacketData(const UINT32 dataSize_, char* pData_)
 	if (pData_ == nullptr || dataSize_ == 0)
 		return true;
 
-	std::lock_guard<std::mutex>lock(mPacketRingBuffMutex);
 	size_t written = mPacketDataBuffer.Write(pData_, dataSize_);
 
 	// 링버퍼에 쓸 수 없는 경우 에러
@@ -43,8 +40,6 @@ bool User::SetPacketData(const UINT32 dataSize_, char* pData_)
 
 PacketInfo User::GetPacket(char* outBuf, size_t bufSize)
 {
-	std::lock_guard<std::mutex>lock(mPacketRingBuffMutex);
-
 	if (mPacketDataBuffer.Size() < PACKET_HEADER_LENGTH)
 		return PacketInfo();
 
