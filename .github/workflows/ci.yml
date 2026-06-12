@@ -115,6 +115,18 @@ jobs:
           echo "SERVER_PID=$($proc.Id)" >> $env:GITHUB_ENV
           Start-Sleep -Seconds 10
 
+      # 4-1. 시나리오 시작 전 서버 생존 확인 (진단용)
+      #       실패 시: 스텝 간 Job Object 정리로 죽은 것
+      #       통과 시: 시나리오 부하 중 죽은 것
+      - name: Verify server alive before scenarios
+        run: |
+          Write-Host "Checking server PID=$env:SERVER_PID before any scenario..."
+          if (-not (Get-Process -Id $env:SERVER_PID -ErrorAction SilentlyContinue)) {
+            Write-Error "Server died BETWEEN STEPS (before Scenario B started)!"
+            exit 1
+          }
+          Write-Host "Server is alive."
+
       # 4. Scenario B — PIPELINE_BURST (30초)
       - name: Chaos Scenario B - Pipeline Burst
         working-directory: ${{ env.CHAOS_OUT }}
