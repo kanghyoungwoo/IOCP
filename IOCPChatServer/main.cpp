@@ -38,6 +38,10 @@ BOOL WINAPI ConsoleCtrlHandler(DWORD ctrlType)
 	{
 		LOG_ERROR("[종료] ConsoleCtrlHandler에 의한 종료! ctrlType=%d\n", ctrlType);
 		g_pServer->End();
+		// CTRL_CLOSE_EVENT / CTRL_SHUTDOWN_EVENT는 핸들러 리턴 즉시 OS가 프로세스를 종료함
+		// exit(0)으로 C-runtime 정상 종료 경로를 타게 하여 plog의 static fileApp 소멸자가
+		// std::ofstream 버퍼를 디스크로 flush하도록 보장함
+		exit(0);
 	}
 	return TRUE;
 }

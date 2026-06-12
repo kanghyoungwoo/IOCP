@@ -167,7 +167,7 @@ void IOCompletionPort::DestroyThread()
 	//std::this_thread::sleep_for(std::chrono::milliseconds(500));
 	LOG_DEBUG("step3: 잔여 IO Draining 완료\n");
 
-	const int MAX_DRAIN_WAIT_MS = 5000;
+	const int MAX_DRAIN_WAIT_MS = 3000;
 	bool allDrained = false;
 	int elapsed = 0;
 	while (elapsed < MAX_DRAIN_WAIT_MS)
