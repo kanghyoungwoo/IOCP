@@ -22,8 +22,8 @@
         "MaxRoomCount": 100
     },
     "Pool": {
-        "JobPoolSize": 5000,
-        "CallbackPoolSize": 500
+        "JobPoolSize": 50000,
+        "CallbackPoolSize": 2000
     },
     "Database": {
         "MySQLHost": "127.0.0.1",

@@ -179,3 +179,16 @@ jobs:
           if (Test-Path "${{ env.SERVER_OUT }}\server.log") {
             Get-Content "${{ env.SERVER_OUT }}\server.log" | Select-Object -Last 100
           }
+
+      # 8. 크래시 덤프 + 로그 파일 아티팩트 업로드
+      - name: Upload crash artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chaos-test-artifacts
+          path: |
+            ${{ env.SERVER_OUT }}\*.dmp
+            ${{ env.SERVER_OUT }}\server.log
+            ${{ env.SERVER_OUT }}\server_stdout.txt
+            ${{ env.SERVER_OUT }}\server_stderr.txt
+          if-no-files-found: ignore
