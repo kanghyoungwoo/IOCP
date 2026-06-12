@@ -104,15 +104,20 @@ jobs:
           Copy-Item "IOCPChatServer/ci_server_config.json" "${{ env.SERVER_OUT }}/config.json" -Force
 
       # 4. 서버 백그라운드 실행
+      # Start-Process는 runner의 Job Object에 자식 프로세스를 포함시켜
+      # 스텝 종료 시 서버가 함께 TerminateProcess() 됨.
+      # WMI Win32_Process.Create는 WMI 서비스 컨텍스트에서 프로세스를 생성하므로
+      # runner Job Object와 독립적으로 스텝 간에도 생존함.
       - name: Start server
         run: |
-          $proc = Start-Process `
-            -FilePath "${{ env.SERVER_OUT }}\IOCPChatServer.exe" `
-            -WorkingDirectory "${{ env.SERVER_OUT }}" `
-            -PassThru `
-            -RedirectStandardOutput "${{ env.SERVER_OUT }}\server_stdout.txt" `
-            -RedirectStandardError  "${{ env.SERVER_OUT }}\server_stderr.txt"
-          echo "SERVER_PID=$($proc.Id)" >> $env:GITHUB_ENV
+          $serverExe = (Resolve-Path "${{ env.SERVER_OUT }}\IOCPChatServer.exe").Path
+          $workDir   = (Resolve-Path "${{ env.SERVER_OUT }}").Path
+          $wmi    = [wmiclass]"Win32_Process"
+          $result = $wmi.Create($serverExe, $workDir, $null)
+          if ($result.ReturnValue -ne 0) {
+            throw "WMI Process.Create failed (ReturnValue=$($result.ReturnValue))"
+          }
+          echo "SERVER_PID=$($result.ProcessId)" >> $env:GITHUB_ENV
           Start-Sleep -Seconds 10
 
       # 4-1. 시나리오 시작 전 서버 생존 확인 (진단용)
@@ -179,14 +184,6 @@ jobs:
           if ($env:SERVER_PID) {
             Stop-Process -Id $env:SERVER_PID -Force -ErrorAction SilentlyContinue
           }
-          Write-Host "=== server stdout (last 50 lines) ==="
-          if (Test-Path "${{ env.SERVER_OUT }}\server_stdout.txt") {
-            Get-Content "${{ env.SERVER_OUT }}\server_stdout.txt" | Select-Object -Last 50
-          }
-          Write-Host "=== server stderr ==="
-          if (Test-Path "${{ env.SERVER_OUT }}\server_stderr.txt") {
-            Get-Content "${{ env.SERVER_OUT }}\server_stderr.txt"
-          }
           Write-Host "=== server.log (last 100 lines) ==="
           if (Test-Path "${{ env.SERVER_OUT }}\server.log") {
             Get-Content "${{ env.SERVER_OUT }}\server.log" | Select-Object -Last 100
@@ -213,6 +210,4 @@ jobs:
           path: |
             ${{ env.SERVER_OUT }}\*.dmp
             ${{ env.SERVER_OUT }}\server.log
-            ${{ env.SERVER_OUT }}\server_stdout.txt
-            ${{ env.SERVER_OUT }}\server_stderr.txt
           if-no-files-found: ignore
