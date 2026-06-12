@@ -616,7 +616,8 @@ void ClientSession::DisconnectAsync(UINT32 expectedGeneration)
 		if (CancelIoEx((HANDLE)m_socketClient, NULL) == 0)
 		{
 			DWORD err = GetLastError();
-			if (err == ERROR_NOT_FOUND)
+			// ERROR_INVALID_HANDLE -> closesocket()이 실행됨 -> 정상 종료루틴을 탐 -> 굳이 zimbiecleaup 할필요x
+			if (err == ERROR_INVALID_HANDLE) // 소켓이 이미 닫힌 경우만 제외
 			{
 				// 3. 블랙홀 상태 → Worker에 즉시 정리
 				//auto pMarker = new stOverlappedEx();
