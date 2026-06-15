@@ -132,7 +132,7 @@ void StrandProcessor::ProcessRoom(Room* pRoom)
 {
     do {
         // adaptive backoff로 Pop
-        PacketJob* pJob = PopWithBackoff(pRoom);
+        PacketJob* pJob = PopWithBackoff(pRoom);    //  MPSC PoP -> pJpb 획득
 
         if (pJob == nullptr)
         {
@@ -305,8 +305,7 @@ void StrandProcessor::HandleRoomEnter(Room* pRoom, PacketJob* pJob)
     }
 
     // 응답 전송
-    pRoom->SendPacketFunc(pJob->clientIndex, pEnterUser->GetSessionGeneration(),
-        sizeof(ROOM_ENTER_RESPONSE_PACKET), (char*)&resPacket);
+    pRoom->SendPacketFunc(pJob->clientIndex, pEnterUser->GetSessionGeneration(), sizeof(ROOM_ENTER_RESPONSE_PACKET), (char*)&resPacket);
 
     pJob->phase         = PacketJob::Phase::STRAND_CALLBACK;
     pJob->cb.type       = StrandCallbackType::USER_ENTERED_ROOM;

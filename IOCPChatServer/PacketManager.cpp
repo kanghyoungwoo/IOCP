@@ -214,12 +214,7 @@ bool PacketManager::ReceivePacketData(const UINT32 clientIndex_, const UINT32 ge
 				return true;
 			}
 
-			m_strandProcessor.EnqueueJob(
-				pRoom, clientIndex_,
-				pRoom->GetGeneration(),
-				pUser->GetSessionGeneration(),
-				packetData.PacketId, packetData.DataSize, packetData.pDataPtr
-			);
+			m_strandProcessor.EnqueueJob(pRoom, clientIndex_, pRoom->GetGeneration(), pUser->GetSessionGeneration(), packetData.PacketId, packetData.DataSize, packetData.pDataPtr);
 		}
 		pUser->ReleaseRouting();
 		return true;
@@ -274,8 +269,7 @@ void PacketManager::ProcessSystemPackets()
 {
 	for (auto& sysPacket : mSystemReadBuffer)
 	{
-		ProcessRecvPacket(sysPacket.ClientIndex, sysPacket.Generation,
-			sysPacket.PacketId, sysPacket.DataSize, sysPacket.pDataPtr);
+		ProcessRecvPacket(sysPacket.ClientIndex, sysPacket.Generation, sysPacket.PacketId, sysPacket.DataSize, sysPacket.pDataPtr);
 	}
 	mSystemReadBuffer.clear();
 }
@@ -308,7 +302,8 @@ void PacketManager::ProcessUserPackets()
 void PacketManager::RouteSingleUserTask(const PacketTask& task, char* packetBuf)
 {
 	auto pUser = mUserManager->GetUserByConnIdx(task.clientIndex);
-	if (!pUser) return;
+	if (!pUser)
+		return;
 
 	// 접속 종료 중인 유저의 잔여 패킷은 링버퍼째 폐기
 	if (pUser->IsDisconnecting())
@@ -318,10 +313,11 @@ void PacketManager::RouteSingleUserTask(const PacketTask& task, char* packetBuf)
 	}
 
 	// 동시 라우팅 방지 (IOCP Worker Fast Path와 경합 차단)
-	if (!pUser->TryAcquireRouting()) return;
+	if (!pUser->TryAcquireRouting()) 
+		return;
 
 	auto packetData = pUser->GetPacket(packetBuf, MAX_SINGLE_PACKET_SIZE);
-	if (packetData.PacketId == 0)
+	if (packetData.PacketId == 0)	// fast-path에서 먼저 처리해서 비어있는 상태(fast-path가 이미 소비)
 	{
 		pUser->ReleaseRouting();
 		return;
@@ -344,8 +340,7 @@ void PacketManager::RouteSingleUserTask(const PacketTask& task, char* packetBuf)
 
 	// 로그인 전/시스템 패킷 이외는 세대 검사 (지각 패킷 폐기)
 	const auto packetId = packetData.PacketId;
-	if (packetId != (UINT16)PACKET_ID::SYS_USER_CONNECT &&
-		packetId != (UINT16)PACKET_ID::LOGIN_REQUEST)
+	if (packetId != (UINT16)PACKET_ID::SYS_USER_CONNECT && packetId != (UINT16)PACKET_ID::LOGIN_REQUEST)
 	{
 		if (pUser->GetSessionGeneration() != task.generation)
 		{
@@ -379,22 +374,19 @@ void PacketManager::RouteSingleUserTask(const PacketTask& task, char* packetBuf)
 			// 전송할 수 있다. 이 경우 서버 상태는 이미 ROOM이 아니므로
 			// 핸들러가 없는 ProcessRecvPacket 으로 넘기지 않고 조용히 드랍한다.
 			const UINT16 id = pkt.PacketId;
-			if (id == (UINT16)PACKET_ID::ROOM_CHAT_REQUEST ||
-				id == (UINT16)PACKET_ID::ROOM_LEAVE_REQUEST)
+			if (id == (UINT16)PACKET_ID::ROOM_CHAT_REQUEST || id == (UINT16)PACKET_ID::ROOM_LEAVE_REQUEST)
 			{
-				LOG_DEBUG("[RouteSingleUserTask] Room 패킷 드랍 (상태 불일치) id=%d, client=%d",
-					id, task.clientIndex);
+				LOG_DEBUG("[RouteSingleUserTask] Room 패킷 드랍 (상태 불일치) id=%d, client=%d", id, task.clientIndex);
 				return;
 			}
 			// ──────────────────────────────────────────────────────────────────
-			ProcessRecvPacket(pkt.ClientIndex, pkt.Generation,
-				pkt.PacketId, pkt.DataSize, pkt.pDataPtr);
+			ProcessRecvPacket(pkt.ClientIndex, pkt.Generation, pkt.PacketId, pkt.DataSize, pkt.pDataPtr);
 		}
 	};
 
 	// 첫 번째 패킷 처리 후 링버퍼에 남은 패킷도 연속 처리
-	routeOnePacket(packetData);
-	while (true)
+	routeOnePacket(packetData);	// 첫 번째 패킷 처리
+	while (true)	// 이후 남은 패킷도 연속 처리
 	{
 		auto nextPacket = pUser->GetPacket(packetBuf, MAX_SINGLE_PACKET_SIZE);
 		if (nextPacket.PacketId == 0) break;
@@ -422,8 +414,7 @@ void PacketManager::ProcessRedisTasks()
 		auto task = mRedisManager->TakeResponseTask();
 		if (task.TaskID == RedisTaskID::INVALID) break;
 
-		ProcessRecvPacket(task.UserIndex, task.Generation,
-			(UINT16)task.TaskID, task.DataSize, task.body);
+		ProcessRecvPacket(task.UserIndex, task.Generation, (UINT16)task.TaskID, task.DataSize, task.body);
 	}
 }
 

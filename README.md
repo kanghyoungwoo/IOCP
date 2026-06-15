@@ -1,6 +1,6 @@
 # IOCP 기반 Lock-Free 채팅서버
 
-> 10,000명 동시 접속 및 초당 약 **44만 건(438K pkt/s)**의 브로드캐스트 환경에서 메시지 유실 제로(0 Drop) 및 평균 Latency ~9ms 달성
+> 10,000명 동시 접속 및 초당 약 44만 건(438K pkt/s)의 브로드캐스트 환경에서 메시지 유실 제로(0 Drop) 및 평균 Latency ~9ms 달성
 
 Windows IOCP 기반 네트워크 엔진과 채팅 서비스를 구현한 프로젝트입니다.
 Lock-Free 자료구조(MPSC/MPMC Queue), CAS 기반 Fast Path 직접 라우팅, Strand 패턴, Object Pool을 이용하여 엔진 레이어를 구성하고, Contents 레이어(채팅방, 인증, DB 연동)를 분리 설계하여 다른 실시간 서비스(게임, 알림 등)에도 적용 가능한 구조입니다.

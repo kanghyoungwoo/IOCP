@@ -46,9 +46,5 @@ void LobbyHandler::ProcessEnterRoom(UINT32 clientIndex, UINT32 generation, UINT1
 		return;
 	}
 
-	mStrand->EnqueueJob(
-		pRoom, clientIndex,
-		pRoom->GetGeneration(),
-		pReqUser->GetSessionGeneration(),
-		(UINT16)PACKET_ID::ROOM_ENTER_REQUEST, packetSize, pPacket);
+	mStrand->EnqueueJob(pRoom, clientIndex, pRoom->GetGeneration(), pReqUser->GetSessionGeneration(), (UINT16)PACKET_ID::ROOM_ENTER_REQUEST, packetSize, pPacket);
 }
