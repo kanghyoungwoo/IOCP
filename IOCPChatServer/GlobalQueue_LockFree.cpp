@@ -2,6 +2,8 @@
 #include <emmintrin.h>
 #include <Windows.h>
 #include <stdexcept>
+#include <cassert>
+#include <cstdlib>
 
 GlobalQueue_LockFree::~GlobalQueue_LockFree()
 {
@@ -71,8 +73,11 @@ void GlobalQueue_LockFree::Push(Room* pRoom)
 		}
 		else if (diff < 0)
 		{
-			// 큐가 가득 참
-			// 다른 스레드가 먼저 넣어서 밀린 경우이므로 pos 최신화
+			// Strand 불변식: MaxRoomCount(100) < BufferSize(128) 이므로 절대 도달 불가.
+			// 여기 도달 = MaxRoomCount 설정 오류 또는 메모리 오염.
+			LOG_ERROR("[FATAL] GlobalQueue Overflow! BufferMask=%u enqueuePos=%u", m_bufferMask, pos);
+			assert(false && "CRITICAL: GlobalQueue Overflow — MaxRoomCount >= BufferSize");
+			std::abort(); // Release 빌드에서도 CrashDump 트리거
 			pos = m_enqueuePos.load(std::memory_order_relaxed);
 		}
 		else
