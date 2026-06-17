@@ -19,7 +19,7 @@
 class GlobalQueue_LockFree
 {
 private:
-	struct Cell
+	struct alignas(64) Cell
 	{
 		std::atomic<int32_t> sequence;
 		Room* data;
