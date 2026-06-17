@@ -538,3 +538,15 @@ TEST(GlobalQueueSemaphore, ShutdownWakesAllBlockedConsumers)
     EXPECT_EQ(nullCount.load(), CONSUMERS)
         << "All consumers should receive nullptr after Shutdown";
 }
+
+// ── 소멸자 커버: Init 후 스코프 종료 시 delete[] m_buffer 경로 ──────────────
+TEST(GlobalQueueDestructor, DestructorFreesBuffer)
+{
+    // 블록 스코프 안에서 Init 완료 후 소멸 → ~GlobalQueue_LockFree() → delete[] 실행
+    {
+        GlobalQueue_LockFree q;
+        q.Init(8);
+        q.Shutdown();
+    }  // ← 소멸자 호출 확정
+    SUCCEED();
+}

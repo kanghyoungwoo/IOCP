@@ -1,8 +1,10 @@
 ﻿#include <gtest/gtest.h>
 #include "../User.h"
+#include "../Packet.h"
 #include <thread>
 #include <vector>
 #include <atomic>
+#include <cstring>
 
 class UserTest : public ::testing::Test
 {
@@ -404,4 +406,58 @@ TEST_F(UserTest, ConcurrentEnterRoomAndReadNoInconsistency)
 
     EXPECT_EQ(inconsistencyCount.load(), 0)
         << "state==ROOM but roomIndex != 5 detected -- atomic ordering bug";
+}
+
+// ── SetPacketData 오버플로우 경로 (User.cpp:35-36) ───────────────────────────
+//  RING_BUFFER_SIZE(4096) 보다 큰 데이터를 분할 기록해 링버퍼를 꽉 채운 뒤
+//  추가 쓰기를 시도하면 written < dataSize_ → false 반환
+
+TEST_F(UserTest, SetPacketData_Overflow_ReturnsFalse)
+{
+    // 링버퍼를 꽉 채울 더미 데이터 (RING_BUFFER_SIZE - 1 바이트까지 쓸 수 있음)
+    std::vector<char> fill(RING_BUFFER_SIZE - 1, 'X');
+    user.SetPacketData(static_cast<UINT32>(fill.size()), fill.data());
+
+    // 추가 쓰기 → 빈 공간 없음 → overflow → false
+    char extra[] = "overflow";
+    bool ok = user.SetPacketData(static_cast<UINT32>(strlen(extra)), extra);
+    EXPECT_FALSE(ok);
+}
+
+// ── GetPacket 유효하지 않은 PacketLength 경로 (User.cpp:57-60) ───────────────
+//  PacketLength < PACKET_HEADER_LENGTH 인 손상된 헤더를 링버퍼에 직접 삽입
+
+TEST_F(UserTest, GetPacket_InvalidPacketLength_TooSmall_ClearsBuffer)
+{
+    // 헤더의 PacketLength를 헤더 크기보다 작게 (= 손상)
+    PACKET_HEADER badHdr{};
+    badHdr.PacketLength = static_cast<UINT16>(PACKET_HEADER_LENGTH - 1);
+    badHdr.PacketId     = 9999;
+
+    user.SetPacketData(PACKET_HEADER_LENGTH,
+                       reinterpret_cast<char*>(&badHdr));
+
+    char outBuf[MAX_SINGLE_PACKET_SIZE];
+    PacketInfo info = user.GetPacket(outBuf, sizeof(outBuf));
+
+    // 유효하지 않은 헤더 → 버퍼 초기화 후 빈 PacketInfo 반환
+    EXPECT_EQ(info.PacketId, 0u);
+    EXPECT_EQ(info.DataSize, 0u);
+}
+
+TEST_F(UserTest, GetPacket_InvalidPacketLength_TooLarge_ClearsBuffer)
+{
+    // PacketLength가 MAX_SINGLE_PACKET_SIZE 초과 (= 손상)
+    PACKET_HEADER badHdr{};
+    badHdr.PacketLength = static_cast<UINT16>(MAX_SINGLE_PACKET_SIZE + 1);
+    badHdr.PacketId     = 9999;
+
+    user.SetPacketData(PACKET_HEADER_LENGTH,
+                       reinterpret_cast<char*>(&badHdr));
+
+    char outBuf[MAX_SINGLE_PACKET_SIZE];
+    PacketInfo info = user.GetPacket(outBuf, sizeof(outBuf));
+
+    EXPECT_EQ(info.PacketId, 0u);
+    EXPECT_EQ(info.DataSize, 0u);
 }

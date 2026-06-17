@@ -3,6 +3,11 @@
 #include <Windows.h>
 #include <stdexcept>
 
+GlobalQueue_LockFree::~GlobalQueue_LockFree()
+{
+	delete[] m_buffer;
+}
+
 void GlobalQueue_LockFree::Init(uint32_t bufferSize)
 {
 	// 2의 거듭제곱인지 검사 (비트마스크 사용 위해 필수조건)

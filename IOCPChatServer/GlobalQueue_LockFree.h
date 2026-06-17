@@ -44,10 +44,7 @@ public:
 		m_enqueuePos = 0;
 		m_dequeuePos = 0;
 	}
-	~GlobalQueue_LockFree()
-	{
-		delete[] m_buffer;
-	}
+	~GlobalQueue_LockFree();
 	Room* Pop();
 	void Init(uint32_t bufferSize);
 	void Push(Room* pRoom);

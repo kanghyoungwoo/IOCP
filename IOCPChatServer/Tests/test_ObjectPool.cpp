@@ -4,7 +4,6 @@
 #include <vector>
 #include <set>
 #include <atomic>
-
 struct PoolItem
 {
     uint32_t poolNext = NULL_INDEX;
@@ -343,4 +342,17 @@ TEST(ObjectPoolBatchConcurrent, ConcurrentAllocBatchNoDuplicates)
         for (auto* p : results[t])
             concPool.Free(p);
     EXPECT_EQ(concPool.GetFreeCount(), POOL_SZ);
+}
+
+// ==================== Free() 범위 밖 포인터 (out-of-range 체크 커버) ====================
+
+TEST_F(ObjectPoolTest, FreeOutOfRangePointerIgnored)
+{
+    // Release 빌드에서 assert는 no-op이므로 return 경로만 실행됨
+    // 스택 변수는 heap 할당된 pool 범위 밖 → out-of-range 체크 진입
+    PoolItem external;
+    external.poolNext = NULL_INDEX;
+    uint32_t before = pool.GetFreeCount();
+    pool.Free(&external);
+    EXPECT_EQ(pool.GetFreeCount(), before);
 }

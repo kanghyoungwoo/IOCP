@@ -631,3 +631,51 @@ TEST(RoomConcurrentEnqueue, BrokenRoomDropsAllConcurrentJobs)
     EXPECT_EQ(room.GetMsgCount().load(), 0);
 }
 
+// ── Reset 에 freeFunc 를 주고 mLocalQueue 에 남은 Job 을 회수 (83-84) ─────────
+TEST_F(RoomTest, Reset_WithFreeFunc_DrainsLocalQueue)
+{
+    // EnqueueJob 은 targetGeneration 이 room generation 과 일치해야 큐에 들어감
+    PacketJob job1, job2;
+    job1.job.targetGeneration = room.GetGeneration();
+    job2.job.targetGeneration = room.GetGeneration();
+    room.EnqueueJob(&job1);
+    room.EnqueueJob(&job2);
+
+    int freed = 0;
+    room.Reset(1, MAX_ROOM_USERS, [&](PacketJob* pJob) { ++freed; });
+
+    EXPECT_GE(freed, 1) << "Reset 은 잔여 Job 을 freeFunc 로 회수해야 한다";
+}
+
+// ── NotifyChat → SendToAllUser 경유: 루프/broadcast 분기 (135, 142) ──────────
+//  SendToAllUser 는 private 이므로 NotifyChat 을 통해 간접 커버한다.
+//  NotifyChat 은 skip_=false 로 호출 → 발신자 포함 전원이 수신한다.
+
+TEST_F(RoomTest, NotifyChat_AllMembersReceiveBroadcast)
+{
+    room.EnterUser(&users[0]);  // connIdx=10
+    room.EnterUser(&users[1]);  // connIdx=11
+
+    ROOM_CHAT_REQUEST_PACKET pkt{};
+    pkt.PacketId     = (UINT16)PACKET_ID::ROOM_CHAT_REQUEST;
+    pkt.PacketLength = sizeof(pkt);
+    strncpy_s(pkt.Message, "hi", _TRUNCATE);
+
+    room.NotifyChat(10, "user0", &pkt);
+
+    // skip_=false → 발신자(10) 포함 전원이 EnqueueOnlyFunc 수신
+    EXPECT_EQ(broadcastCalls.size(), 2u);
+}
+
+TEST_F(RoomTest, NotifyChat_EmptyRoom_NoBroadcast)
+{
+    ROOM_CHAT_REQUEST_PACKET pkt{};
+    pkt.PacketId     = (UINT16)PACKET_ID::ROOM_CHAT_REQUEST;
+    pkt.PacketLength = sizeof(pkt);
+    strncpy_s(pkt.Message, "ghost", _TRUNCATE);
+
+    room.NotifyChat(0, "ghost", &pkt);
+
+    EXPECT_EQ(broadcastCalls.size(), 0u);
+}
+
