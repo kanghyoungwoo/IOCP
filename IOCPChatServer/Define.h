@@ -2,6 +2,7 @@
 #include <winsock2.h>
 #include <Ws2tcpip.h>
 #include <mswsock.h>
+#include <atomic>
 #include <cstdint>
 #include <cstdio>
 
@@ -121,6 +122,6 @@ struct SendOverlappedEx
 {
     OverlappedBase  base;                   // 첫 번째 멤버 (offset 0)
     char            buffer[MAX_SOCKBUF];
-    uint32_t        poolNext = UINT32_MAX;
+    std::atomic<uint32_t> poolNext{UINT32_MAX};
 };
 

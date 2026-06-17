@@ -50,7 +50,7 @@ public:
 		while (true)
 		{
 			TaggedIndex old = Unpack(oldHead);
-			obj->poolNext = old.index;	// T*가 아닌 uint32_t 인덱스 저장
+			obj->poolNext.store(old.index, std::memory_order_relaxed);
 
 			uint64_t newHead = Pack(objIndex, old.generation + 1);
 
@@ -73,7 +73,7 @@ public:
 			if (old.index == NULL_INDEX)
 				return nullptr;
 
-			uint32_t nextIndex = m_pool[old.index].poolNext;	// 인덱스로 접근
+			uint32_t nextIndex = m_pool[old.index].poolNext.load(std::memory_order_relaxed);
 			uint64_t newHead = Pack(nextIndex, old.generation + 1);
 
 			if (m_head.compare_exchange_weak(
@@ -109,7 +109,7 @@ public:
 				if (curIdx == NULL_INDEX) break;
 				if (curIdx >= m_capacity) break;  // OOB 방어
 				outArray[actualCount++] = &m_pool[curIdx];
-				curIdx = m_pool[curIdx].poolNext;
+				curIdx = m_pool[curIdx].poolNext.load(std::memory_order_relaxed);
 			}
 			if (actualCount == 0) return 0;
 

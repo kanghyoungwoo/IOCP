@@ -12,7 +12,7 @@ struct PacketJob
 	// 두 phase 공통 필드 (라우팅/ generation)
 	uint32_t clientIndex = 0;               // 4 bytes, offset 8
 	uint32_t sessionGeneration = 0;               // 4 bytes, offset 12
-	uint32_t poolNext = UINT32_MAX;      // 4 bytes, offset 16
+	std::atomic<uint32_t> poolNext{UINT32_MAX};
 
 	enum class Phase : uint8_t { JOB, STRAND_CALLBACK };
 	Phase phase = Phase::JOB;      // 1 byte,  offset 20

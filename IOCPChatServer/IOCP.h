@@ -13,7 +13,17 @@
 
 struct SessionNode
 {
-	uint32_t poolNext = NULL_INDEX;
+	std::atomic<uint32_t> poolNext{NULL_INDEX};
+
+	// std::vector 재할당 시 필요 — vector resize는 단일 스레드 맥락이므로 안전
+	SessionNode() = default;
+	SessionNode(SessionNode&& o) noexcept
+		: poolNext(o.poolNext.load(std::memory_order_relaxed)) {}
+	SessionNode& operator=(SessionNode&& o) noexcept
+	{
+		poolNext.store(o.poolNext.load(std::memory_order_relaxed), std::memory_order_relaxed);
+		return *this;
+	}
 };
 
 class IOCompletionPort

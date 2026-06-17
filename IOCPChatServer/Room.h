@@ -83,6 +83,6 @@ private:
 	std::atomic<bool>		mIsBroken{ false };	// Poison Pill 격리 flag
 
 	// Pool 링크 (Object Pool용, intrusive)
-	uint32_t poolNext = UINT32_MAX;	// LockFreeStack에서 사용
+	std::atomic<uint32_t> poolNext{UINT32_MAX};
 
 };

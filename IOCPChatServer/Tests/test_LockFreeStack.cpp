@@ -6,7 +6,7 @@
 
 struct StackNode
 {
-    uint32_t poolNext = NULL_INDEX;
+    std::atomic<uint32_t> poolNext{NULL_INDEX};
     int value = 0;
 };
 

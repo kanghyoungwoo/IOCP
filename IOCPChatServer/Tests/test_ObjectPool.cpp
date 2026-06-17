@@ -6,7 +6,7 @@
 #include <atomic>
 struct PoolItem
 {
-    uint32_t poolNext = NULL_INDEX;
+    std::atomic<uint32_t> poolNext{NULL_INDEX};
     int data = 0;
 };
 
