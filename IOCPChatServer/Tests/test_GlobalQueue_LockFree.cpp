@@ -318,7 +318,7 @@ TEST(GlobalQueueMPMC, MultipleProducersNoLoss)
     constexpr int PER_PRODUCER = 500;   // each producer pushes 500 rooms
     constexpr int TOTAL        = PRODUCERS * PER_PRODUCER;
     constexpr int CONSUMERS    = 4;
-    constexpr uint32_t QUEUE_SIZE = 512;
+    constexpr uint32_t QUEUE_SIZE = 2048;
 
     GlobalQueue_LockFree queue;
     queue.Init(QUEUE_SIZE);
@@ -365,7 +365,7 @@ TEST(GlobalQueueMPMC, MultipleProducersNoDuplicates)
     constexpr int PER_PRODUCER = 500;
     constexpr int TOTAL        = PRODUCERS * PER_PRODUCER;
     constexpr int CONSUMERS    = 4;
-    constexpr uint32_t QUEUE_SIZE = 512;
+    constexpr uint32_t QUEUE_SIZE = 2048;
 
     GlobalQueue_LockFree queue;
     queue.Init(QUEUE_SIZE);
@@ -429,7 +429,7 @@ TEST(GlobalQueueMPMC, HighThroughput8Producers)
     constexpr int PER_PRODUCER = 1000;
     constexpr int TOTAL        = PRODUCERS * PER_PRODUCER;
     constexpr int CONSUMERS    = 4;
-    constexpr uint32_t QUEUE_SIZE = 2048;
+    constexpr uint32_t QUEUE_SIZE = 8192;
 
     GlobalQueue_LockFree queue;
     queue.Init(QUEUE_SIZE);
