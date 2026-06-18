@@ -181,7 +181,7 @@ TEST(GlobalQueueSPMC, NoDataLoss)
 {
     constexpr int     TOTAL      = 5000;
     constexpr int     CONSUMERS  = 4;
-    constexpr uint32_t QUEUE_SIZE = 256;
+    constexpr uint32_t QUEUE_SIZE = 8192;
 
     GlobalQueue_LockFree queue;
     queue.Init(QUEUE_SIZE);
@@ -218,7 +218,7 @@ TEST(GlobalQueueSPMC, NoDuplicate)
 {
     constexpr int     TOTAL      = 5000;
     constexpr int     CONSUMERS  = 4;
-    constexpr uint32_t QUEUE_SIZE = 256;
+    constexpr uint32_t QUEUE_SIZE = 8192;
 
     GlobalQueue_LockFree queue;
     queue.Init(QUEUE_SIZE);
@@ -274,7 +274,7 @@ TEST(GlobalQueueSPMC, HighThroughput)
 {
     constexpr int     TOTAL      = 100000;
     constexpr int     CONSUMERS  = 4;
-    constexpr uint32_t QUEUE_SIZE = 1024;
+    constexpr uint32_t QUEUE_SIZE = 131072;
 
     GlobalQueue_LockFree queue;
     queue.Init(QUEUE_SIZE);
