@@ -14,7 +14,6 @@ class LockFreeStack;
 
 class Room
 {
-	friend class LockFreeStack<Room>;
 public:
 	enum class EnqueueResult
 	{
@@ -81,8 +80,5 @@ private:
 	std::atomic<int>		mMsgCount{ 0 };		// Push/Pop 동기화 카운터
 	std::atomic<uint32_t>	mGeneration{ 0 };	// ABA 방지 세대 카운터
 	std::atomic<bool>		mIsBroken{ false };	// Poison Pill 격리 flag
-
-	// Pool 링크 (Object Pool용, intrusive)
-	std::atomic<uint32_t> poolNext{UINT32_MAX};
 
 };
