@@ -73,12 +73,13 @@ void GlobalQueue_LockFree::Push(Room* pRoom)
 		}
 		else if (diff < 0)
 		{
-			// Strand 불변식: MaxRoomCount(100) < BufferSize(128) 이므로 절대 도달 불가.
-			// 여기 도달 = MaxRoomCount 설정 오류 또는 메모리 오염.
+			// Strand 불변식: 큐 버퍼는 StrandProcessor::Init에서
+			// GetNextPowerOf2(MaxRoomCount) 이상으로 동적 설정되고, 각 방은
+			// mMsgCount==0 일 때만 1회 Push되므로 동시 적재 Room 수 <= 버퍼 크기다.
+			// 여기 도달 = 설정 오류 또는 메모리 오염 → 조용히 진행하지 않고 즉시 덤프.
 			LOG_ERROR("[FATAL] GlobalQueue Overflow! BufferMask=%u enqueuePos=%u", m_bufferMask, pos);
 			assert(false && "CRITICAL: GlobalQueue Overflow — MaxRoomCount >= BufferSize");
-			std::abort(); // Release 빌드에서도 CrashDump 트리거
-			pos = m_enqueuePos.load(std::memory_order_relaxed);
+			std::abort(); // Release 빌드에서도 CrashDump 트리거 (아래는 도달 불가)
 		}
 		else
 		{

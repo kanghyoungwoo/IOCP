@@ -75,6 +75,9 @@ public:
     uint32_t GetJobPoolSize() const { return mJobPool.GetPoolSize(); }
     uint32_t GetCurrentFreeCount() const { return mJobPool.GetFreeCount(); }
     uint64_t GetAllocTotalCount() const { return mAllocTotalCount.load(std::memory_order_relaxed); }
+    // PopWithBackoff가 Hole 해소를 기다리다 타임아웃하여 방을 강제 종료(SetBroken)한 횟수.
+    // 0이면 선점 Hole이 백오프 내에서 해소된 것, >0이면 Hole 타임아웃이 실제로 발생한 것.
+    uint64_t GetPopTimeoutCount() const { return mPopTimeoutCount.load(std::memory_order_relaxed); }
 
 private:
     static constexpr uint32_t BATCH_SIZE = 16;
@@ -108,5 +111,6 @@ private:
     // 모니터링 용도
     std::atomic<uint64_t> mAllocFailCount{ 0 };
     std::atomic<uint64_t> mAllocTotalCount{ 0 };
+    std::atomic<uint64_t> mPopTimeoutCount{ 0 };  // PopWithBackoff Hole 타임아웃 → 방 강제종료 횟수
 
 };

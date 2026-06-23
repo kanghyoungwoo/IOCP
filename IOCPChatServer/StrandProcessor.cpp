@@ -32,6 +32,8 @@ void StrandProcessor::Stop()
         }
     }
     mLogicThreads.clear();
+    LOG_INFO("[StrandProcessor] PopWithBackoff Hole 타임아웃(→방 강제종료): %llu회",
+             mPopTimeoutCount.load(std::memory_order_relaxed));
     LOG_DEBUG("StrandProcessor: 모든 Logic Thread 종료하고 Stop 완료");
 }
 
@@ -316,33 +318,56 @@ void StrandProcessor::HandleRoomEnter(Room* pRoom, PacketJob* pJob)
 
 PacketJob* StrandProcessor::PopWithBackoff(Room* pRoom)
 {
-    // NOTE: SPSCQueue 사용 시 Hole이 발생하지 않으므로
-    // 아래 spin loop는 실행되지 않음 (MPSCQueue 전환 대비 보존)
+    // v4(IOCP Worker 직접 라우팅)에서 LocalQueue가 SPSC→MPSC로 바뀌면서,
+    // Push의 m_tail.exchange()와 mpscNext.store() 사이 선점(Hole)이 실제로 발생할 수 있다.
+    // 따라서 아래 백오프 루프는 라이브 경로다. (SPSC 시절엔 Hole이 없어 미실행이었음)
     PacketJob* pJob = pRoom->GetLocalQueue().Pop();
     if (pJob != nullptr)
-        return pJob; // 대부분은 여기서 바로 성공
+        return pJob; // 대부분은 여기서 바로 성공 (Hole 아님)
 
-    // pop 실패 -> preemption Hole 의심, 단계별 대기
+    // Pop 실패 → 생산자 선점 Hole 의심. 단조 증가(escalating) 백오프로 대기한다.
+    // 타임아웃은 spin '횟수'가 아니라 '경과 시간'으로 판정한다:
+    //   phase3의 양보 호출(SwitchToThread) 비용이 가변적이라, 횟수 기준은 실제 대기시간이
+    //   들쭉날쭉해진다. 시간 기준은 백오프 방식과 무관하게 타임아웃 실시간을 일정하게 유지한다.
+    static const LARGE_INTEGER s_freq = [] {
+        LARGE_INTEGER f; QueryPerformanceFrequency(&f); return f;
+    }();
+    LARGE_INTEGER start;
+    QueryPerformanceCounter(&start);
+    constexpr double TIMEOUT_MS = 2.0;  // Hole 해소 대기 상한
+
+    const uint32_t PHASE1_LIMIT = 64;
+    const uint32_t PHASE2_LIMIT = 1024;
+
     uint32_t spinCount = 0;
-    const uint32_t PHASE1_LIMIT  = 64;
-    const uint32_t PHASE2_LIMIT  = 1024;
-    const uint32_t TIMEOUT_LIMIT = 100000;
-
     while ((pJob = pRoom->GetLocalQueue().Pop()) == nullptr)
     {
         if (spinCount < PHASE1_LIMIT)
         {
-            _mm_pause();    // phase1: cpu에게 대기 중임 알림
+            _mm_pause();        // phase1: HT sibling에 힌트, 초단기 busy-wait
+            ++spinCount;
         }
         else if (spinCount < PHASE2_LIMIT)
         {
-            Sleep(0);       // phase2: 같은 우선순위 스레드에 양보
+            Sleep(0);           // phase2: 동일·상위 우선순위 ready 스레드에 양보
+            ++spinCount;
         }
-        else if (spinCount >= TIMEOUT_LIMIT)
+        else
         {
-            return nullptr; // phase3: 타임아웃, 포기
+            // phase3: 현재 코어의 ready 스레드(=선점된 생산자)에 양보.
+            // SwitchToThread는 우선순위 무관·동일 코어 양보라 Hole을 유발한 생산자를
+            // 깨우는 데 가장 적합하다. (구버그: 이 구간이 무양보 busy-spin이라 같은 코어의
+            //  생산자 재스케줄을 방해 → 자기가 기다리는 Hole을 자기가 막는 self-livelock)
+            SwitchToThread();
+            LARGE_INTEGER now;
+            QueryPerformanceCounter(&now);
+            double elapsedMs = (now.QuadPart - start.QuadPart) * 1000.0 / s_freq.QuadPart;
+            if (elapsedMs >= TIMEOUT_MS)
+            {
+                mPopTimeoutCount.fetch_add(1, std::memory_order_relaxed);
+                return nullptr; // 타임아웃 → 호출부에서 SetBroken
+            }
         }
-        ++spinCount;
     }
     return pJob;
 }
